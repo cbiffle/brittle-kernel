@@ -106,11 +106,32 @@ static SysResult call(bool block,
  */
 
 static constexpr uintptr_t
+  k0 = 0,
   k_tx_port = 4,
   k_rx_port = 5,
   k_saved_reply = 8,
   k_reg = 14,
   k_sys = 15;
+
+static constexpr uintptr_t
+  t_sys_move_cap = 0,
+  t_sys_mask = 1,
+  t_sys_unmask = 2,
+
+  t_mon_heartbeat = 0,
+
+  t_mem_write32 = 0,
+  t_mem_read32 = 1,
+  
+  t_tx_send1 = 0,
+  
+  t_rx_recv1 = 0;
+
+static constexpr uintptr_t
+  b_mon = 0,
+  b_tx = 1,
+  b_irq = 2,
+  b_rx = 3;
 
 static void reply(uintptr_t md0 = 0,
                   uintptr_t md1 = 0,
@@ -120,42 +141,42 @@ static void reply(uintptr_t md0 = 0,
 }
 
 static void move_cap(uintptr_t from, uintptr_t to) {
-  send(true, k_sys, Message{0, from, to});
+  send(true, k_sys, Message{t_sys_move_cap, from, to});
 }
 
 static void mask(uintptr_t port_key) {
-  send(true, k_sys, Message{1, port_key});
+  send(true, k_sys, Message{t_sys_mask, port_key});
 }
 
 static void unmask(uintptr_t port_key) {
-  send(true, k_sys, Message{2, port_key});
+  send(true, k_sys, Message{t_sys_unmask, port_key});
 }
 
 static void write_cr1(uint32_t value) {
-  send(true, k_reg, Message{0, 0xC, value});
+  send(true, k_reg, Message{t_mem_write32, 0xC, value});
 }
 
 static void write_dr(uint8_t value) {
-  send(true, k_reg, Message{0, 4, value});
+  send(true, k_reg, Message{t_mem_write32, 4, value});
 }
 
 static uint32_t read_dr() {
   ReceivedMessage response{};
-  auto r = call(true, k_reg, Message{1, 4}, &response);
+  auto r = call(true, k_reg, Message{t_mem_read32, 4}, &response);
   assert(r == SysResult::success);
   return uint32_t(response.m.data[0]);
 }
 
 static uint32_t read_cr1() {
   ReceivedMessage response{};
-  auto r = call(true, k_reg, Message{1, 0xC}, &response);
+  auto r = call(true, k_reg, Message{t_mem_read32, 0xC}, &response);
   assert(r == SysResult::success);
   return uint32_t(response.m.data[0]);
 }
 
 static uint32_t read_sr() {
   ReceivedMessage response{};
-  auto r = call(true, k_reg, Message{1, 0}, &response);
+  auto r = call(true, k_reg, Message{t_mem_read32, 0}, &response);
   assert(r == SysResult::success);
   return uint32_t(response.m.data[0]);
 }
@@ -170,7 +191,7 @@ static void enable_irq_on_rxne() {
 
 static void handle_mon(Message const & req) {
   switch (req.data[0]) {
-    case 0:  // heartbeat
+    case t_mon_heartbeat:
       reply(req.data[1], req.data[2], req.data[3]);
       break;
   }
@@ -185,7 +206,7 @@ static void do_send1(Message const & req) {
 
 static void handle_tx(Message const & req) {
   switch (req.data[0]) {
-    case 0: do_send1(req); break;
+    case t_tx_send1: do_send1(req); break;
   }
 }
 
@@ -220,7 +241,7 @@ static void do_recv1(Message const & req) {
 
 static void handle_rx(Message const & req) {
   switch (req.data[0]) {
-    case 0: do_recv1(req); break;
+    case t_rx_recv1: do_recv1(req); break;
   }
 }
 
@@ -232,14 +253,14 @@ int main() {
     auto r = open_receive(true, &rm);
     if (r != SysResult::success) continue;
 
-    move_cap(0, k_saved_reply);
+    move_cap(k0, k_saved_reply);
     // TODO: clear transients
 
     switch (rm.brand) {
-      case 0: handle_mon(rm.m); break;
-      case 1: handle_tx(rm.m); break;
-      case 2: handle_irq(rm.m); break;
-      case 3: handle_rx(rm.m); break;
+      case b_mon: handle_mon(rm.m); break;
+      case b_tx: handle_tx(rm.m); break;
+      case b_irq: handle_irq(rm.m); break;
+      case b_rx: handle_rx(rm.m); break;
     }
   }
 }
