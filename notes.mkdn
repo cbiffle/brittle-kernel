@@ -1,0 +1,92 @@
+
+Task Multiplexing
+=================
+
+A way of stretching limited RAM resources.
+
+Define a bunch of periodic run-to-completion tasks such that no two overlap.
+Run them all on a shared stack.
+
+This has some complications.
+
+1. If a task does not complete by its deadline, we cannot simply suspend it and
+   run it in the next quantum -- because it's using the stack.
+
+2. Aborting a task, particularly one interacting with hardware, can be
+   complicated.
+
+3. It's likely improper to shut down a task outright, since it may be hardware,
+   and not the task, that is misbehaving.  Consider I2C.
+
+
+Posting Results
+===============
+
+A common message type may stress the obvious message size limit.
+
+Consider an inertial sensor emitting a vec3.  We have:
+
+- The channel name (1).
+- The timestamp (2).
+- The vector (3).
+
+Total of 6 words.
+
+Well, okay, this could be done in registers.  Assume that the verb (POST) and
+the target (DATA) occupy additional registers.  The metadata for this message
+consumes 5 registers.  Best-case we have 12 general purpose registers, limiting
+the payload data to 7.
+
+
+Memory Access Grants
+====================
+
+Each task might have a small amount of memory reserved for describing grants.
+Grants would likely be set up just before sending a message, and would remain
+valid for the duration of the message, automatically resetting on resume.
+
+This implies that grants would apply only to blocking messages.
+
+The recipient of a message whose sender has established grants gains the ability
+to perform kernel-mediated accesses of the granted memory.  Sufficiently trusted
+processes may even be able to derive its physical address and set up DMA.
+
+
+Timeouts
+========
+
+I'm not sure that the sender of a message should ever be able to time out on
+the recipient.
+
+There are cases where timeouts are useful, surely, but these should be handled
+at a higher layer.  The request should include a deadline, and the server should
+honor it to the extent possible.
+
+Should a deadline be part of every message?  Unclear.
+
+
+Priorities
+==========
+
+Blocking messages have the potential for priority inversion.  So do higher
+level concepts implemented by multiple message sends, e.g. mutexes.
+
+Mutexes
+-------
+
+Probably the simplest approach: model mutexes as a sort of privileged process
+that can mess with other process's priorities.  If a request comes in and some
+task is holding the mutex, the priority of the request is transferred to the
+holder.
+
+This implies the need for a priority-sorted data structure like a heap.
+
+Locking and unlocking are both potentially O(log n).
+
+Priority ceiling is another option, of course, where the mutex has an associated
+priority and hands it out to whoever locks it.
+
+Note that, if N tasks are contending and we want the highest-priority task to
+win, we still need a heap, and unlocking is still potentially O(log N).
+
+

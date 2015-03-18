@@ -1,0 +1,126 @@
+This sketch of the system is founded on the notion of a static object zoo and
+layout, fixed at compile time.
+
+Tasks are individually isolated computing environments rather like Unix
+processes.  Each has some immutable code and some mutable data.
+
+Ideally, a task cannot reach any code not related to its task.  This implies
+that tasks probably need to be separately compiled.
+
+
+Each task has an associated c-list or capability-list.  Capabilities act as both
+resource names and access indicators.  A task's c-list entries are numbered
+starting at zero, much like file descriptors.
+
+
+There are only a handful of syscalls, all oriented toward messaging.
+
+Messaging is rendezvous-style synchronous normally.  The sender of a message
+can decide whether they are willing to block if the recipient is not ready.
+
+An asynchronous mechanism also makes sense to me: the task sets aside some
+memory to hold information about the asynchronous message, and then informs
+the kernel of its intent.  The task is responsible for maintaining that
+memory.  If it sends successfully the kernel will poke results into the
+memory.
+
+(In such a case, who pays for the queue node?  Might make sense to allocate an
+intervening kernel object instead of using user memory.)
+
+
+IPC is not targeted at tasks, but rather at ports.  Many tasks could
+conceivably answer messages sent to a single port.  To send a message to, or
+receive a message from, a port, a task must hold a capability to that port with
+the appropriate bits set.
+
+A port can be bound to a task (one task at a time).  A task can execute a
+special form of receive that will receive from all of its bound ports.  Bound
+ports have a "mask" status controlled by the task they're bound to.  A masked
+port is ignored during general receives (but can be recieved from directly).
+
+The port binding process is bidirectional: a task can enumerate its bound ports,
+and each port knows it is bound to a task.
+
+
+
+Interrupts
+----------
+
+Interrupts appear as kernel objects not unlike ports.  They can be bound to
+a task such that that task receives messages from the interrupt.  The
+implementation is:
+
+ - On interrupt, the kernel performs a message send to the bound task on
+   behalf of the interrupt, and takes whatever action is required to stop
+   the interrupt from recurring.
+
+ - The task receives the message (eventually) and processes stuff.
+
+ - On reply, the interrupt can be reenabled.
+
+
+Peripheral Access
+-----------------
+
+For performance, we will probably want to map peripherals into driver task
+address space.
+
+
+Alternatives to binding
+-----------------------
+
+The binding scheme described above feels a little odd to me.
+
+Branding is one alternative option.  If capabilities are branded with a bit
+pattern and the owner can distinguish them, then (for example) a driver could
+distribute different such capabilities to clients vs. the interrupt handler.
+
+When a message arrives, its origin would be distinguished by its brand.
+
+This does *not* provide a clear solution to masking, which is kind of a nice
+idea.
+
+What about a hybrid?
+
+What if ports can be created as little facades for tasks, containing a brand.
+Such a port is permanently associated with the task, such that the task can
+control it in certain ways, including masking it.
+
+
+What if the general receive operation would take from any object to which you
+held a receive key?  This is easy enough to implement on the receiver's side,
+but harder to do efficiently at the sender -- the task would need to be placed
+in the receive queues of many objects, necessitating many queue nodes of
+memory.
+
+
+Asynchronous Notifications
+--------------------------
+
+These are binary-semaphore-like: a word's worth of bits that could be set by
+sends and cleared by receive.  These could be sent without blocking by any
+task holding the right key.
+
+Can any port accept asynchronous notifications?  Maybe.  Having a single port
+able to accept both asynchronous and traditional may make sense, so...
+
+Asynchronous notifications should be available through general receive if the
+port is bound.
+
+
+
+Versioning
+----------
+
+A capability must, at its simplest, involve a reference to an object.  Let's
+assume that's implemented with a pointer in the kernel.
+
+But not all capabilities to an object should convey the same rights.  We could
+hand out capabilities to right-limiting facade objects somehow, or we could
+encode the rights into the capability as (say) a pointer-sized integer and
+deliver this, unforgeably, to the owner when the capability is used.
+
+Do we also need a way of detecting when a capability is used across object
+replacement?  Do we need a method for revocation?
+
+Unclear.

@@ -1,0 +1,154 @@
+Tasks and Message and Such
+==========================
+
+Tasks are isolated units of code and data.
+
+Tasks may have ports, which are exposed points to which other tasks (and the
+system) may send messages if they hold a key to the port.
+
+Messages are sent synchronously, rendezvous-style.
+
+The recieving task may choose to receive from a specific port to which it holds
+a receive key, or from any of its associated ports.
+
+A task can mask and unmask its associated ports using their receive keys.  While
+a port is masked it does not participate in undirected receive.
+
+
+Reply Keys
+----------
+
+When a task sends a message that expects a reply, it sends the caller a reply
+key.  This is a single-use key that can be sent to to resume the caller.  It is
+efficiently destroyed when (1) the recipient resumes the caller or (2) the
+caller dies for some reason while waiting.
+
+
+Inability to abort, scoped resource grants
+------------------------------------------
+
+Once a message is delivered the caller is at the mercy of the recipient and
+cannot abort or timeout (without being killed).  This simplifies resource
+grants.
+
+Resource grants are used to give a message recipient temporary access to
+resources (currently: memory) held by the caller.  A task can construct a
+grant (cheaply, using resources in the TCB) and pass it with a message.  The
+recipient can manipulate it with messages to e.g. read/write bytes.  As an
+optimization the recipient may be able to map it in directly.  TBD.
+
+The grant is automatically destroyed when the message returns.
+
+We may want to provide some other method for persistent grants.
+
+
+Interruption during wait
+------------------------
+
+While the caller can't abort once the recipient has noticed the message, it
+might be useful to abort *before* that, while the caller is on the wait
+queue.  Timeouts are too specific.
+
+- Perhaps the wait operation could be associated with a priority, and the
+  reception of any higher-priority message causes it to fail with an
+  "interrupted" status?  
+
+- Or maybe the caller can specify what sort of event, or which port, can
+  interrupt a call?
+
+
+Failure cases
+-------------
+
+From the caller's perspective, a call can fail in the following ways:
+
+- Bad use of key.  (Likely a programming error.)
+- Interrupted during wait.
+- Recipient destroyed during wait.
+- Recipient destroyed during processing but before reply.
+
+A unidirectional send can fail for the first three reasons but not the last.
+
+A nonblocking send cannot fail for any of these reasons.
+
+In addition, a message may "succeed" as far as the kernel is concerned but carry
+word of a protocol-level error.  I'm not sure whether we should multiplex these
+two error channels into one.  It might reduce usage complexity, but it might
+be confusing.
+
+
+Asynchronous messages
+---------------------
+
+Certain patterns would be nicely supported by an asynchronous message mechanism.
+Sending messages requires resources, so in the current fully-static model, there
+might be asynchronous message proxy objects.
+
+These proxies would provide one or more outgoing message slots.  The controlling
+task could load a message in, cause it to be sent, and check on its status.
+The task might be able to cancel the message during wait.  These would be usable
+for both unidirectional and call-style messages.
+
+This basically describes the behavior of interrupts, too, so perhaps they share
+code.
+
+Some of the use cases for both of these might be better supported by qnx-style
+asynchronous notification bit groups.
+
+
+DMA
+---
+
+DMA is potentially tricky because of the lack of an IOMMU.
+
+DMA has to stop if either end of a transfer falls inside a task's memory and
+the task is killed.  This implies that
+
+1. We need a way of identifying, cheaply, which DMA transfers are related to
+   a task.  (Note that transfers to peripherals that happen to be mapped into
+   a task wouldn't count.)
+
+2. We need a mechanism for cheaply disabling them.
+
+3. A dying task may need an intermediate "waiting for DMA to really stop" state
+   before its RAM can be reused.
+
+4. We need a way of notifying the controlling driver that this has happened,
+   since it may need to shut down more stuff.
+
+This may hint at a more general thing: do we need a way to notify servers that
+a client has died, and they can stop processing the client's unit of work?
+What about forwarded requests?
+
+
+Messaging convention
+--------------------
+
+A message consists of N pointer-sized quantities (currently N is likely to be
+8) and M keys (M is likely to be 4).  Both are copied directly.  The N
+quantities are probably taken from the sender's register set.  The M keys are
+taken from the low M slots in the sender's keyring.
+
+If a message is a call, the caller's reply key attaches to the message as the
+first key (k0).  The caller's first keyring slot is ignored.
+
+If a message includes scoped resource grants, these are attached somewhere,
+probably from the beginning.
+
+
+Slot | Basic | Grant | Call  | Call+Grant
+-----+-------+-------+-------+-----------
+ 0   |  arg  | grant | reply |   reply
+ 1   |  arg  |  arg  |  arg  |   grant
+ 2   |  arg  |  arg  |  arg  |    arg
+ 3   |  arg  |  arg  |  arg  |    arg
+
+
+The low M slots in the keyring act as caller-save registers.  If a task
+receives a call-message and wants to set it aside to respond later, it must
+move the reply key (and any argument/grant keys) up out of the bottom M slots
+before recieving another message or sending one of its own.
+
+I'm not entirely certain how this is going to feel from a programmer's
+perspective.  We might need calls like `dup` that move a key to any open slot.
+We might want to separate the global and passing key slots more clearly.
