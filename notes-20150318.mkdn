@@ -1,0 +1,35 @@
+
+Calling Conventions and Cap Leaks
+=================================
+
+If we use the clist like a modern processor uses its registers, we may be
+facilitating a common coding error that could lead to a security hole.
+
+- A receive, or call, drops some caps into k0-k3 (say).
+- We begin processing this, perhaps by moving the caps we care about into
+  other slots.
+- As part of processing, perhaps deep inside a library, we send a message.
+- Any caps not explicitly cleared from k0-k3 are *forwarded.*
+
+As an alternative, we could use separate sections of the clist for incoming and
+outgoing keys.  This would make the process slightly less error prone, maybe?
+We could supplement this by automatically clearing the one bank when the other
+action occurs, e.g. when a message is received, clear the outgoing bank.
+
+I think without the automatic clearing this isn't an obvious advantage.  Its
+main advantage is that it's less likely to forward reply keys, which would
+otherwise allow the recipient to impersonate the sending service!
+
+Perhaps providing convenient clearing operations is the best way to go.  Copying
+keys out of the recieved area and then executing a "clear transients" operation
+would avoid accidental forwarding.
+
+So would sending only the specified number of caps instead of always sending
+N, but that has other complications.
+
+Reentrancy and composability might both be aided by treating the clist as a
+stack with random access.  e.g. to send caps you push them from wherever they
+are onto the top.  You pop or drop results.  Could always be a fixed number for
+simplicity.
+
+Okay.  For now, a clear operation.  More experience with the model needed.

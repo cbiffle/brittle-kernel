@@ -1,42 +1,42 @@
 #ifndef SIM_PROTOCOL_H
 #define SIM_PROTOCOL_H
 
-#include <cstdint>
+#include "common.h"
 
-enum class TaskMessageType : uint8_t {
+enum class RequestType : uint8_t {
   send,
-  send_nb,
   call,
   open_receive,
 };
 
-struct Message {
-  unsigned target;
-  unsigned mdata[4];
+struct SendRequest {
+  bool blocking;
+  uintptr_t target;
+  Message m;
 };
 
-inline bool operator==(Message const &a, Message const &b) {
-  if (a.target != b.target) return false;
-  for (unsigned i = 0; i < 4; ++i) {
-    if (a.mdata[i] != b.mdata[i]) return false;
-  }
-  return true;
-}
-
-
-enum class SysMessageType : uint8_t {
-  done_basic,
-  done_message,
+struct CallRequest {
+  bool blocking;
+  uintptr_t target;
+  Message m;
 };
 
-struct BasicResponse {
-  unsigned status;
+struct OpenReceiveRequest {
+  bool blocking;
+};
+
+
+enum class ResponseType : uint8_t {
+  complete,
+  message,
+};
+
+struct CompleteResponse {
+  SysResult result;
 };
 
 struct MessageResponse {
-  unsigned status;
-  unsigned brand;
-  unsigned mdata[4];
+  ReceivedMessage rm;
 };
 
 #endif  // SIM_PROTOCOL_H

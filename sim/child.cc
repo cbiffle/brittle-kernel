@@ -1,90 +1,245 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
 
 #include "protocol.h"
 
-static unsigned send_x(TaskMessageType t, Message const & m) {
-  write(1, &t, sizeof(t));
-  write(1, &m, sizeof(m));
+static constexpr bool trace = false;
 
-  SysMessageType r;
-  read(0, &r, sizeof(r));
-  if (r != SysMessageType::done_basic) {
-    fprintf(stderr, "CHILD: uh-oh.\n");
-    while (true);
+/*******************************************************************************
+ * Runtime
+ */
+
+template <typename T>
+static void out(T const & data) {
+  if (trace) fprintf(stderr, "writing %zu bytes\n", sizeof(data));
+  if (write(1, &data, sizeof(data)) != sizeof(data)) {
+    fprintf(stderr, "CHILD: write failed\n");
+    exit(1);
   }
-  BasicResponse b;
-  read(0, &b, sizeof(b));
-  return b.status;
 }
 
-/*
-static unsigned send(Message const & m) {
-  return send_x(TaskMessageType::send, m);
-}
-*/
-
-static void send_nb(Message const & m) {
-  auto r = send_x(TaskMessageType::send_nb, m);
-  assert(r == 0);
-}
-
-static MessageResponse receive() {
-  auto t = TaskMessageType::open_receive;
-  write(1, &t, sizeof(t));
-
-  SysMessageType r;
-  read(0, &r, sizeof(r));
-  if (r != SysMessageType::done_message) {
-    fprintf(stderr, "CHILD: uh-oh.\n");
-    while (true);
+template <typename T>
+static T in() {
+  T tmp;
+  if (trace) fprintf(stderr, "trying to read %zu bytes\n", sizeof(tmp));
+  if (read(0, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+    fprintf(stderr, "CHILD: read failed\n");
+    exit(1);
   }
-  MessageResponse mr;
-  read(0, &mr, sizeof(mr));
-  return mr;
+  return tmp;
 }
 
-/*
-static MessageResponse call(Message const & m) {
-  auto t = TaskMessageType::call;
-  write(1, &t, sizeof(t));
-  write(1, &m, sizeof(m));
+static SysResult send(bool block, uintptr_t target, Message const & m) {
+  out(RequestType::send);
+  out(SendRequest {
+      .blocking = block,
+      .target = target,
+      .m = m,
+  });
 
-  SysMessageType r;
-  read(0, &r, sizeof(r));
-  if (r != SysMessageType::done_message) {
-    fprintf(stderr, "CHILD: uh-oh.\n");
-    while (true);
-  }
-  MessageResponse mr;
-  read(0, &mr, sizeof(mr));
-  return mr;
+  auto rt = in<ResponseType>();
+  assert(rt == ResponseType::complete);
+  auto r = in<CompleteResponse>();
+  return r.result;
 }
-*/
 
-static void handle_mon(MessageResponse const & req) {
-  switch (req.mdata[0]) {
-    case 0:  // heartbeat
+static SysResult open_receive(bool block, ReceivedMessage * rm) {
+  out(RequestType::open_receive);
+  out(OpenReceiveRequest { .blocking = block });
+
+  switch (in<ResponseType>()) {
+    case ResponseType::message:
       {
-        Message reply {
-          .target = 0,
-          .mdata = { req.mdata[1], req.mdata[2], req.mdata[3], 0 },
-        };
-        send_nb(reply);
+        auto r = in<MessageResponse>();
+        *rm = r.rm;
+        return SysResult::success;
       }
+
+    case ResponseType::complete:
+      {
+        auto r = in<CompleteResponse>();
+        assert(r.result != SysResult::success);
+        return r.result;
+      }
+
+    default:
+      assert(false);
+  }
+}
+
+static SysResult call(bool block,
+                      uintptr_t target,
+                      Message const & m,
+                      ReceivedMessage * rm) {
+  out(RequestType::call);
+  out(SendRequest {
+      .blocking = block,
+      .target = target,
+      .m = m,
+  });
+
+  switch (in<ResponseType>()) {
+    case ResponseType::complete:
+      {
+        auto r = in<CompleteResponse>();
+        assert(r.result != SysResult::success);
+        return r.result;
+      }
+
+    case ResponseType::message:
+      {
+        auto r = in<MessageResponse>();
+        *rm = r.rm;
+        return SysResult::success;
+      }
+
+    default:
+      assert(false);
+  }
+}
+
+
+/*******************************************************************************
+ * Under Test
+ */
+
+static constexpr uintptr_t
+  k_tx_port = 4,
+  k_rx_port = 5,
+  k_saved_reply = 8,
+  k_reg = 14,
+  k_sys = 15;
+
+static void reply(uintptr_t md0 = 0,
+                  uintptr_t md1 = 0,
+                  uintptr_t md2 = 0,
+                  uintptr_t md3 = 0) {
+  send(false, k_saved_reply, Message{{md0, md1, md2, md3}});
+}
+
+static void move_cap(uintptr_t from, uintptr_t to) {
+  send(true, k_sys, Message{0, from, to});
+}
+
+static void mask(uintptr_t port_key) {
+  send(true, k_sys, Message{1, port_key});
+}
+
+static void unmask(uintptr_t port_key) {
+  send(true, k_sys, Message{2, port_key});
+}
+
+static void write_cr1(uint32_t value) {
+  send(true, k_reg, Message{0, 0xC, value});
+}
+
+static void write_dr(uint8_t value) {
+  send(true, k_reg, Message{0, 4, value});
+}
+
+static uint32_t read_dr() {
+  ReceivedMessage response{};
+  auto r = call(true, k_reg, Message{1, 4}, &response);
+  assert(r == SysResult::success);
+  return uint32_t(response.m.data[0]);
+}
+
+static uint32_t read_cr1() {
+  ReceivedMessage response{};
+  auto r = call(true, k_reg, Message{1, 0xC}, &response);
+  assert(r == SysResult::success);
+  return uint32_t(response.m.data[0]);
+}
+
+static uint32_t read_sr() {
+  ReceivedMessage response{};
+  auto r = call(true, k_reg, Message{1, 0}, &response);
+  assert(r == SysResult::success);
+  return uint32_t(response.m.data[0]);
+}
+
+static void enable_irq_on_txe() {
+  write_cr1(read_cr1() | (1 << 7));
+}
+
+static void enable_irq_on_rxne() {
+  write_cr1(read_cr1() | (1 << 5));
+}
+
+static void handle_mon(Message const & req) {
+  switch (req.data[0]) {
+    case 0:  // heartbeat
+      reply(req.data[1], req.data[2], req.data[3]);
       break;
   }
 }
 
-int main() {
-  fprintf(stderr, "CHILD: starting message loop\n");
-  while (true) {
-    fprintf(stderr, "CHILD: entering open receive\n");
-    MessageResponse mr = receive();
+static void do_send1(Message const & req) {
+  write_dr(uint8_t(req.data[1]));
+  mask(k_tx_port);
+  enable_irq_on_txe();
+  reply();
+}
 
-    switch (mr.brand) {
-      case 0: handle_mon(mr); break;
+static void handle_tx(Message const & req) {
+  switch (req.data[0]) {
+    case 0: do_send1(req); break;
+  }
+}
+
+static void handle_irq(Message const &) {
+  auto sr = read_sr();
+  auto cr1 = read_cr1();
+
+  if ((sr & (1 << 7)) && (cr1 & (1 << 7))) {
+    // TXE set and interrupt enabled.
+    // Disable interrupt in preparation for allowing another send.
+    cr1 &= ~(1 << 7);
+    write_cr1(cr1);
+    unmask(k_tx_port);
+  }
+
+  if ((sr & (1 << 5)) && (cr1 & (1 << 5))) {
+    // RxNE set and interrupt enabled.
+    cr1 &= ~(1 << 5);
+    write_cr1(cr1);
+    unmask(k_rx_port);
+  }
+
+  reply(1);
+}
+
+static void do_recv1(Message const & req) {
+  auto b = read_dr();
+  mask(k_rx_port);
+  enable_irq_on_rxne();
+  reply(b);
+}
+
+static void handle_rx(Message const & req) {
+  switch (req.data[0]) {
+    case 0: do_recv1(req); break;
+  }
+}
+
+int main() {
+  if (trace) fprintf(stderr, "CHILD: starting message loop\n");
+  while (true) {
+    if (trace) fprintf(stderr, "CHILD: entering open receive\n");
+    ReceivedMessage rm {};
+    auto r = open_receive(true, &rm);
+    if (r != SysResult::success) continue;
+
+    move_cap(0, k_saved_reply);
+    // TODO: clear transients
+
+    switch (rm.brand) {
+      case 0: handle_mon(rm.m); break;
+      case 1: handle_tx(rm.m); break;
+      case 2: handle_irq(rm.m); break;
+      case 3: handle_rx(rm.m); break;
     }
   }
 }
