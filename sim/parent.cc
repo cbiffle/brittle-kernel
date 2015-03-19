@@ -8,6 +8,8 @@
 #include <queue>
 #include <stdexcept>
 
+#include <gtest/gtest.h>
+
 #include "protocol.h"
 
 static constexpr bool trace = false;
@@ -192,10 +194,9 @@ struct Expectation {
   }
 };
 
-static std::queue<Expectation> xp;
-
 struct Sender {
   SendRequest req;
+  std::queue<Expectation> & xp;
 
   void and_succeed() {
     and_return(SysResult::success);
@@ -215,17 +216,9 @@ struct Sender {
   }
 };
 
-static Sender expect_send(bool block,
-                          unsigned target,
-                          unsigned md0 = 0,
-                          unsigned md1 = 0,
-                          unsigned md2 = 0,
-                          unsigned md3 = 0) {
-  return Sender{SendRequest{block, target, Message{{md0, md1, md2, md3}}}};
-}
-
 struct Caller {
   CallRequest req;
+  std::queue<Expectation> & xp;
 
   void and_return(uintptr_t brand,
                   uintptr_t md0 = 0,
@@ -250,17 +243,9 @@ struct Caller {
   }
 };
 
-static Caller expect_call(bool block,
-                          unsigned target,
-                          unsigned md0 = 0,
-                          unsigned md1 = 0,
-                          unsigned md2 = 0,
-                          unsigned md3 = 0) {
-  return Caller{CallRequest{block, target, Message{{md0, md1, md2, md3}}}};
-}
-
 struct OpenReceiver {
   OpenReceiveRequest req;
+  std::queue<Expectation> & xp;
 
   void and_fail(SysResult result) {
     xp.push(Expectation {
@@ -300,66 +285,152 @@ struct OpenReceiver {
   }
 };
 
-static OpenReceiver expect_open_receive(bool block) {
-  return OpenReceiver{
-    .req = { .blocking = block },
-  };
-}
-
-static bool rendezvous(int outf, int inf) {
-  assert(!xp.empty());
-
-  auto e = xp.front();
-  xp.pop();
-
-  auto t = in<RequestType>(inf);
-  switch (t) {
-    case RequestType::send:
-      if (trace) fprintf(stderr, "SEND\n");
-      {
-        e.check_send(in<SendRequest>(inf));
-        e.respond(outf);
-      }
-      break;
-
-    case RequestType::call:
-      if (trace) fprintf(stderr, "CALL\n");
-      {
-        e.check_call(in<CallRequest>(inf));
-        e.respond(outf);
-      }
-      break;
-
-    case RequestType::open_receive:
-      if (trace) fprintf(stderr, "OPEN\n");
-      {
-        e.check_open_receive(in<OpenReceiveRequest>(inf));
-        e.respond(outf);
-      }
-      break;
-  }
-
-  return true;
-}
-
 
 /*******************************************************************************
  * Actual test
  */
 
-static void be_parent(int out, int in, pid_t child) {
-  if (trace) fprintf(stderr, "PARENT: starting sim loop\n");
+class SimTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    _verified = false;
 
-  /*
-   * Monitoring message
-   */
+    int p2c[2];
+    int c2p[2];
+    if (pipe(p2c) < 0) die("pipe");
+    if (pipe(c2p) < 0) die("pipe");
+
+    switch ((_child = fork())) {
+      case -1:
+        die("fork");
+
+      case 0:  // child
+        {
+          close(0);
+          close(1);
+
+          if (dup2(p2c[0], 0) < 0) die("dup2");
+          if (dup2(c2p[1], 1) < 0) die("dup2");
+          close(p2c[0]);
+          close(p2c[1]);
+          close(c2p[0]);
+          close(c2p[1]);
+
+          char const * const args[] = {
+            "latest/sim/child",
+            nullptr,
+          };
+          if (execve("latest/sim/child",
+                const_cast<char * const *>(args),
+                environ) < 0) die("execve");
+          // Does not return otherwise.
+          while (true);
+        }
+
+      default:  // parent
+        _out = p2c[1];
+        _in = c2p[0];
+        break;
+    }
+  }
+
+  void TearDown() override {
+    ASSERT_TRUE(_verified) << "forgot to call verify!";
+    close(_out);
+    close(_in);
+    kill(_child, 9);
+  }
+
+  Sender expect_send(bool block,
+                     unsigned target,
+                     unsigned md0 = 0,
+                     unsigned md1 = 0,
+                     unsigned md2 = 0,
+                     unsigned md3 = 0) {
+    return Sender{
+      SendRequest{block, target, Message{{md0, md1, md2, md3}}},
+      _xp,
+    };
+  }
+
+  Caller expect_call(bool block,
+                     unsigned target,
+                     unsigned md0 = 0,
+                     unsigned md1 = 0,
+                     unsigned md2 = 0,
+                     unsigned md3 = 0) {
+    return Caller{
+      CallRequest{block, target, Message{{md0, md1, md2, md3}}},
+      _xp,
+    };
+  }
+
+  OpenReceiver expect_open_receive(bool block) {
+    return OpenReceiver{
+      .req = { .blocking = block },
+      .xp = _xp,
+    };
+  }
+
+  void verify() {
+    while (!_xp.empty()) rendezvous();
+    _verified = true;
+  }
+
+  bool rendezvous() {
+    assert(!_xp.empty());
+
+    auto e = _xp.front();
+    _xp.pop();
+
+    auto t = in<RequestType>(_in);
+    switch (t) {
+      case RequestType::send:
+        if (trace) fprintf(stderr, "SEND\n");
+        {
+          e.check_send(in<SendRequest>(_in));
+          e.respond(_out);
+        }
+        break;
+
+      case RequestType::call:
+        if (trace) fprintf(stderr, "CALL\n");
+        {
+          e.check_call(in<CallRequest>(_in));
+          e.respond(_out);
+        }
+        break;
+
+      case RequestType::open_receive:
+        if (trace) fprintf(stderr, "OPEN\n");
+        {
+          e.check_open_receive(in<OpenReceiveRequest>(_in));
+          e.respond(_out);
+        }
+        break;
+    }
+
+    return true;
+  }
+
+
+private:
+  int _out;
+  int _in;
+  pid_t _child;
+  std::queue<Expectation> _xp;
+  bool _verified;
+};
+
+TEST_F(SimTest, Heartbeat) {
   expect_open_receive(true).and_return(0, 0, 1, 2, 3);
   expect_send(true, 15, 0, 0, 8).and_succeed(); 
   expect_send(false, 8, 1, 2, 3, 0).and_succeed();
+  
+  verify();
+}
 
-  /*
-   * Send a byte.
-   */
+TEST_F(SimTest, SendByte) {
   expect_open_receive(true).and_return(1, 0, 0x42);
 
   // Move reply cap.
@@ -377,7 +448,6 @@ static void be_parent(int out, int in, pid_t child) {
 
   // Final reply.
   expect_send(false, 8).and_succeed();
-
 
   /*
    * Interrupt when that byte hits the wire.
@@ -397,6 +467,10 @@ static void be_parent(int out, int in, pid_t child) {
 
   expect_send(false, 8, 1).and_succeed();
 
+  verify();
+}
+
+TEST_F(SimTest, ReceiveByte) {
   /*
    * Interrupt announcing receipt of a byte.
    */
@@ -435,58 +509,12 @@ static void be_parent(int out, int in, pid_t child) {
   // Final reply.
   expect_send(false, 8, 0x69).and_succeed();
 
-
-  while (!xp.empty()) {
-    rendezvous(out, in);
-  }
-  fprintf(stderr, "PARENT: test completed.\n");
+  verify();
 }
 
-static pid_t child;
 
-static void kill_child() {
-  kill(child, 9);
-}
 
-int main() {
-  
-  int p2c[2];
-  int c2p[2];
-  if (pipe(p2c) < 0) die("pipe");
-  if (pipe(c2p) < 0) die("pipe");
-
-  switch ((child = fork())) {
-    case -1:
-      die("fork");
-
-    case 0:  // child
-      {
-        close(0);
-        close(1);
-
-        if (dup2(p2c[0], 0) < 0) die("dup2");
-        if (dup2(c2p[1], 1) < 0) die("dup2");
-        close(p2c[0]);
-        close(p2c[1]);
-        close(c2p[0]);
-        close(c2p[1]);
-
-        char const * const args[] = {
-          "latest/sim/child",
-          nullptr,
-        };
-        if (execve("latest/sim/child",
-              const_cast<char * const *>(args),
-              environ) < 0) die("execve");
-        // Does not return otherwise.
-        while (true);
-      }
-
-    default:  // parent
-      atexit(kill_child);
-      be_parent(p2c[1], c2p[0], child);
-      break;
-  }
-
-  return 0;
+int main(int argc, char * argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

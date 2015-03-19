@@ -10,5 +10,8 @@ c_binary('parent',
   sources = [
     'parent.cc',
   ],
+  deps = [
+    '//3p/gtest',
+  ],
 )
 

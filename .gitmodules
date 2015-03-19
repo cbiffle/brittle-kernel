@@ -1,3 +1,6 @@
 [submodule "cobble"]
 	path = cobble
 	url = https://github.com/cbiffle/cobble-build.git
+[submodule "3p/gtest/upstream"]
+	path = 3p/gtest/upstream
+	url = http://git.chromium.org/external/googletest.git
