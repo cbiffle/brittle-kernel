@@ -1,3 +1,12 @@
+c_library('test',
+  sources = [
+    'mock.cc',
+  ],
+  deps = [
+    '//3p/gtest',
+  ],
+)
+
 c_binary('child',
   environment = 'native',
   sources = [
@@ -11,6 +20,7 @@ c_binary('parent',
     'parent.cc',
   ],
   deps = [
+    ':test',
     '//3p/gtest',
   ],
 )
