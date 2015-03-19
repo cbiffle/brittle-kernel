@@ -110,6 +110,7 @@ static constexpr uintptr_t
   k_tx_port = 4,
   k_rx_port = 5,
   k_saved_reply = 8,
+  k_flush_reply = 9,
   k_reg = 14,
   k_sys = 15;
 
@@ -124,6 +125,7 @@ static constexpr uintptr_t
   t_mem_read32 = 1,
   
   t_tx_send1 = 0,
+  t_tx_flush = 1,
   
   t_rx_recv1 = 0;
 
@@ -151,6 +153,8 @@ static void mask(uintptr_t port_key) {
 static void unmask(uintptr_t port_key) {
   send(true, k_sys, Message{t_sys_unmask, port_key});
 }
+
+static bool flushing;
 
 static void write_cr1(uint32_t value) {
   send(true, k_reg, Message{t_mem_write32, 0xC, value});
@@ -189,6 +193,10 @@ static void enable_irq_on_rxne() {
   write_cr1(read_cr1() | (1 << 5));
 }
 
+static void enable_irq_on_tc() {
+  write_cr1(read_cr1() | (1 << 6));
+}
+
 static void handle_mon(Message const & req) {
   switch (req.data[0]) {
     case t_mon_heartbeat:
@@ -204,9 +212,18 @@ static void do_send1(Message const & req) {
   reply();
 }
 
+static void do_flush(Message const &) {
+  enable_irq_on_tc();
+  mask(k_tx_port);
+  move_cap(k_saved_reply, k_flush_reply);
+  flushing = true;
+  // Do not reply yet.
+}
+
 static void handle_tx(Message const & req) {
   switch (req.data[0]) {
     case t_tx_send1: do_send1(req); break;
+    case t_tx_flush: do_flush(req); break;
   }
 }
 
@@ -219,7 +236,7 @@ static void handle_irq(Message const &) {
     // Disable interrupt in preparation for allowing another send.
     cr1 &= ~(1 << 7);
     write_cr1(cr1);
-    unmask(k_tx_port);
+    if (!flushing) unmask(k_tx_port);
   }
 
   if ((sr & (1 << 5)) && (cr1 & (1 << 5))) {
@@ -227,6 +244,16 @@ static void handle_irq(Message const &) {
     cr1 &= ~(1 << 5);
     write_cr1(cr1);
     unmask(k_rx_port);
+  }
+
+  if ((sr & (1 << 6)) && (cr1 & (1 << 6))) {
+    // TC set and interrupt enabled -- a flush has completed.
+    cr1 &= ~(1 << 6);
+    write_cr1(cr1);
+    assert(flushing);
+    send(false, k_flush_reply, Message{{0, 0, 0, 0}});
+    flushing = false;
+    unmask(k_tx_port);
   }
 
   reply(1);

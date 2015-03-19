@@ -424,9 +424,9 @@ private:
 
 TEST_F(SimTest, Heartbeat) {
   expect_open_receive(true).and_return(0, 0, 1, 2, 3);
-  expect_send(true, 15, 0, 0, 8).and_succeed(); 
+  expect_send(true, 15, 0, 0, 8).and_succeed();
   expect_send(false, 8, 1, 2, 3, 0).and_succeed();
-  
+
   verify();
 }
 
@@ -434,7 +434,7 @@ TEST_F(SimTest, SendByte) {
   expect_open_receive(true).and_return(1, 0, 0x42);
 
   // Move reply cap.
-  expect_send(true, 15, 0, 0, 8).and_succeed(); 
+  expect_send(true, 15, 0, 0, 8).and_succeed();
 
   // Write data register.
   expect_send(true, 14, 0, 4, 0x42).and_succeed();
@@ -455,7 +455,7 @@ TEST_F(SimTest, SendByte) {
   expect_open_receive(true).and_return(2);
 
   // Move reply cap.
-  expect_send(true, 15, 0, 0, 8).and_succeed(); 
+  expect_send(true, 15, 0, 0, 8).and_succeed();
   // Status register read.
   expect_call(true, 14, 1, 0).and_return(0, 0xBEEF0000 | (1 << 7));
   // Control register read.
@@ -477,7 +477,7 @@ TEST_F(SimTest, ReceiveByte) {
   expect_open_receive(true).and_return(2);
 
   // Move reply cap.
-  expect_send(true, 15, 0, 0, 8).and_succeed(); 
+  expect_send(true, 15, 0, 0, 8).and_succeed();
   // Status register read.
   expect_call(true, 14, 1, 0).and_return(0, 0xBEEF0000 | (1 << 5));
   // Control register read.
@@ -494,7 +494,7 @@ TEST_F(SimTest, ReceiveByte) {
   expect_open_receive(true).and_return(3, 0);
 
   // Move reply cap.
-  expect_send(true, 15, 0, 0, 8).and_succeed(); 
+  expect_send(true, 15, 0, 0, 8).and_succeed();
 
   // Read data register.
   expect_call(true, 14, 1, 4).and_return(0, 0x69);
@@ -508,6 +508,48 @@ TEST_F(SimTest, ReceiveByte) {
 
   // Final reply.
   expect_send(false, 8, 0x69).and_succeed();
+
+  verify();
+}
+
+TEST_F(SimTest, FlushWhileIdle) {
+  expect_open_receive(true).and_return(1, 1);
+
+  // Move reply cap.
+  expect_send(true, 15, 0, 0, 8).and_succeed();
+
+  // Read, modify, write CR1 to enable TC interrupt.
+  expect_call(true, 14, 1, 0xC).and_return(0, 0xDEAD0000);
+  expect_send(true, 14, 0, 0xC, 0xDEAD0000 | (1 << 6)).and_succeed();
+
+  // Mask transmit port
+  expect_send(true, 15, 1, 4).and_succeed();
+
+  // Move reply cap again.
+  expect_send(true, 15, 0, 8, 9).and_succeed();
+
+  // No reply just yet.
+
+  // Interrupt!
+  expect_open_receive(true).and_return(2);
+
+  // Move reply cap.
+  expect_send(true, 15, 0, 0, 8).and_succeed();
+  // Status register read.
+  expect_call(true, 14, 1, 0).and_return(0, 0xBEEF0000 | (1 << 6));
+  // Control register read.
+  expect_call(true, 14, 1, 0xC).and_return(0, 0xF00D0000 | (1 << 6));
+  // Control register write to squash interrupt.
+  expect_send(true, 14, 0, 0xC, 0xF00D0000).and_succeed();
+
+  // Flush is finished, reply to saved cap.
+  expect_send(false, 9).and_succeed();
+
+  // Port unmask.
+  expect_send(true, 15, 2, 4).and_succeed();
+
+  // Reply to interrupt.
+  expect_send(false, 8, 1).and_succeed();
 
   verify();
 }
