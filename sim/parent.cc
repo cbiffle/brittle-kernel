@@ -16,12 +16,17 @@
 class UartTest : public ::mock::MockTest {
 protected:
   UartTest() : MockTest("latest/sim/child") {}
+
+  static constexpr uintptr_t
+      p_mon = 0,
+      k0 = 0,
+      k_saved_reply = 8;
 };
 
 TEST_F(UartTest, Heartbeat) {
-  expect_open_receive(true).and_return(0, 0, 1, 2, 3);
-  expect_send(true, 15, 0, 0, 8).and_succeed();
-  expect_send(false, 8, 1, 2, 3, 0).and_succeed();
+  expect_open_receive(true).and_return(p_mon, 0, 1, 2, 3);
+  expect_send(true, 15, 0, k0, k_saved_reply).and_succeed();
+  expect_send(false, k_saved_reply, 1, 2, 3, 0).and_succeed();
 
   verify();
 }
