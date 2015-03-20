@@ -101,3 +101,21 @@ SysResult call(bool block,
       assert(false);
   }
 }
+
+static constexpr uintptr_t
+  // sys protocol
+  t_sys_move_cap = 0,
+  t_sys_mask = 1,
+  t_sys_unmask = 2;
+
+SysResult move_cap(uintptr_t from, uintptr_t to) {
+  return send(true, 15, Message{t_sys_move_cap, from, to});
+}
+
+SysResult mask(uintptr_t port) {
+  return send(true, 15, Message{t_sys_mask, port});
+}
+
+SysResult unmask(uintptr_t port) {
+  return send(true, 15, Message{t_sys_unmask, port});
+}

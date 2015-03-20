@@ -15,11 +15,6 @@ static constexpr uintptr_t
 
 // Names for message types
 static constexpr uintptr_t
-  // sys protocol
-  t_sys_move_cap = 0,
-  t_sys_mask = 1,
-  t_sys_unmask = 2,
-
   // mon protocol
   t_mon_heartbeat = 0,
 
@@ -49,20 +44,6 @@ static void reply(uintptr_t md0 = 0,
                   uintptr_t md3 = 0) {
   send(false, k_saved_reply, Message{{md0, md1, md2, md3}});
 }
-
-// sys protocol
-static void move_cap(uintptr_t from, uintptr_t to) {
-  send(true, k_sys, Message{t_sys_move_cap, from, to});
-}
-
-static void mask(uintptr_t port_key) {
-  send(true, k_sys, Message{t_sys_mask, port_key});
-}
-
-static void unmask(uintptr_t port_key) {
-  send(true, k_sys, Message{t_sys_unmask, port_key});
-}
-
 
 // mem protocol wrappers for UART register access
 static void write_cr1(uint32_t value) {
