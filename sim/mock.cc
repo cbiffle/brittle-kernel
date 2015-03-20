@@ -507,6 +507,12 @@ void OpenReceiveBuilder::and_provide(unsigned brand,
   while (true) {
     auto rt = _task.in<RequestType>();
     if (rt == RequestType::open_receive) {
+      if (_task.is_port_masked(brand)) {
+        fprintf(stderr, "FAIL: task has masked port %u, cannot deliver.\n",
+            brand);
+        throw std::logic_error("test failed");
+      }
+
       auto r = _task.in<OpenReceiveRequest>();
       bool ok = true;
       if (_blocking != r.blocking) ok = false;
