@@ -105,36 +105,44 @@ static SysResult call(bool block,
  * Under Test
  */
 
+// Names for clist slots
 static constexpr uintptr_t
   k0 = 0,
-  k_tx_port = 4,
-  k_rx_port = 5,
-  k_saved_reply = 8,
-  k_flush_reply = 9,
+  k_saved_reply = 4,
+  k_flush_reply = 5,
   k_reg = 14,
   k_sys = 15;
 
+// Names for message types
 static constexpr uintptr_t
+  // sys protocol
   t_sys_move_cap = 0,
   t_sys_mask = 1,
   t_sys_unmask = 2,
 
+  // mon protocol
   t_mon_heartbeat = 0,
 
+  // mem protocol
   t_mem_write32 = 0,
   t_mem_read32 = 1,
   
+  // uart.tx protocol
   t_tx_send1 = 0,
   t_tx_flush = 1,
   
+  // uart.rx protocol
   t_rx_recv1 = 0;
 
+// Names for our ports.
+// TODO: currently kind of mixed up with brands.
 static constexpr uintptr_t
-  b_mon = 0,
-  b_tx = 1,
-  b_irq = 2,
-  b_rx = 3;
+  p_mon = 0,
+  p_tx = 1,
+  p_irq = 2,
+  p_rx = 3;
 
+// Utility function for using k_saved_reply with no keys.
 static void reply(uintptr_t md0 = 0,
                   uintptr_t md1 = 0,
                   uintptr_t md2 = 0,
@@ -142,6 +150,7 @@ static void reply(uintptr_t md0 = 0,
   send(false, k_saved_reply, Message{{md0, md1, md2, md3}});
 }
 
+// sys protocol
 static void move_cap(uintptr_t from, uintptr_t to) {
   send(true, k_sys, Message{t_sys_move_cap, from, to});
 }
@@ -154,8 +163,8 @@ static void unmask(uintptr_t port_key) {
   send(true, k_sys, Message{t_sys_unmask, port_key});
 }
 
-static bool flushing;
 
+// mem protocol wrappers for UART register access
 static void write_cr1(uint32_t value) {
   send(true, k_reg, Message{t_mem_write32, 0xC, value});
 }
@@ -197,6 +206,10 @@ static void enable_irq_on_tc() {
   write_cr1(read_cr1() | (1 << 6));
 }
 
+
+/*******************************************************************************
+ * Mon server implementation
+ */
 static void handle_mon(Message const & req) {
   switch (req.data[0]) {
     case t_mon_heartbeat:
@@ -205,16 +218,21 @@ static void handle_mon(Message const & req) {
   }
 }
 
+/*******************************************************************************
+ * UART.TX server implementation
+ */
+static bool flushing;
+
 static void do_send1(Message const & req) {
   write_dr(uint8_t(req.data[1]));
-  mask(b_tx);
+  mask(p_tx);
   enable_irq_on_txe();
   reply();
 }
 
 static void do_flush(Message const &) {
   enable_irq_on_tc();
-  mask(b_tx);
+  mask(p_tx);
   move_cap(k_saved_reply, k_flush_reply);
   flushing = true;
   // Do not reply yet.
@@ -227,6 +245,9 @@ static void handle_tx(Message const & req) {
   }
 }
 
+/*******************************************************************************
+ * IRQ server implementation
+ */
 static void handle_irq(Message const &) {
   auto sr = read_sr();
   auto cr1 = read_cr1();
@@ -236,14 +257,14 @@ static void handle_irq(Message const &) {
     // Disable interrupt in preparation for allowing another send.
     cr1 &= ~(1 << 7);
     write_cr1(cr1);
-    if (!flushing) unmask(b_tx);
+    if (!flushing) unmask(p_tx);
   }
 
   if ((sr & (1 << 5)) && (cr1 & (1 << 5))) {
     // RxNE set and interrupt enabled.
     cr1 &= ~(1 << 5);
     write_cr1(cr1);
-    unmask(b_rx);
+    unmask(p_rx);
   }
 
   if ((sr & (1 << 6)) && (cr1 & (1 << 6))) {
@@ -253,15 +274,18 @@ static void handle_irq(Message const &) {
     assert(flushing);
     send(false, k_flush_reply, Message{{0, 0, 0, 0}});
     flushing = false;
-    unmask(b_tx);
+    unmask(p_tx);
   }
 
   reply(1);
 }
 
+/*******************************************************************************
+ * UART.RX server implementation
+ */
 static void do_recv1(Message const & req) {
   auto b = read_dr();
-  mask(b_rx);
+  mask(p_rx);
   enable_irq_on_rxne();
   reply(b);
 }
@@ -272,6 +296,9 @@ static void handle_rx(Message const & req) {
   }
 }
 
+/*******************************************************************************
+ * Main loop
+ */
 int main() {
   if (trace) fprintf(stderr, "CHILD: starting message loop\n");
   while (true) {
@@ -284,10 +311,10 @@ int main() {
     // TODO: clear transients
 
     switch (rm.brand) {
-      case b_mon: handle_mon(rm.m); break;
-      case b_tx: handle_tx(rm.m); break;
-      case b_irq: handle_irq(rm.m); break;
-      case b_rx: handle_rx(rm.m); break;
+      case p_mon: handle_mon(rm.m); break;
+      case p_tx: handle_tx(rm.m); break;
+      case p_irq: handle_irq(rm.m); break;
+      case p_rx: handle_rx(rm.m); break;
     }
   }
 }
