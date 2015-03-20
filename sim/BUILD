@@ -8,10 +8,19 @@ c_library('test',
   ],
 )
 
+c_library('stubs',
+  sources = [
+    'stubs.cc',
+  ],
+)
+
 c_binary('child',
   environment = 'native',
   sources = [
     'child.cc',
+  ],
+  deps = [
+    ':stubs',
   ],
 )
 
