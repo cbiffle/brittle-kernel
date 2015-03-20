@@ -3,6 +3,10 @@
 
 #include "stubs.h"
 
+/*******************************************************************************
+ * Assorted declarations.
+ */
+
 static constexpr bool trace = false;
 
 // Names for clist slots
@@ -45,7 +49,11 @@ static void reply(uintptr_t md0 = 0,
   send(false, k_saved_reply, Message{{md0, md1, md2, md3}});
 }
 
-// mem protocol wrappers for UART register access
+
+/*******************************************************************************
+ * Mem protocol wrappers for UART register access
+ */
+
 static void write_cr1(uint32_t value) {
   send(true, k_reg, Message{t_mem_write32, 0xC, value});
 }
