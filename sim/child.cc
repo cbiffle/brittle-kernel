@@ -207,14 +207,14 @@ static void handle_mon(Message const & req) {
 
 static void do_send1(Message const & req) {
   write_dr(uint8_t(req.data[1]));
-  mask(k_tx_port);
+  mask(b_tx);
   enable_irq_on_txe();
   reply();
 }
 
 static void do_flush(Message const &) {
   enable_irq_on_tc();
-  mask(k_tx_port);
+  mask(b_tx);
   move_cap(k_saved_reply, k_flush_reply);
   flushing = true;
   // Do not reply yet.
@@ -236,14 +236,14 @@ static void handle_irq(Message const &) {
     // Disable interrupt in preparation for allowing another send.
     cr1 &= ~(1 << 7);
     write_cr1(cr1);
-    if (!flushing) unmask(k_tx_port);
+    if (!flushing) unmask(b_tx);
   }
 
   if ((sr & (1 << 5)) && (cr1 & (1 << 5))) {
     // RxNE set and interrupt enabled.
     cr1 &= ~(1 << 5);
     write_cr1(cr1);
-    unmask(k_rx_port);
+    unmask(b_rx);
   }
 
   if ((sr & (1 << 6)) && (cr1 & (1 << 6))) {
@@ -253,7 +253,7 @@ static void handle_irq(Message const &) {
     assert(flushing);
     send(false, k_flush_reply, Message{{0, 0, 0, 0}});
     flushing = false;
-    unmask(k_tx_port);
+    unmask(b_tx);
   }
 
   reply(1);
@@ -261,7 +261,7 @@ static void handle_irq(Message const &) {
 
 static void do_recv1(Message const & req) {
   auto b = read_dr();
-  mask(k_rx_port);
+  mask(b_rx);
   enable_irq_on_rxne();
   reply(b);
 }

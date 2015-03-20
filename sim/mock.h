@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 
 #include <gtest/gtest.h>
 
@@ -40,6 +41,11 @@ public:
   void set_key(uintptr_t, std::string);
   MessageKeyNames get_pass_keys();
   void set_pass_keys(MessageKeyNames const &);
+  void clear_pass_keys();
+  void revoke_key(std::string const &);
+  bool is_port_masked(uintptr_t);
+
+  void wait_for_syscall();
 
   template <typename T>
   T in() {
@@ -60,6 +66,7 @@ public:
   }
 
   void sim_sys(SendRequest const &);
+  void sim_sys(CallRequest const &);
 
 private:
   char const * _child_path;
@@ -67,6 +74,7 @@ private:
   int _out;
   pid_t _child;
   std::map<uintptr_t, std::string> _clist;
+  std::set<uintptr_t> _masked_ports;
 };
 
 
@@ -91,6 +99,35 @@ private:
   Message _m;
   bool _keys_matter = false;
   MessageKeyNames _k;
+
+  Task & _task;
+
+  void print();
+};
+
+class CallBuilder {
+public:
+  CallBuilder(bool blocking, std::string const & target, Task &);
+  CallBuilder & with_data(uintptr_t = 0,
+                          uintptr_t = 0,
+                          uintptr_t = 0,
+                          uintptr_t = 0);
+  CallBuilder & with_keys(char const * = "",
+                          char const * = "",
+                          char const * = "",
+                          char const * = "");
+
+  void and_provide(unsigned brand,
+                   Message,
+                   MessageKeyNames);
+
+private:
+  bool _blocking;
+  std::string _target;
+  bool _message_matters = false;
+  Message _m_out;
+  bool _keys_matter = false;
+  MessageKeyNames _k_out;
 
   Task & _task;
 
@@ -129,6 +166,8 @@ protected:
   enum class Blocking { yes, no };
 
   SendBuilder expect_send_to(std::string target, Blocking = Blocking::yes);
+
+  CallBuilder expect_call_to(std::string target, Blocking = Blocking::yes);
 
   OpenReceiveBuilder expect_open_receive(Blocking = Blocking::yes);
 
