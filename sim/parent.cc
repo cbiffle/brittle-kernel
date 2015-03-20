@@ -13,7 +13,7 @@
 #include "protocol.h"
 #include "mock.h"
 
-class UartTest : public ::mock::MockTest {
+class UartTest : public ::sim::MockTest {
 protected:
   UartTest() : MockTest("latest/sim/child") {}
 

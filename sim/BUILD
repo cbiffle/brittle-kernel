@@ -1,6 +1,7 @@
 c_library('test',
   sources = [
     'mock.cc',
+    'task.cc',
   ],
   deps = [
     '//3p/gtest',

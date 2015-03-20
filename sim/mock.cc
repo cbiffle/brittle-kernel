@@ -16,212 +16,7 @@
 
 #include "protocol.h"
 
-namespace mock {
-
-static constexpr bool trace = false;
-
-
-/*******************************************************************************
- * Task model.
- */
-
-__attribute__((noreturn))
-static void die(char const * msg) {
-  perror(msg);
-  exit(1);
-}
-
-Task::Task(char const * child_path)
-  : _child_path(child_path),
-    _in(-1),
-    _out(-1),
-    _child(-1) {}
-
-void Task::start() {
-  int p2c[2];
-  int c2p[2];
-  if (pipe(p2c) < 0) die("pipe");
-  if (pipe(c2p) < 0) die("pipe");
-
-  switch ((_child = fork())) {
-    case -1:
-      die("fork");
-
-    case 0:  // child
-      {
-        close(0);
-        close(1);
-
-        if (dup2(p2c[0], 0) < 0) die("dup2");
-        if (dup2(c2p[1], 1) < 0) die("dup2");
-        close(p2c[0]);
-        close(p2c[1]);
-        close(c2p[0]);
-        close(c2p[1]);
-
-        char const * const args[] = {
-          _child_path,
-          nullptr,
-        };
-        if (execve(_child_path,
-              const_cast<char * const *>(args),
-              environ) < 0) die("execve");
-        // Does not return otherwise.
-        while (true);
-      }
-
-    default:  // parent
-      _out = p2c[1];
-      _in = c2p[0];
-      break;
-  }
-}
-
-void Task::stop() {
-  close(_out);
-  close(_in);
-  kill(_child, 9);
-}
-
-void Task::wait_for_syscall() {
-  fd_set readfds;
-  FD_ZERO(&readfds);
-  FD_SET(_in, &readfds);
-
-  while (true) {
-    int r = select(_in + 1, &readfds, nullptr, nullptr, nullptr);
-    switch (r) {
-      case 0: continue;
-      case 1: return;
-      default:
-        fprintf(stderr, "WARN: failure in select\n");
-        return;
-    }
-  }
-}
-
-std::string Task::get_key(uintptr_t index) {
-  auto it = _clist.find(index);
-  if (it == _clist.end()) {
-    return "";
-  } else {
-    return it->second;
-  }
-}
-
-void Task::set_key(uintptr_t index, std::string name) {
-  _clist[index] = name;
-}
-
-MessageKeyNames Task::get_pass_keys() {
-  return {
-    get_key(0),
-    get_key(1),
-    get_key(2),
-    get_key(3),
-  };
-}
-
-void Task::set_pass_keys(MessageKeyNames const & k) {
-  for (unsigned i = 0; i < n_keys_sent; ++i) {
-    _clist[i] = k.name[i];
-  }
-}
-
-void Task::clear_pass_keys() {
-  set_pass_keys({"","","",""});
-}
-
-void Task::sim_sys(SendRequest const & r) {
-  switch (r.m.data[0]) {
-    case 0:  // move cap
-      set_key(r.m.data[2], get_key(r.m.data[1]));
-      set_key(r.m.data[1], "");
-
-      out(ResponseType::complete);
-      out(CompleteResponse { SysResult::success });
-      break;
-
-    case 1:  // mask port
-      _masked_ports.insert(r.m.data[1]);
-      out(ResponseType::complete);
-      out(CompleteResponse { SysResult::success });
-      break;
-
-    case 2:  // unmask port
-      _masked_ports.erase(r.m.data[1]);
-      out(ResponseType::complete);
-      out(CompleteResponse { SysResult::success });
-      break;
-
-    default:
-      FAIL() << "Bad message to kernel: " << r.m.data[0];
-      throw std::logic_error("test failed");
-  }
-}
-
-void Task::revoke_key(std::string const & k) {
-  for (unsigned i = 0; i < n_keys_sent; ++i) {
-    if (get_key(i) == k) {
-      set_key(i, "<REVOKED>");
-    }
-  }
-
-}
-
-void Task::sim_sys(CallRequest const & r) {
-  switch (r.m.data[0]) {
-    case 0:  // move cap
-      set_key(r.m.data[2], get_key(r.m.data[1]));
-      set_key(r.m.data[1], "");
-
-      out(ResponseType::message);
-      out(MessageResponse {
-          .rm = {
-            .brand = 0,
-            .m = {0,0,0,0},
-          },
-          });
-      clear_pass_keys();
-      break;
-
-    case 1:  // mask port
-      _masked_ports.insert(r.m.data[1]);
-      out(ResponseType::message);
-      out(MessageResponse {
-          .rm = {
-            .brand = 0,
-            .m = {0,0,0,0},
-          },
-          });
-      clear_pass_keys();
-      break;
-
-    case 2:  // unmask port
-      _masked_ports.erase(r.m.data[1]);
-      out(ResponseType::message);
-      out(MessageResponse {
-          .rm = {
-            .brand = 0,
-            .m = {0,0,0,0},
-          },
-          });
-      clear_pass_keys();
-      break;
-
-    default:
-      FAIL() << "Bad message to kernel: " << r.m.data[0];
-  }
-}
-
-bool Task::is_port_masked(uintptr_t p) {
-  return _masked_ports.find(p) != _masked_ports.end();
-}
-
-
-/*******************************************************************************
- * Test support.
- */
+namespace sim {
 
 static void print_message(Message const & m) {
   fprintf(stderr, "- data[0] = %lu\n", m.data[0]);
@@ -324,8 +119,7 @@ void SendBuilder::and_return(SysResult result) {
       auto r = _task.in<SendRequest>();
 
       if (_task.get_key(r.target) == "<SYS>") {
-        _task.sim_sys(r);
-        continue;
+        if (_task.sim_sys(r)) continue;
       }
 
       bool ok = true;
@@ -354,8 +148,7 @@ void SendBuilder::and_return(SysResult result) {
       if (rt == RequestType::call) {
         auto r = _task.in<CallRequest>();
         if (_task.get_key(r.target) == "<SYS>") {
-          _task.sim_sys(r);
-          continue;
+          if (_task.sim_sys(r)) continue;
         }
         fprintf(stderr, "FAIL: expected send, got something else.\n");
         fprintf(stderr, "Expected:\n");
@@ -413,8 +206,7 @@ void CallBuilder::and_provide(unsigned brand,
       auto r = _task.in<CallRequest>();
 
       if (_task.get_key(r.target) == "<SYS>") {
-        _task.sim_sys(r);
-        continue;
+        if (_task.sim_sys(r)) continue;
       }
 
       bool ok = true;
@@ -449,8 +241,7 @@ void CallBuilder::and_provide(unsigned brand,
       if (rt == RequestType::send) {
         auto r = _task.in<SendRequest>();
         if (_task.get_key(r.target) == "<SYS>") {
-          _task.sim_sys(r);
-          continue;
+          if (_task.sim_sys(r)) continue;
         }
         fprintf(stderr, "FAIL: expected call, got something else.\n");
         fprintf(stderr, "Expected:\n");
@@ -539,8 +330,7 @@ void OpenReceiveBuilder::and_provide(unsigned brand,
         auto r = _task.in<SendRequest>();
 
         if (_task.get_key(r.target) == "<SYS>") {
-          _task.sim_sys(r);
-          continue;
+          if (_task.sim_sys(r)) continue;
         }
       }
       fprintf(stderr, "FAIL: expected open receive, got something else.\n");
@@ -587,4 +377,4 @@ OpenReceiveBuilder MockTest::expect_open_receive(Blocking blocking) {
   return OpenReceiveBuilder{blocking == Blocking::yes, _task};
 }
 
-}  // namespace mock
+}  // namespace sim
