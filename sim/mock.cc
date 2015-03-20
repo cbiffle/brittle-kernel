@@ -9,6 +9,7 @@
 
 #include <queue>
 #include <stdexcept>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -18,32 +19,9 @@ namespace mock {
 
 static constexpr bool trace = false;
 
-/*******************************************************************************
- * Protocol runtime
- */
-
-template <typename T>
-static T in(int fd) {
-  T tmp;
-  if (read(fd, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-    perror("reading from child");
-    throw std::logic_error("I/O");
-  }
-  return tmp;
-}
-
-template <typename T>
-static void out(int fd, T const & data) {
-  if (write(fd, &data, sizeof(data)) != sizeof(data)) {
-    perror("writing to child");
-    throw std::logic_error("I/O");
-  }
-}
-
-
 
 /*******************************************************************************
- * Test support.
+ * Task model.
  */
 
 __attribute__((noreturn))
@@ -52,216 +30,13 @@ static void die(char const * msg) {
   exit(1);
 }
 
-void Expectation::print_send_request(SendRequest const & s) {
-  fprintf(stderr, "- SEND\n");
-  fprintf(stderr, "- block   = %u\n", s.blocking);
-  fprintf(stderr, "- target  = %lu\n", s.target);
-  print_message(s.m);
-}
-
-void Expectation::print_call_request(CallRequest const & r) {
-  fprintf(stderr, "- CALL\n");
-  fprintf(stderr, "- block   = %u\n", r.blocking);
-  fprintf(stderr, "- target  = %lu\n", r.target);
-  print_message(r.m);
-}
-
-void Expectation::print_open_receive_request(OpenReceiveRequest const & r) {
-  fprintf(stderr, "- OPEN_RECEIVE\n");
-  fprintf(stderr, "- block   = %u\n", r.blocking);
-}
-
-void Expectation::print_message(Message const & m) {
-  fprintf(stderr, "- data[0] = %lu\n", m.data[0]);
-  fprintf(stderr, "- data[1] = %lu\n", m.data[1]);
-  fprintf(stderr, "- data[2] = %lu\n", m.data[2]);
-  fprintf(stderr, "- data[3] = %lu\n", m.data[3]);
-}
-
-void Expectation::print_request() {
-  fprintf(stderr, "Expected request:\n");
-  switch (req_type) {
-    case RequestType::send:
-      print_send_request(req.send);
-      break;
-    case RequestType::call:
-      print_call_request(req.call);
-      break;
-    case RequestType::open_receive:
-      print_open_receive_request(req.open_receive);
-      break;
-  }
-}
-
-void Expectation::check_send(SendRequest const & actual) {
-  bool ok = true;
-  if (req_type == RequestType::send) {
-    if (req.send.blocking != actual.blocking) ok = false;
-    if (req.send.target != actual.target) ok = false;
-    if (req.send.m != actual.m) ok = false;
-    if (!ok) {
-      fprintf(stderr, "FAIL: send parameters bad\n");
-    }
-  } else {
-    fprintf(stderr, "FAIL: got send\n");
-    ok = false;
-  }
-
-  if (!ok) {
-    print_request();
-    fprintf(stderr, "Actual request:\n");
-    print_send_request(actual);
-    throw std::logic_error("test failed");
-  }
-}
-
-void Expectation::check_call(CallRequest const &actual) {
-  bool ok = true;
-  if (req_type == RequestType::call) {
-    if (req.send.blocking != actual.blocking) ok = false;
-    if (req.send.target != actual.target) ok = false;
-    if (req.send.m != actual.m) ok = false;
-    if (!ok) {
-      fprintf(stderr, "FAIL: call parameters bad\n");
-    }
-  } else {
-    fprintf(stderr, "FAIL: got call\n");
-    ok = false;
-  }
-
-  if (!ok) {
-    print_request();
-    fprintf(stderr, "Actual request:\n");
-    print_call_request(actual);
-    throw std::logic_error("test failed");
-  }
-}
-
-void Expectation::check_open_receive(OpenReceiveRequest const &actual) {
-  bool ok = true;
-  if (req_type == RequestType::open_receive) {
-    if (req.send.blocking != actual.blocking) ok = false;
-    if (!ok) {
-      fprintf(stderr, "FAIL: open receive parameters bad\n");
-    }
-  } else {
-    fprintf(stderr, "FAIL: got open receive\n");
-    ok = false;
-  }
-
-  if (!ok) {
-    print_request();
-    fprintf(stderr, "Actual request:\n");
-    print_open_receive_request(actual);
-    throw std::logic_error("test failed");
-  }
-}
-
-void Expectation::respond(int outf) {
-  out(outf, resp_type);
-  switch (resp_type) {
-    case ResponseType::message:
-      out(outf, resp.message);
-      break;
-
-    case ResponseType::complete:
-      out(outf, resp.complete);
-      break;
-  }
-}
-
-void Sender::and_succeed() {
-  and_return(SysResult::success);
-}
-
-void Sender::and_return(SysResult result) {
-  xp.push(Expectation {
-      .req_type = RequestType::send,
-      .req = {
-        .send = req,
-      },
-      .resp_type = ResponseType::complete,
-      .resp = {
-        .complete = {result},
-      },
-    });
-}
-
-void Caller::and_return(uintptr_t brand,
-                        uintptr_t md0,
-                        uintptr_t md1,
-                        uintptr_t md2,
-                        uintptr_t md3) {
-  xp.push(Expectation {
-      .req_type = RequestType::call,
-      .req = {
-        .call = req,
-      },
-      .resp_type = ResponseType::message,
-      .resp = {
-        .message = {
-          .rm = {
-            .brand = brand,
-            .m = {{md0, md1, md2, md3}},
-          },
-        },
-      },
-    });
-}
-
-void OpenReceiver::and_fail(SysResult result) {
-  xp.push(Expectation {
-      .req_type = RequestType::open_receive,
-      .req = {
-        .open_receive = req,
-      },
-      .resp_type = ResponseType::complete,
-      .resp = {
-        .complete = {
-          .result = result,
-        },
-      },
-    });
-}
-
-void OpenReceiver::and_return(unsigned brand,
-                              unsigned md0,
-                              unsigned md1,
-                              unsigned md2,
-                              unsigned md3) {
-  xp.push(Expectation {
-      .req_type = RequestType::open_receive,
-      .req = {
-        .open_receive = req,
-      },
-      .resp_type = ResponseType::message,
-      .resp = {
-        .message = {
-          .rm = {
-            .brand = brand,
-            .m = {{md0, md1, md2, md3}},
-          },
-        },
-      },
-    });
-}
-
-
-/*******************************************************************************
- * Actual test
- */
-
-MockTest::MockTest(char const * child_path)
-  : _out(-1),
+Task::Task(char const * child_path)
+  : _child_path(child_path),
     _in(-1),
-    _child(-1),
-    _xp(),
-    _verified(false),
-    _child_path(child_path) {}
+    _out(-1),
+    _child(-1) {}
 
-void MockTest::SetUp() {
-  _verified = false;
-
+void Task::start() {
   int p2c[2];
   int c2p[2];
   if (pipe(p2c) < 0) die("pipe");
@@ -301,83 +76,269 @@ void MockTest::SetUp() {
   }
 }
 
-void MockTest::TearDown() {
-  ASSERT_TRUE(_verified) << "forgot to call verify!";
+void Task::stop() {
   close(_out);
   close(_in);
   kill(_child, 9);
 }
 
-Sender MockTest::expect_send(bool block,
-                             unsigned target,
-                             unsigned md0,
-                             unsigned md1,
-                             unsigned md2,
-                             unsigned md3) {
-  return Sender{
-    SendRequest{block, target, Message{{md0, md1, md2, md3}}},
-    _xp,
-  };
-}
-
-Caller MockTest::expect_call(bool block,
-                             unsigned target,
-                             unsigned md0,
-                             unsigned md1,
-                             unsigned md2,
-                             unsigned md3) {
-  return Caller{
-    CallRequest{block, target, Message{{md0, md1, md2, md3}}},
-    _xp,
-  };
-}
-
-OpenReceiver MockTest::expect_open_receive(bool block) {
-  return OpenReceiver{
-    .req = { .blocking = block },
-    .xp = _xp,
-  };
-}
-
-void MockTest::verify() {
-  while (!_xp.empty()) rendezvous();
-  _verified = true;
-}
-
-bool MockTest::rendezvous() {
-  assert(!_xp.empty());
-
-  auto e = _xp.front();
-  _xp.pop();
-
-  auto t = in<RequestType>(_in);
-  switch (t) {
-    case RequestType::send:
-      if (trace) fprintf(stderr, "SEND\n");
-      {
-        e.check_send(in<SendRequest>(_in));
-        e.respond(_out);
-      }
-      break;
-
-    case RequestType::call:
-      if (trace) fprintf(stderr, "CALL\n");
-      {
-        e.check_call(in<CallRequest>(_in));
-        e.respond(_out);
-      }
-      break;
-
-    case RequestType::open_receive:
-      if (trace) fprintf(stderr, "OPEN\n");
-      {
-        e.check_open_receive(in<OpenReceiveRequest>(_in));
-        e.respond(_out);
-      }
-      break;
+std::string Task::get_key(uintptr_t index) {
+  auto it = _clist.find(index);
+  if (it == _clist.end()) {
+    return "";
+  } else {
+    return it->second;
   }
+}
 
-  return true;
+void Task::set_key(uintptr_t index, std::string name) {
+  _clist[index] = name;
+}
+
+MessageKeyNames Task::get_pass_keys() {
+  return {
+    get_key(0),
+    get_key(1),
+    get_key(2),
+    get_key(3),
+  };
+}
+
+void Task::set_pass_keys(MessageKeyNames const & k) {
+  for (unsigned i = 0; i < n_keys_sent; ++i) {
+    _clist[i] = k.name[i];
+  }
+}
+
+void Task::sim_sys(SendRequest const & r) {
+  switch (r.m.data[0]) {
+    case 0:  // move cap
+      set_key(r.m.data[2], get_key(r.m.data[1]));
+      set_key(r.m.data[1], "");
+
+      out(ResponseType::complete);
+      out(CompleteResponse { SysResult::success });
+      break;
+
+    default:
+      FAIL() << "Bad message to kernel: " << r.m.data[0];
+  }
+}
+
+
+/*******************************************************************************
+ * Test support.
+ */
+
+static void print_message(Message const & m) {
+  fprintf(stderr, "- data[0] = %lu\n", m.data[0]);
+  fprintf(stderr, "- data[1] = %lu\n", m.data[1]);
+  fprintf(stderr, "- data[2] = %lu\n", m.data[2]);
+  fprintf(stderr, "- data[3] = %lu\n", m.data[3]);
+}
+
+static void print_keys(MessageKeyNames const & k) {
+  fprintf(stderr, "- key[0] = '%s'\n", k.name[0].c_str());
+  fprintf(stderr, "- key[1] = '%s'\n", k.name[1].c_str());
+  fprintf(stderr, "- key[2] = '%s'\n", k.name[2].c_str());
+  fprintf(stderr, "- key[3] = '%s'\n", k.name[3].c_str());
+}
+
+/*
+static void print_call_request(CallRequest const & r) {
+  fprintf(stderr, "- CALL\n");
+  fprintf(stderr, "- block   = %u\n", r.blocking);
+  fprintf(stderr, "- target  = %lu\n", r.target);
+  print_message(r.m);
+}
+*/
+
+static void print_req(SendRequest const & r, Task & task) {
+  fprintf(stderr, "- SEND\n");
+  fprintf(stderr, "- block  = %s\n", r.blocking ? "true" : "false");
+  fprintf(stderr, "- target = '%s'\n", task.get_key(r.target).c_str());
+  print_message(r.m);
+  print_keys(task.get_pass_keys());
+}
+
+static void print_req(OpenReceiveRequest const & r, Task & task) {
+  fprintf(stderr, "- OPEN RECEIVE\n");
+  fprintf(stderr, "- block  = %s\n", r.blocking ? "true" : "false");
+}
+
+SendBuilder::SendBuilder(bool blocking, std::string const & target, Task & t)
+  : _blocking(blocking),
+    _target(target),
+    _task(t) {}
+
+SendBuilder & SendBuilder::with_data(uintptr_t md0,
+                                     uintptr_t md1,
+                                     uintptr_t md2,
+                                     uintptr_t md3) {
+  _m = Message{md0,md1,md2,md3};
+  _message_matters = true;
+  return *this;
+}
+
+SendBuilder & SendBuilder::with_keys(const char * k0,
+                                     const char * k1,
+                                     const char * k2,
+                                     const char * k3) {
+  _k = MessageKeyNames{k0, k1, k2, k3};
+  _keys_matter = true;
+  return *this;
+}
+
+void SendBuilder::and_succeed() {
+  and_return(SysResult::success);
+}
+
+void SendBuilder::and_return(SysResult result) {
+  while (true) {
+    auto rt = _task.in<RequestType>();
+    if (rt == RequestType::send) {
+      auto r = _task.in<SendRequest>();
+
+      if (_task.get_key(r.target) == "<SYS>") {
+        _task.sim_sys(r);
+        continue;
+      }
+
+      bool ok = true;
+      if (_blocking != r.blocking) ok = false;
+      if (_target != _task.get_key(r.target)) ok = false;
+      if (_message_matters && _m != r.m) ok = false;
+      if (_keys_matter && _k != _task.get_pass_keys()) ok = false;
+      if (!ok) {
+        fprintf(stderr, "FAIL: send parameters bad\n");
+        fprintf(stderr, "Expected:\n");
+        print();
+        fprintf(stderr, "Actual:\n");
+        print_req(r, _task);
+        throw std::logic_error("test failed");
+      } else {
+        _task.out(ResponseType::complete);
+        _task.out(CompleteResponse { SysResult::success });
+
+        std::string reply_prefix("reply@");
+        if (_target.compare(0, reply_prefix.length(), reply_prefix) == 0) {
+          _task.set_key(r.target, "<REVOKED>");
+        }
+        return;
+      }
+    } else {
+      fprintf(stderr, "FAIL: expected send, got something else.\n");
+      fprintf(stderr, "Expected:\n");
+      print();
+      fprintf(stderr, "Actual type: %u\n", unsigned(rt));
+      throw std::logic_error("test failed");
+    }
+  }
+}
+
+void SendBuilder::print() {
+  fprintf(stderr, "SEND:\n");
+  fprintf(stderr, "- block  = %u\n", _blocking);
+  fprintf(stderr, "- target = %s\n", _target.c_str());
+  print_message(_m);
+  print_keys(_k);
+}
+
+/*
+void OpenReceiver::and_fail(SysResult result) {
+  xp.push(Expectation {
+      .req_type = RequestType::open_receive,
+      .req = {
+        .open_receive = req,
+      },
+      .resp_type = ResponseType::complete,
+      .resp = {
+        .complete = {
+          .result = result,
+        },
+      },
+    });
+}
+
+*/
+
+OpenReceiveBuilder::OpenReceiveBuilder(bool blocking, Task & task)
+  : _blocking(blocking),
+    _task(task) {}
+
+void OpenReceiveBuilder::and_provide(unsigned brand,
+                                     Message m,
+                                     MessageKeyNames k) {
+  while (true) {
+    auto rt = _task.in<RequestType>();
+    if (rt == RequestType::open_receive) {
+      auto r = _task.in<OpenReceiveRequest>();
+      bool ok = true;
+      if (_blocking != r.blocking) ok = false;
+      if (!ok) {
+        fprintf(stderr, "FAIL: open receive parameters bad\n");
+        fprintf(stderr, "Expected:\n");
+        print();
+        fprintf(stderr, "Actual:\n");
+        print_req(r, _task);
+        throw std::logic_error("test failed");
+      } else {
+        _task.out(ResponseType::message);
+        _task.out(MessageResponse {
+            .rm = {
+            .brand = brand,
+            .m = m,
+            },
+            });
+        _task.set_pass_keys(k);
+      }
+      return;
+    } else {
+      if (rt == RequestType::send) {
+        auto r = _task.in<SendRequest>();
+
+        if (_task.get_key(r.target) == "<SYS>") {
+          _task.sim_sys(r);
+          continue;
+        }
+      }
+      fprintf(stderr, "FAIL: expected open receive, got something else.\n");
+      fprintf(stderr, "Expected:\n");
+      print();
+      fprintf(stderr, "Actual type: %u\n", unsigned(rt));
+      throw std::logic_error("test failed");
+    }
+  }
+}
+
+void OpenReceiveBuilder::print() {
+  fprintf(stderr, "OPEN RECEIVE:\n");
+  fprintf(stderr, "- block  = %u\n", _blocking);
+}
+
+
+/*******************************************************************************
+ * Actual test
+ */
+
+MockTest::MockTest(char const * child_path)
+  : _task(child_path) {}
+
+void MockTest::SetUp() {
+  _task.start();
+}
+
+void MockTest::TearDown() {
+  _task.stop();
+}
+
+SendBuilder MockTest::expect_send_to(std::string target,
+                                     Blocking blocking) {
+  return SendBuilder{blocking == Blocking::yes, target, _task};
+}
+
+OpenReceiveBuilder MockTest::expect_open_receive(Blocking blocking) {
+  return OpenReceiveBuilder{blocking == Blocking::yes, _task};
 }
 
 }  // namespace mock

@@ -1,7 +1,8 @@
 #ifndef SIM_MOCK_H
 #define SIM_MOCK_H
 
-#include <queue>
+#include <map>
+#include <memory>
 
 #include <gtest/gtest.h>
 
@@ -9,69 +10,108 @@
 
 namespace mock {
 
-struct Expectation {
-  RequestType req_type;
-  union {
-    SendRequest send;
-    CallRequest call;
-    OpenReceiveRequest open_receive;
-  } req;
+static constexpr unsigned n_keys_sent = 4;
 
-  ResponseType resp_type;
-  union {
-    MessageResponse message;
-    CompleteResponse complete;
-  } resp;
-
-  void print_send_request(SendRequest const & s);
-
-  void print_call_request(CallRequest const & r);
-
-  void print_open_receive_request(OpenReceiveRequest const & r);
-
-  void print_message(Message const & m);
-
-  void print_request();
-
-  void check_send(SendRequest const & actual);
-
-  void check_call(CallRequest const &actual);
-
-  void check_open_receive(OpenReceiveRequest const &actual);
-
-  void respond(int outf);
+struct MessageKeyNames {
+  std::string name[n_keys_sent];
 };
 
-struct Sender {
-  SendRequest req;
-  std::queue<Expectation> & xp;
+inline bool operator==(MessageKeyNames const & a, MessageKeyNames const & b) {
+  for (unsigned i = 0; i < n_keys_sent; ++i) {
+    if (a.name[i] != b.name[i]) return false;
+  }
 
+  return true;
+}
+
+inline bool operator!=(MessageKeyNames const & a, MessageKeyNames const & b) {
+  return !(a == b);
+}
+
+
+class Task {
+public:
+  Task(char const * child_path);
+
+  void start();
+  void stop();
+
+  std::string get_key(uintptr_t);
+  void set_key(uintptr_t, std::string);
+  MessageKeyNames get_pass_keys();
+  void set_pass_keys(MessageKeyNames const &);
+
+  template <typename T>
+  T in() {
+    T tmp;
+    if (read(_in, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+      perror("reading from task");
+      throw std::logic_error("I/O");
+    }
+    return tmp;
+  }
+
+  template <typename T>
+  void out(T const & data) {
+    if (write(_out, &data, sizeof(data)) != sizeof(data)) {
+      perror("writing to task");
+      throw std::logic_error("I/O");
+    }
+  }
+
+  void sim_sys(SendRequest const &);
+
+private:
+  char const * _child_path;
+  int _in;
+  int _out;
+  pid_t _child;
+  std::map<uintptr_t, std::string> _clist;
+};
+
+
+class SendBuilder {
+public:
+  SendBuilder(bool blocking, std::string const & target, Task &);
+  SendBuilder & with_data(uintptr_t = 0,
+                          uintptr_t = 0,
+                          uintptr_t = 0,
+                          uintptr_t = 0);
+  SendBuilder & with_keys(char const * = "",
+                          char const * = "",
+                          char const * = "",
+                          char const * = "");
   void and_succeed();
   void and_return(SysResult result);
+
+private:
+  bool _blocking;
+  std::string _target;
+  bool _message_matters = false;
+  Message _m;
+  bool _keys_matter = false;
+  MessageKeyNames _k;
+
+  Task & _task;
+
+  void print();
 };
 
-struct Caller {
-  CallRequest req;
-  std::queue<Expectation> & xp;
-
-  void and_return(uintptr_t brand,
-                  uintptr_t md0 = 0,
-                  uintptr_t md1 = 0,
-                  uintptr_t md2 = 0,
-                  uintptr_t md3 = 0);
-};
-
-struct OpenReceiver {
-  OpenReceiveRequest req;
-  std::queue<Expectation> & xp;
+class OpenReceiveBuilder {
+public:
+  OpenReceiveBuilder(bool blocking, Task &);
 
   void and_fail(SysResult result);
 
-  void and_return(unsigned brand,
-                  unsigned md0 = 0,
-                  unsigned md1 = 0,
-                  unsigned md2 = 0,
-                  unsigned md3 = 0);
+  void and_provide(unsigned brand,
+                   Message,
+                   MessageKeyNames);
+private:
+  bool _blocking;
+
+  Task & _task;
+
+  void print();
 };
 
 
@@ -86,33 +126,16 @@ protected:
   void SetUp() override;
   void TearDown() override;
 
-  Sender expect_send(bool block,
-                     unsigned target,
-                     unsigned md0 = 0,
-                     unsigned md1 = 0,
-                     unsigned md2 = 0,
-                     unsigned md3 = 0);
+  enum class Blocking { yes, no };
 
-  Caller expect_call(bool block,
-                     unsigned target,
-                     unsigned md0 = 0,
-                     unsigned md1 = 0,
-                     unsigned md2 = 0,
-                     unsigned md3 = 0);
+  SendBuilder expect_send_to(std::string target, Blocking = Blocking::yes);
 
-  OpenReceiver expect_open_receive(bool block);
+  OpenReceiveBuilder expect_open_receive(Blocking = Blocking::yes);
 
-  void verify();
-
-  bool rendezvous();
+  Task & get_task() { return _task; }
 
 private:
-  int _out;
-  int _in;
-  pid_t _child;
-  std::queue<Expectation> _xp;
-  bool _verified;
-  char const * _child_path;
+  Task _task;
 };
 
 }  // namespace mock

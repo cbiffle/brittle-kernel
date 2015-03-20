@@ -21,16 +21,24 @@ protected:
       p_mon = 0,
       k0 = 0,
       k_saved_reply = 8;
+
+  void SetUp() override {
+    MockTest::SetUp();
+
+    get_task().set_key(15, "<SYS>");
+  }
 };
 
 TEST_F(UartTest, Heartbeat) {
-  expect_open_receive(true).and_return(p_mon, 0, 1, 2, 3);
-  expect_send(true, 15, 0, k0, k_saved_reply).and_succeed();
-  expect_send(false, k_saved_reply, 1, 2, 3, 0).and_succeed();
+  expect_open_receive()
+      .and_provide(p_mon, {0, 1, 2, 3}, {"reply@hb"});
 
-  verify();
+  expect_send_to("reply@hb", Blocking::no)
+      .with_data(1, 2, 3)
+      .and_succeed();
 }
 
+#if 0
 TEST_F(UartTest, SendByte) {
   expect_open_receive(true).and_return(1, 0, 0x42);
 
@@ -155,7 +163,7 @@ TEST_F(UartTest, FlushWhileIdle) {
   verify();
 }
 
-
+#endif
 
 int main(int argc, char * argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
