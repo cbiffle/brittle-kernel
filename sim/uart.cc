@@ -11,10 +11,17 @@ static constexpr bool trace = false;
 
 // Names for clist slots
 static constexpr uintptr_t
+  // Where reply keys arrive.
   k0 = 0,
+  // We move reply keys here immediately so they don't get stomped
+  // by subsequent operations.
   k_saved_reply = 4,
+  // We accept one flush request and keep its reply key pending
+  // here across concurrent operations on other ports.
   k_flush_reply = 5,
+  // Register access grant.
   k_reg = 14,
+  // System access.
   k_sys = 15;
 
 // Names for message types
