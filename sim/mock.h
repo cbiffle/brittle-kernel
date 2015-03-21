@@ -30,9 +30,7 @@ public:
 private:
   bool _blocking;
   std::string _target;
-  bool _message_matters = false;
   Message _m;
-  bool _keys_matter = false;
   MessageKeyNames _k;
 
   Task & _task;
@@ -59,9 +57,7 @@ public:
 private:
   bool _blocking;
   std::string _target;
-  bool _message_matters = false;
   Message _m_out;
-  bool _keys_matter = false;
   MessageKeyNames _k_out;
 
   Task & _task;

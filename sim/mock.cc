@@ -113,6 +113,8 @@ static void print_incoming(RequestType rt, Task & task) {
 SendBuilder::SendBuilder(bool blocking, std::string const & target, Task & t)
   : _blocking(blocking),
     _target(target),
+    _m(),
+    _k(),
     _task(t) {}
 
 SendBuilder & SendBuilder::with_data(uintptr_t md0,
@@ -120,7 +122,6 @@ SendBuilder & SendBuilder::with_data(uintptr_t md0,
                                      uintptr_t md2,
                                      uintptr_t md3) {
   _m = Message{md0,md1,md2,md3};
-  _message_matters = true;
   return *this;
 }
 
@@ -129,7 +130,6 @@ SendBuilder & SendBuilder::with_keys(const char * k0,
                                      const char * k2,
                                      const char * k3) {
   _k = MessageKeyNames{k0, k1, k2, k3};
-  _keys_matter = true;
   return *this;
 }
 
@@ -146,8 +146,8 @@ void SendBuilder::and_return(SysResult result) {
       bool ok = true;
       if (_blocking != r.blocking) ok = false;
       if (_target != _task.get_key(r.target)) ok = false;
-      if (_message_matters && _m != r.m) ok = false;
-      if (_keys_matter && _k != _task.get_pass_keys()) ok = false;
+      if (_m != r.m) ok = false;
+      if (_k != _task.get_pass_keys()) ok = false;
       if (!ok) {
         fprintf(stderr, "FAIL: send parameters bad\n");
         fprintf(stderr, "Expected:\n");
@@ -186,6 +186,8 @@ void SendBuilder::print() {
 CallBuilder::CallBuilder(bool blocking, std::string const & target, Task & t)
   : _blocking(blocking),
     _target(target),
+    _m_out(),
+    _k_out(),
     _task(t) {}
 
 CallBuilder & CallBuilder::with_data(uintptr_t md0,
@@ -193,7 +195,6 @@ CallBuilder & CallBuilder::with_data(uintptr_t md0,
                                      uintptr_t md2,
                                      uintptr_t md3) {
   _m_out = Message{md0,md1,md2,md3};
-  _message_matters = true;
   return *this;
 }
 
@@ -202,7 +203,6 @@ CallBuilder & CallBuilder::with_keys(const char * k0,
                                      const char * k2,
                                      const char * k3) {
   _k_out = MessageKeyNames{k0, k1, k2, k3};
-  _keys_matter = true;
   return *this;
 }
 
@@ -217,8 +217,8 @@ void CallBuilder::and_provide(unsigned brand,
       bool ok = true;
       if (_blocking != r.blocking) ok = false;
       if (_target != _task.get_key(r.target)) ok = false;
-      if (_message_matters && _m_out != r.m) ok = false;
-      if (_keys_matter && _k_out != _task.get_pass_keys()) ok = false;
+      if (_m_out != r.m) ok = false;
+      if (_k_out != _task.get_pass_keys()) ok = false;
       if (!ok) {
         fprintf(stderr, "FAIL: call parameters bad\n");
         fprintf(stderr, "Expected:\n");
