@@ -1,13 +1,10 @@
 #include <assert.h>
-#include <stdio.h>
 
 #include "stubs.h"
 
 /*******************************************************************************
- * Assorted declarations.
+ * Names for some of our resources.
  */
-
-static constexpr bool trace = false;
 
 // Names for clist slots
 static constexpr uintptr_t
@@ -24,7 +21,18 @@ static constexpr uintptr_t
   // System access.
   k_sys = 15;
 
-// Names for message types
+// Names for our ports.
+static constexpr uintptr_t
+  p_mon = 0,
+  p_tx = 1,
+  p_irq = 2,
+  p_rx = 3;
+
+
+/*******************************************************************************
+ * Constants describing our protocols and others'.  Some of this ought to move
+ * into header files.
+ */
 static constexpr uintptr_t
   // mon protocol
   t_mon_heartbeat = 0,
@@ -40,12 +48,16 @@ static constexpr uintptr_t
   // uart.rx protocol
   t_rx_recv1 = 0;
 
-// Names for our ports.
-static constexpr uintptr_t
-  p_mon = 0,
-  p_tx = 1,
-  p_irq = 2,
-  p_rx = 3;
+
+/*******************************************************************************
+ * Declarations of implementation factors.
+ */
+
+// Functions used in received-message port dispatching.
+static void handle_mon(Message const &);
+static void handle_tx(Message const &);
+static void handle_irq(Message const &);
+static void handle_rx(Message const &);
 
 // Utility function for using k_saved_reply with no keys.
 static void reply(uintptr_t md0 = 0,
@@ -57,15 +69,57 @@ static void reply(uintptr_t md0 = 0,
 
 
 /*******************************************************************************
- * Mem protocol wrappers for UART register access
+ * Main loop
+ */
+
+int main() {
+  // We mask the receive port until we get evidence from the
+  // hardware that data is available.
+  // TODO: if we're restarted, the hardware may already hold
+  // data -- we should check.
+  mask(p_rx);
+
+  while (true) {
+    ReceivedMessage rm {};
+    auto r = open_receive(true, &rm);
+    if (r != SysResult::success) continue;
+
+    move_cap(k0, k_saved_reply);
+    // TODO: clear transients
+
+    switch (rm.port) {
+      case p_mon: handle_mon(rm.m); break;
+      case p_tx: handle_tx(rm.m); break;
+      case p_irq: handle_irq(rm.m); break;
+      case p_rx: handle_rx(rm.m); break;
+
+      default:
+        // This would indicate that the kernel has handed us
+        // a message from a port we don't know about.  This
+        // is either a bug in the kernel or in this dispatch
+        // code.
+        assert(false);
+    }
+  }
+}
+
+
+/*******************************************************************************
+ * Mem protocol wrappers for UART register access.
+ *
+ * These all use the register access grant kept in k_reg.  Because we assume
+ * a simple memory grant, or something compatible with one, we handle error
+ * returns in a heavy-handed manner.
  */
 
 static void write_cr1(uint32_t value) {
-  send(true, k_reg, Message{t_mem_write32, 0xC, value});
+  auto r = send(true, k_reg, Message{t_mem_write32, 0xC, value});
+  assert(r == SysResult::success);
 }
 
 static void write_dr(uint8_t value) {
-  send(true, k_reg, Message{t_mem_write32, 4, value});
+  auto r = send(true, k_reg, Message{t_mem_write32, 4, value});
+  assert(r == SysResult::success);
 }
 
 static uint32_t read_dr() {
@@ -188,30 +242,5 @@ static void do_recv1(Message const & req) {
 static void handle_rx(Message const & req) {
   switch (req.data[0]) {
     case t_rx_recv1: do_recv1(req); break;
-  }
-}
-
-/*******************************************************************************
- * Main loop
- */
-int main() {
-  mask(p_rx);
-
-  if (trace) fprintf(stderr, "CHILD: starting message loop\n");
-  while (true) {
-    if (trace) fprintf(stderr, "CHILD: entering open receive\n");
-    ReceivedMessage rm {};
-    auto r = open_receive(true, &rm);
-    if (r != SysResult::success) continue;
-
-    move_cap(k0, k_saved_reply);
-    // TODO: clear transients
-
-    switch (rm.port) {
-      case p_mon: handle_mon(rm.m); break;
-      case p_tx: handle_tx(rm.m); break;
-      case p_irq: handle_irq(rm.m); break;
-      case p_rx: handle_rx(rm.m); break;
-    }
   }
 }
