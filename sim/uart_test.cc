@@ -91,6 +91,8 @@ TEST_F(UartTest, ReceiveByte) {
   expect_open_receive()
     .and_provide(p_irq, {}, {"reply@irq"});
 
+  ASSERT_TRUE(get_task().is_port_masked(p_rx));
+
   // Status register read.
   expect_read32("hw", 0x0, 0xBEEF0000 | (1 << 5));
   // Control register read.

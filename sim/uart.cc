@@ -189,6 +189,8 @@ static void handle_rx(Message const & req) {
  * Main loop
  */
 int main() {
+  mask(p_rx);
+
   if (trace) fprintf(stderr, "CHILD: starting message loop\n");
   while (true) {
     if (trace) fprintf(stderr, "CHILD: entering open receive\n");
