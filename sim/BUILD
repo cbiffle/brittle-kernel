@@ -14,20 +14,20 @@ c_library('stubs',
   ],
 )
 
-c_binary('child',
+c_binary('uart',
   environment = 'native',
   sources = [
-    'child.cc',
+    'uart.cc',
   ],
   deps = [
     ':stubs',
   ],
 )
 
-c_binary('parent',
+c_binary('uart_test',
   environment = 'native',
   sources = [
-    'parent.cc',
+    'uart_test.cc',
   ],
   deps = [
     ':test',

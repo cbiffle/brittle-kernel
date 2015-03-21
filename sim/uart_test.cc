@@ -5,7 +5,7 @@
 
 class UartTest : public ::sim::MockTest {
 protected:
-  UartTest() : MockTest("latest/sim/child") {}
+  UartTest() : MockTest("latest/sim/uart") {}
 
   static constexpr uintptr_t
       p_mon = 0,
