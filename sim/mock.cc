@@ -62,26 +62,51 @@ static void print_req(OpenReceiveRequest const & r, Task & task) {
   fprintf(stderr, "- block  = %s\n", r.blocking ? "true" : "false");
 }
 
+static void print_req(CopyCapRequest const & r, Task & task) {
+  fprintf(stderr, "- COPY CAP\n");
+  fprintf(stderr, "- from   = %lu ('%s')\n",
+      r.from_index,
+      task.get_key(r.from_index).c_str());
+  fprintf(stderr, "- to     = %lu\n", r.to_index);
+}
+
+static void print_req(NullCapRequest const & r, Task & task) {
+  fprintf(stderr, "- NULL CAP\n");
+  fprintf(stderr, "- index  = %lu\n", r.index);
+}
+
+static void print_req(MaskPortRequest const & r, Task & task) {
+  fprintf(stderr, "- MASK PORT\n");
+  fprintf(stderr, "- index  = %lu\n", r.index);
+}
+
+static void print_req(UnmaskPortRequest const & r, Task & task) {
+  fprintf(stderr, "- UNMASK PORT\n");
+  fprintf(stderr, "- index  = %lu\n", r.index);
+}
+
 static void print_incoming(RequestType rt, Task & task) {
   switch (rt) {
-    case RequestType::send:
-      {
-        auto r = task.in<SendRequest>();
-        print_req(r, task);
-        break;
+
+#define READ_AND_PRINT_REQ(name_lo, name_up) \
+    case RequestType::name_lo: \
+      { \
+        auto r = task.in<name_up>(); \
+        print_req(r, task); \
+        break; \
       }
-    case RequestType::call:
-      {
-        auto r = task.in<CallRequest>();
-        print_req(r, task);
-        break;
-      }
-    case RequestType::open_receive:
-      {
-        auto r = task.in<OpenReceiveRequest>();
-        print_req(r, task);
-        break;
-      }
+
+    READ_AND_PRINT_REQ(send, SendRequest);
+    READ_AND_PRINT_REQ(call, CallRequest);
+    READ_AND_PRINT_REQ(open_receive, OpenReceiveRequest);
+    READ_AND_PRINT_REQ(copy_cap, CopyCapRequest);
+    READ_AND_PRINT_REQ(null_cap, NullCapRequest);
+    READ_AND_PRINT_REQ(mask_port, MaskPortRequest);
+    READ_AND_PRINT_REQ(unmask_port, UnmaskPortRequest);
+
+    default:
+      fprintf(stderr, "(corrupt type)\n");
+      break;
   }
 }
 
@@ -114,13 +139,9 @@ void SendBuilder::and_succeed() {
 
 void SendBuilder::and_return(SysResult result) {
   while (true) {
-    auto rt = _task.in<RequestType>();
+    auto rt = _task.next_nontrivial_syscall();
     if (rt == RequestType::send) {
       auto r = _task.in<SendRequest>();
-
-      if (_task.get_key(r.target) == "<SYS>") {
-        if (_task.sim_sys(r)) continue;
-      }
 
       bool ok = true;
       if (_blocking != r.blocking) ok = false;
@@ -145,18 +166,6 @@ void SendBuilder::and_return(SysResult result) {
         return;
       }
     } else {
-      if (rt == RequestType::call) {
-        auto r = _task.in<CallRequest>();
-        if (_task.get_key(r.target) == "<SYS>") {
-          if (_task.sim_sys(r)) continue;
-        }
-        fprintf(stderr, "FAIL: expected send, got something else.\n");
-        fprintf(stderr, "Expected:\n");
-        print();
-        fprintf(stderr, "Actual:\n");
-        print_req(r, _task);
-        throw std::logic_error("test failed");
-      }
       fprintf(stderr, "FAIL: expected send, got something else.\n");
       fprintf(stderr, "Expected:\n");
       print();
@@ -201,13 +210,9 @@ void CallBuilder::and_provide(unsigned brand,
                               Message m_in,
                               MessageKeyNames k_in) {
   while (true) {
-    auto rt = _task.in<RequestType>();
+    auto rt = _task.next_nontrivial_syscall();
     if (rt == RequestType::call) {
       auto r = _task.in<CallRequest>();
-
-      if (_task.get_key(r.target) == "<SYS>") {
-        if (_task.sim_sys(r)) continue;
-      }
 
       bool ok = true;
       if (_blocking != r.blocking) ok = false;
@@ -238,25 +243,12 @@ void CallBuilder::and_provide(unsigned brand,
         return;
       }
     } else {
-      if (rt == RequestType::send) {
-        auto r = _task.in<SendRequest>();
-        if (_task.get_key(r.target) == "<SYS>") {
-          if (_task.sim_sys(r)) continue;
-        }
-        fprintf(stderr, "FAIL: expected call, got something else.\n");
-        fprintf(stderr, "Expected:\n");
-        print();
-        fprintf(stderr, "Actual:\n");
-        print_req(r, _task);
-        throw std::logic_error("test failed");
-      } else {
-        fprintf(stderr, "FAIL: expected call, got something else.\n");
-        fprintf(stderr, "Expected:\n");
-        print();
-        fprintf(stderr, "Actual type: %u\n", unsigned(rt));
-        print_incoming(rt, _task);
-        throw std::logic_error("test failed");
-      }
+      fprintf(stderr, "FAIL: expected call, got something else.\n");
+      fprintf(stderr, "Expected:\n");
+      print();
+      fprintf(stderr, "Actual type: %u\n", unsigned(rt));
+      print_incoming(rt, _task);
+      throw std::logic_error("test failed");
     }
   }
 }
@@ -269,25 +261,6 @@ void CallBuilder::print() {
   print_keys(_k_out);
 }
 
-
-/*
-void OpenReceiver::and_fail(SysResult result) {
-  xp.push(Expectation {
-      .req_type = RequestType::open_receive,
-      .req = {
-        .open_receive = req,
-      },
-      .resp_type = ResponseType::complete,
-      .resp = {
-        .complete = {
-          .result = result,
-        },
-      },
-    });
-}
-
-*/
-
 OpenReceiveBuilder::OpenReceiveBuilder(bool blocking, Task & task)
   : _blocking(blocking),
     _task(task) {}
@@ -296,7 +269,7 @@ void OpenReceiveBuilder::and_provide(unsigned brand,
                                      Message m,
                                      MessageKeyNames k) {
   while (true) {
-    auto rt = _task.in<RequestType>();
+    auto rt = _task.next_nontrivial_syscall();
     if (rt == RequestType::open_receive) {
       if (_task.is_port_masked(brand)) {
         fprintf(stderr, "FAIL: task has masked port %u, cannot deliver.\n",
@@ -326,13 +299,6 @@ void OpenReceiveBuilder::and_provide(unsigned brand,
       }
       return;
     } else {
-      if (rt == RequestType::send) {
-        auto r = _task.in<SendRequest>();
-
-        if (_task.get_key(r.target) == "<SYS>") {
-          if (_task.sim_sys(r)) continue;
-        }
-      }
       fprintf(stderr, "FAIL: expected open receive, got something else.\n");
       fprintf(stderr, "Expected:\n");
       print();

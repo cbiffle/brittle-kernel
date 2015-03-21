@@ -81,7 +81,7 @@ void Task::stop() {
   kill(_child, 9);
 }
 
-void Task::wait_for_syscall() {
+void Task::wait_for_halt() {
   fd_set readfds;
   FD_ZERO(&readfds);
   FD_SET(_in, &readfds);
@@ -95,6 +95,50 @@ void Task::wait_for_syscall() {
         fprintf(stderr, "WARN: failure in select\n");
         return;
     }
+  }
+}
+
+RequestType Task::next_nontrivial_syscall() {
+  while (true) {
+    auto rt = in<RequestType>();
+    switch (rt) {
+      case RequestType::copy_cap:
+        {
+          auto r = in<CopyCapRequest>();
+          set_key(r.to_index, get_key(r.from_index));
+          set_key(r.from_index, "");  // TODO
+          break;
+        }
+
+      case RequestType::null_cap:
+        {
+          auto r = in<NullCapRequest>();
+          set_key(r.index, "");
+          break;
+        }
+
+      case RequestType::mask_port:
+        {
+          auto r = in<MaskPortRequest>();
+          _masked_ports.insert(r.index);
+          break;
+        }
+
+      case RequestType::unmask_port:
+        {
+          auto r = in<UnmaskPortRequest>();
+          _masked_ports.erase(r.index);
+          break;
+        }
+
+      case RequestType::send:
+      case RequestType::call:
+      case RequestType::open_receive:
+        return rt;
+    }
+
+    out(ResponseType::complete);
+    out(CompleteResponse { SysResult::success });
   }
 }
 
@@ -130,33 +174,6 @@ void Task::clear_pass_keys() {
   set_pass_keys({"","","",""});
 }
 
-bool Task::sim_sys(SendRequest const & r) {
-  switch (r.m.data[0]) {
-    case 0:  // move cap
-      set_key(r.m.data[2], get_key(r.m.data[1]));
-      set_key(r.m.data[1], "");
-
-      out(ResponseType::complete);
-      out(CompleteResponse { SysResult::success });
-      return true;
-
-    case 1:  // mask port
-      _masked_ports.insert(r.m.data[1]);
-      out(ResponseType::complete);
-      out(CompleteResponse { SysResult::success });
-      return true;
-
-    case 2:  // unmask port
-      _masked_ports.erase(r.m.data[1]);
-      out(ResponseType::complete);
-      out(CompleteResponse { SysResult::success });
-      return true;
-
-    default:
-      return false;
-  }
-}
-
 void Task::revoke_key(std::string const & k) {
   for (unsigned i = 0; i < n_keys_sent; ++i) {
     if (get_key(i) == k) {
@@ -164,51 +181,6 @@ void Task::revoke_key(std::string const & k) {
     }
   }
 
-}
-
-bool Task::sim_sys(CallRequest const & r) {
-  switch (r.m.data[0]) {
-    case 0:  // move cap
-      set_key(r.m.data[2], get_key(r.m.data[1]));
-      set_key(r.m.data[1], "");
-
-      out(ResponseType::message);
-      out(MessageResponse {
-          .rm = {
-            .brand = 0,
-            .m = {0,0,0,0},
-          },
-          });
-      clear_pass_keys();
-      return true;
-
-    case 1:  // mask port
-      _masked_ports.insert(r.m.data[1]);
-      out(ResponseType::message);
-      out(MessageResponse {
-          .rm = {
-            .brand = 0,
-            .m = {0,0,0,0},
-          },
-          });
-      clear_pass_keys();
-      return true;
-
-    case 2:  // unmask port
-      _masked_ports.erase(r.m.data[1]);
-      out(ResponseType::message);
-      out(MessageResponse {
-          .rm = {
-            .brand = 0,
-            .m = {0,0,0,0},
-          },
-          });
-      clear_pass_keys();
-      return true;
-
-    default:
-      return false;
-  }
 }
 
 bool Task::is_port_masked(uintptr_t p) {

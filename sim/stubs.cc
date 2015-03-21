@@ -102,20 +102,32 @@ SysResult call(bool block,
   }
 }
 
-static constexpr uintptr_t
-  // sys protocol
-  t_sys_move_cap = 0,
-  t_sys_mask = 1,
-  t_sys_unmask = 2;
-
 SysResult move_cap(uintptr_t from, uintptr_t to) {
-  return send(true, 15, Message{t_sys_move_cap, from, to});
+  out(RequestType::copy_cap);
+  out(CopyCapRequest {
+      .from_index = from,
+      .to_index = to,
+    });
+  auto rt = in<ResponseType>();
+  assert(rt == ResponseType::complete);
+  auto r = in<CompleteResponse>();
+  return r.result;
 }
 
 SysResult mask(uintptr_t port) {
-  return send(true, 15, Message{t_sys_mask, port});
+  out(RequestType::mask_port);
+  out(MaskPortRequest { port });
+  auto rt = in<ResponseType>();
+  assert(rt == ResponseType::complete);
+  auto r = in<CompleteResponse>();
+  return r.result;
 }
 
 SysResult unmask(uintptr_t port) {
-  return send(true, 15, Message{t_sys_unmask, port});
+  out(RequestType::unmask_port);
+  out(UnmaskPortRequest { port });
+  auto rt = in<ResponseType>();
+  assert(rt == ResponseType::complete);
+  auto r = in<CompleteResponse>();
+  return r.result;
 }

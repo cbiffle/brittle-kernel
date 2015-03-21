@@ -41,8 +41,6 @@ public:
   void revoke_key(std::string const &);
   bool is_port_masked(uintptr_t);
 
-  void wait_for_syscall();
-
   template <typename T>
   T in() {
     T tmp;
@@ -61,8 +59,8 @@ public:
     }
   }
 
-  bool sim_sys(SendRequest const &);
-  bool sim_sys(CallRequest const &);
+  void wait_for_halt();
+  RequestType next_nontrivial_syscall();
 
 private:
   char const * _child_path;

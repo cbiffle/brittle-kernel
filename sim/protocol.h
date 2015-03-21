@@ -7,6 +7,10 @@ enum class RequestType : uint8_t {
   send,
   call,
   open_receive,
+  copy_cap,
+  null_cap,
+  mask_port,
+  unmask_port,
 };
 
 struct SendRequest {
@@ -25,6 +29,22 @@ struct OpenReceiveRequest {
   bool blocking;
 };
 
+struct CopyCapRequest {
+  uintptr_t from_index;
+  uintptr_t to_index;
+};
+
+struct NullCapRequest {
+  uintptr_t index;
+};
+
+struct MaskPortRequest {
+  uintptr_t index;
+};
+
+struct UnmaskPortRequest {
+  uintptr_t index;
+};
 
 enum class ResponseType : uint8_t {
   complete,
