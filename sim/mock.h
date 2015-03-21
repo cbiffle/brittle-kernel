@@ -50,7 +50,7 @@ public:
                           char const * = "",
                           char const * = "");
 
-  void and_provide(unsigned brand,
+  void and_provide(unsigned port,
                    Message,
                    MessageKeyNames);
 
@@ -71,7 +71,7 @@ public:
 
   void and_fail(SysResult result);
 
-  void and_provide(unsigned brand,
+  void and_provide(unsigned port,
                    Message,
                    MessageKeyNames);
 private:

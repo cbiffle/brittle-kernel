@@ -34,7 +34,6 @@ static constexpr uintptr_t
   t_rx_recv1 = 0;
 
 // Names for our ports.
-// TODO: currently kind of mixed up with brands.
 static constexpr uintptr_t
   p_mon = 0,
   p_tx = 1,
@@ -201,7 +200,7 @@ int main() {
     move_cap(k0, k_saved_reply);
     // TODO: clear transients
 
-    switch (rm.brand) {
+    switch (rm.port) {
       case p_mon: handle_mon(rm.m); break;
       case p_tx: handle_tx(rm.m); break;
       case p_irq: handle_irq(rm.m); break;

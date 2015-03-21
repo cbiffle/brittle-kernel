@@ -21,7 +21,7 @@ inline bool operator!=(Message const &a, Message const &b) {
 }
 
 struct ReceivedMessage {
-  uintptr_t brand;
+  uintptr_t port;
   Message m;
 };
 

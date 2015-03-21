@@ -206,7 +206,7 @@ CallBuilder & CallBuilder::with_keys(const char * k0,
   return *this;
 }
 
-void CallBuilder::and_provide(unsigned brand,
+void CallBuilder::and_provide(unsigned port,
                               Message m_in,
                               MessageKeyNames k_in) {
   while (true) {
@@ -230,7 +230,7 @@ void CallBuilder::and_provide(unsigned brand,
         _task.out(ResponseType::message);
         _task.out(MessageResponse {
             .rm = {
-              .brand = brand,
+              .port = port,
               .m = m_in,
             },
           });
@@ -265,15 +265,15 @@ OpenReceiveBuilder::OpenReceiveBuilder(bool blocking, Task & task)
   : _blocking(blocking),
     _task(task) {}
 
-void OpenReceiveBuilder::and_provide(unsigned brand,
+void OpenReceiveBuilder::and_provide(unsigned port,
                                      Message m,
                                      MessageKeyNames k) {
   while (true) {
     auto rt = _task.next_nontrivial_syscall();
     if (rt == RequestType::open_receive) {
-      if (_task.is_port_masked(brand)) {
+      if (_task.is_port_masked(port)) {
         fprintf(stderr, "FAIL: task has masked port %u, cannot deliver.\n",
-            brand);
+            port);
         throw std::logic_error("test failed");
       }
 
@@ -291,10 +291,10 @@ void OpenReceiveBuilder::and_provide(unsigned brand,
         _task.out(ResponseType::message);
         _task.out(MessageResponse {
             .rm = {
-            .brand = brand,
-            .m = m,
+              .port = port,
+              .m = m,
             },
-            });
+          });
         _task.set_pass_keys(k);
       }
       return;
