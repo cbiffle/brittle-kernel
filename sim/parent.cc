@@ -22,36 +22,44 @@ protected:
     get_task().set_key(14, "hw");
     get_task().set_key(15, "<SYS>");
   }
+
+  sim::SendBuilder expect_reply_to(char const * name) {
+    return expect_send_to(name, Blocking::no);
+  }
+
+  void expect_write32(char const * name, uintptr_t offset, uint32_t value) {
+    expect_send_to(name)
+      .with_data(0, offset, value)
+      .and_succeed();
+  }
+
+  void expect_read32(char const * name, uintptr_t offset, uint32_t value) {
+    expect_call_to(name)
+      .with_data(1, offset)
+      .and_provide(0, {value}, {});
+  }
 };
 
 TEST_F(UartTest, Heartbeat) {
   expect_open_receive()
       .and_provide(p_mon, {0, 1, 2, 3}, {"reply@hb"});
 
-  expect_send_to("reply@hb", Blocking::no)
+  expect_reply_to("reply@hb")
       .with_data(1, 2, 3)
       .and_succeed();
 }
 
 TEST_F(UartTest, SendByte) {
   expect_open_receive()
-    .and_provide(1, {0, 0x42}, {"reply@send"});
+    .and_provide(p_tx, {0, 0x42}, {"reply@send"});
 
   // Write data register.
-  expect_send_to("hw")
-    .with_data(0, 4, 0x42)
-    .and_succeed();
-
-  // Read, modify, write CR1
-  expect_call_to("hw")
-    .with_data(1, 0xC)
-    .and_provide(0, {0xDEAD0000}, {});
-  expect_send_to("hw")
-    .with_data(0, 0xC, 0xDEAD0000 | (1 << 7))
-    .and_succeed();
+  expect_write32("hw", 0x4, 0x42);
+  expect_read32 ("hw", 0xC, 0xDEAD0000);
+  expect_write32("hw", 0xC, 0xDEAD0000 | (1 << 7));
 
   // Final reply.
-  expect_send_to("reply@send", Blocking::no).and_succeed();
+  expect_reply_to("reply@send").and_succeed();
   
   ASSERT_TRUE(get_task().is_port_masked(p_tx));
 
@@ -59,26 +67,17 @@ TEST_F(UartTest, SendByte) {
    * Interrupt when that byte hits the wire.
    */
   expect_open_receive()
-    .and_provide(2, {}, {"reply@irq"});
+    .and_provide(p_irq, {}, {"reply@irq"});
 
   // Status register read.
-  expect_call_to("hw")
-    .with_data(1, 0)
-    .and_provide(0, {0xBEEF0000 | (1 << 7)}, {});
-
+  expect_read32("hw", 0x0, 0xBEEF0000 | (1 << 7));
   // Control register read.
-  expect_call_to("hw")
-    .with_data(1, 0xC)
-    .and_provide(0, {0xF00D0000 | (1 << 7)}, {});
+  expect_read32("hw", 0xC, 0xF00D0000 | (1 << 7));
 
   // Control register write to squash interrupt.
-  expect_send_to("hw")
-    .with_data(0, 0xC, 0xF00D0000)
-    .and_succeed();
+  expect_write32("hw", 0xC, 0xF00D0000);
 
-  expect_send_to("reply@irq", Blocking::no)
-    .with_data(1)
-    .and_succeed();
+  expect_reply_to("reply@irq").with_data(1).and_succeed();
 
   ASSERT_FALSE(get_task().is_port_masked(p_tx));
   // TODO: what about masking effects on other ports we're not monitoring?
@@ -93,21 +92,14 @@ TEST_F(UartTest, ReceiveByte) {
     .and_provide(p_irq, {}, {"reply@irq"});
 
   // Status register read.
-  expect_call_to("hw")
-    .with_data(1, 0)
-    .and_provide(0, {0xBEEF0000 | (1 << 5)}, {});
+  expect_read32("hw", 0x0, 0xBEEF0000 | (1 << 5));
   // Control register read.
-  expect_call_to("hw")
-    .with_data(1, 0xC)
-    .and_provide(0, {0xF00D0000 | (1 << 5)}, {});
-  // Control register write to squash interrupt.
-  expect_send_to("hw")
-    .with_data(0, 0xC, 0xF00D0000)
-    .and_succeed();
+  expect_read32("hw", 0xC, 0xF00D0000 | (1 << 5));
 
-  expect_send_to("reply@irq", Blocking::no)
-    .with_data(1)
-    .and_succeed();
+  // Control register write to squash interrupt.
+  expect_write32("hw", 0xC, 0xF00D0000);
+
+  expect_reply_to("reply@irq").with_data(1).and_succeed();
 
   ASSERT_FALSE(get_task().is_port_masked(p_rx));
 
@@ -115,25 +107,17 @@ TEST_F(UartTest, ReceiveByte) {
    * Receive a byte.
    */
   expect_open_receive()
-    .and_provide(3, {0}, {"reply@rx"});
+    .and_provide(p_rx, {0}, {"reply@rx"});
 
   // Read data register.
-  expect_call_to("hw")
-    .with_data(1, 4)
-    .and_provide(0, {0x69}, {});
+  expect_read32("hw", 0x4, 0x69);
 
-  // Read, modify, write CR1
-  expect_call_to("hw")
-    .with_data(1, 0xC)
-    .and_provide(0, {0xDEAD0000}, {});
-  expect_send_to("hw")
-    .with_data(0, 0xC, 0xDEAD0000 | (1 << 5))
-    .and_succeed();
+  // Read, modify, write CR1 to re-enable RxNE interrupt.
+  expect_read32("hw", 0xC, 0xDEAD0000);
+  expect_write32("hw", 0xC, 0xDEAD0000 | (1 << 5));
 
   // Final reply.
-  expect_send_to("reply@rx", Blocking::no)
-    .with_data(0x69)
-    .and_succeed();
+  expect_reply_to("reply@rx").with_data(0x69).and_succeed();
 
   ASSERT_TRUE(get_task().is_port_masked(p_rx));
 }
@@ -143,12 +127,8 @@ TEST_F(UartTest, FlushWhileIdle) {
     .and_provide(p_tx, {1}, {"reply@tx"});
 
   // Read, modify, write CR1 to enable TC interrupt.
-  expect_call_to("hw")
-    .with_data(1, 0xC)
-    .and_provide(0, {0xDEAD0000}, {});
-  expect_send_to("hw")
-    .with_data(0, 0xC, 0xDEAD0000 | (1 << 6))
-    .and_succeed();
+  expect_read32("hw", 0xC, 0xDEAD0000);
+  expect_write32("hw", 0xC, 0xDEAD0000 | (1 << 6));
 
   // No reply just yet.
 
@@ -163,26 +143,17 @@ TEST_F(UartTest, FlushWhileIdle) {
   ASSERT_TRUE(get_task().is_port_masked(p_tx));
 
   // Status register read.
-  expect_call_to("hw")
-    .with_data(1, 0)
-    .and_provide(0, {0xBEEF0000 | (1 << 6)}, {});
+  expect_read32("hw", 0x0, 0xBEEF0000 | (1 << 6));
   // Control register read.
-  expect_call_to("hw")
-    .with_data(1, 0xC)
-    .and_provide(0, {0xF00D0000 | (1 << 6)}, {});
+  expect_read32("hw", 0xC, 0xF00D0000 | (1 << 6));
   // Control register write to squash interrupt.
-  expect_send_to("hw")
-    .with_data(0, 0xC, 0xF00D0000)
-    .and_succeed();
+  expect_write32("hw", 0xC, 0xF00D0000);
 
   // Flush is finished, reply to saved cap.
-  expect_send_to("reply@tx", Blocking::no)
-    .and_succeed();
+  expect_reply_to("reply@tx").and_succeed();
 
   // Reply to interrupt.
-  expect_send_to("reply@irq", Blocking::no)
-    .with_data(1)
-    .and_succeed();
+  expect_reply_to("reply@irq").with_data(1).and_succeed();
 
   ASSERT_FALSE(get_task().is_port_masked(p_tx));
 }
