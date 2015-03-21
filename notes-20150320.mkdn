@@ -1,0 +1,61 @@
+Monitoring
+==========
+
+A monitoring facility (likely a dedicated task) sends an asynchronous heartbeat
+message to some subset of tasks (the monitored tasks) periodically.
+
+The period and the permissible response delay are specified for each task at
+configuration time.  It's possible that the permissible response delay can be
+longer than the period, allowing a task to miss some messages, if that would
+be useful.
+
+The monitoring task inspects the asynchronous message objects and notices any
+tasks that have not responded in time.  It will take corrective action, perhaps
+by shutting down and restarting the task.
+
+The response to the heartbeat message must take some thought, probably a
+function computed over the data sent by the monitoring server, to avoid
+interpreting an accidental message from a malfunctioning server as the reply.
+
+
+Ports and brands and such
+=========================
+
+A task has ports for incoming messages, and when it receives a message, the
+recieved data indicates the origin port -- the message's "direction" if you
+will.  This can serve to distinguish between several protocols and to separately
+mask/unmask senders.
+
+Separately, it may be useful to have brands, to e.g. associate permission bits
+with a capability.
+
+
+Syscalls
+========
+
+The original design had only IPC-related syscalls: `send`, `call`, and
+`open_receive` (with an option to add directed receive later).
+
+I'm inclined to add some clist/port related syscalls.
+
+At minimum,
+- `move_cap` for rearranging the clist.
+
+That one's pretty important because other messages will destroy keys 0-3, so
+we need to be able to evacuate keys without leaking information or destroying
+them.
+
+(Yes, technically, a weirdly constructed kernel protocol could do this, but
+it's proving inconvenient.)
+
+Another candidate: `null_cap`, for creating null keys.  A kernel message that
+discards its received keys and returns four null keys could be generally
+useful, doesn't necessarily need to be a syscall.
+
+Another: `self_cap`, which takes a brand and a port index and manufactures a
+key to communicate with the caller.  One compelling argument for making this a
+protocol rather than a syscall: it might be interesting to intercept and proxy
+it, and that's way easier with a message than a syscall.
+
+`mask` and `unmask` are also syscall candidates, though simulators/monitors
+might want to see them.
