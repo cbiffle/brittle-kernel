@@ -4,3 +4,6 @@
 [submodule "3p/gtest/upstream"]
 	path = 3p/gtest/upstream
 	url = http://git.chromium.org/external/googletest.git
+[submodule "etl"]
+	path = etl
+	url = https://github.com/cbiffle/etl.git
