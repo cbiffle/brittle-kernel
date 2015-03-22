@@ -1,0 +1,11 @@
+target remote localhost:3333
+
+define flash
+  mon reset halt
+  load
+  mon reset halt
+end
+
+define build
+  shell ./cobble build
+end
