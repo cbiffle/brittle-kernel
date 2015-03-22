@@ -1,5 +1,6 @@
-#include "etl/armv7m/implicit_crt0.h"
+#include "etl/prediction.h"
 
+#include "etl/armv7m/implicit_crt0.h"
 #include "etl/armv7m/exception_frame.h"
 #include "etl/armv7m/exception_table.h"
 #include "etl/armv7m/mpu.h"
@@ -90,10 +91,20 @@ int main() {
   start_task();
 }
 
-void etl_armv7m_sv_call_handler() {
-  // Drop privileges.
-  etl::armv7m::set_control(3);
-  // Force the stack pointer to the task's.
-  auto r = reinterpret_cast<etl::armv7m::ExceptionFrame *>(&task_data[256]) - 1;
-  etl::armv7m::set_psp(reinterpret_cast<uintptr_t>(r));
+static bool booted = false;
+
+void svc_dispatch();
+void svc_dispatch() {
+  if (ETL_LIKELY(booted)) {
+    // Normal invocation.
+  } else {
+    // First syscall to start initial task.
+    // Drop privileges.
+    etl::armv7m::set_control(1);
+    // Force the stack pointer to the task's.
+    auto r =
+      reinterpret_cast<etl::armv7m::ExceptionFrame *>(&task_data[256]) - 1;
+    etl::armv7m::set_psp(reinterpret_cast<uintptr_t>(r));
+    booted = true;
+  }
 }
