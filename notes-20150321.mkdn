@@ -1,0 +1,141 @@
+Getting a Basic Kernel Going
+============================
+
+Initially let's assume a single task.  What will I need?
+
+- Configure basic hardware bits, e.g. turn on the MPU.
+- Fill in a task structure describing the task.
+- Start the scheduler -- the first return into app mode.
+
+For starters I could just have a task that loops infinitely, and verify its
+operation over JTAG.
+
+Next phase might add a syscall.
+
+Then I might give the task authority and have the syscall exercise it.
+
+
+Starting the First Task
+=======================
+
+This is slightly more involved than in e.g. Rehash, because the execution
+context during `main` is completely discarded, instead of becoming "process 0."
+
+The principal subtlety arises when dropping privileges and switching stacks.
+We must switch to the process stack from Thread mode, but we *cannot* drop
+privileges just yet -- because we're running on a stack that isn't accessible
+to the unprivileged context.
+
+So the process is:
+- Set up the task's initial stack frame.
+- Stash that address somewhere.
+- Switch the current execution context to the process stack.
+- Enter handler mode (e.g. through `svc`).
+- From handler mode, drop privileges from thread mode.  This can be done by
+  writing `CONTROL` or by altering the `exc_return` value.
+- Return into the task.
+
+This is a "special" syscall that must not be accessible to programs in general.
+It's different from most context switches because the calling context is
+discarded.  Since we want to be able to support a ROM vector table, we can't
+switch out the `svc` handler address.
+
+Instead, the common `svc` handler must be able to handle this.
+
+Options:
+- Notice that we're being called from privileged thread mode and behave
+  differently.  Slightly scary because it's implicit.
+- Keep a global bool of whether we've booted, switch on that.
+
+
+Building the First Task
+=======================
+
+So, we need to have a blob of text (and rodata or whatever) somewhere,
+appropriately aligned.  We also need to place its RAM somewhere, aligned.
+
+And it would be lovely if all that were separately compiled.
+
+One option might be to compile everything PIC with separate data.  We'd have
+to set up the initial registers for the task such that it could find its data,
+or include a small startup stub to derive the data base from e.g. the stack
+pointer.  Then, we'd ... I guess extract the text with objcopy?  And derive
+a second object file containing the bss as a NOLOAD segment?
+
+Hm.
+
+I guess if we're going to determine RAM layout at link time, we pretty much
+have to do something like that.
+
+An alternative would be to relocate the separately compiled programs into their
+final positions explicitly.  Using e.g. objcopy's `prefix-sections` and
+`prefix-symbols` options we could keep their symbols (relatively) disjoint.
+
+The linker's `-r` option produces object files that are still linkable.
+
+We'd just have to make sure the section alignment is correct... or move to
+something easier to explain to the linker, like Rehash's uniform page size.
+
+Actually -- moving to a uniform page size would simplify this phase.  It's also
+not a decision that involves the kernel; the kernel simply swaps out MPU
+configurations without any insight as to what they contain.  So it has no
+bearing on the long-term design.
+
+Using a Rehash-style configuration would give us a 512-byte alignment
+requirement and a 512 * 8 * 8 = 32kiB maximum size per task.
+
+A third option: write a program that sets alignment, and potentially even
+address, and then link the relocated bits together.  (Or concatenate them.)
+
+
+But what can I get done, like, today?
+
+I would like to be able to write a program that this proto-kernel could load,
+and have the program be able to exercise syscalls and stuff.
+
+This does not, strictly speaking, require separate compilation.  I'd just need
+to be careful with symbol names and such.  A namespace would suffice.
+
+
+Thoughts on Startup and Factoring
+=================================
+
+What will the eventual startup process be?
+
+Kernel wakes up and fires up the system task.  System task is unprivileged but
+trusted and has crazy authority, potentially including a universal read/write
+memory capability.
+
+System task uses its authority to figure out what other things need to exist,
+and creates them.  Perhaps using a table.
+
+How many things need to be kernel objects, and which can be implemented in the
+system task?  I think the strict answer is "very few" but we might need to move
+more stuff into the kernel for performance.
+
+For example: all messages *could* go through the system task.  This seems pretty
+extreme, but it would let me implement things like reply keys outside the
+kernel.  Intriguing.
+
+Memory grants?  Can be done in sys if it holds an arbitrary read-write key.
+
+
+How would I implement reply keys outside the kernel?
+
+- Task performs a `CALL` IPC on a key it holds.  (how would we detect this?)
+- This key, like all keys, is really a key to sys.
+- The key's brand tells sys what it's intended to refer to.
+- Sys manufactures a new key and sends it to the real recipient.  This key's
+  brand references a table of outstanding calls.
+- When the key is used, sys notices it and removes the table entry.
+
+The table of outstanding calls would have to have one entry per task.
+
+This is probably overkill, but it's interesting.
+
+
+Grants would be similar: entry gets filled in, new key gets minted, can be
+revoked on reply (as sys can see it happen, since it manages reply keys).
+
+
+
