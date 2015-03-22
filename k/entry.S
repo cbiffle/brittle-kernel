@@ -4,5 +4,5 @@
 .thumb_func
 etl_armv7m_sv_call_handler:
     mov r4, lr                @ Back up exc_return.
-    bl _Z12svc_dispatchv      @ Call the C version.
+    bl _ZN1k12svc_dispatchEv  @ Call the C version.
     bx r4                     @ Finish.

@@ -1,5 +1,3 @@
-#include "etl/prediction.h"
-
 #include "etl/armv7m/implicit_crt0.h"
 #include "etl/armv7m/exception_frame.h"
 #include "etl/armv7m/exception_table.h"
@@ -92,20 +90,4 @@ int main() {
   setup_mpu();
   prepare_task();
   start_task();
-}
-
-static bool booted = false;
-
-void svc_dispatch();
-void svc_dispatch() {
-  if (ETL_LIKELY(booted)) {
-    // Normal invocation.
-  } else {
-    // First syscall to start initial task.
-    // Drop privileges.
-    etl::armv7m::set_control(1);
-    // Force the stack pointer to the task's.
-    etl::armv7m::set_psp(k::current->stack);
-    booted = true;
-  }
 }
