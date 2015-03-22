@@ -7,6 +7,8 @@
 #include "etl/armv7m/registers.h"
 #include "etl/armv7m/scb.h"
 
+#include "k/context.h"
+
 __attribute__((aligned(32)))
 static void task_code() {
   while (true);
@@ -66,7 +68,8 @@ static void prepare_task() {
   auto r = reinterpret_cast<etl::armv7m::ExceptionFrame *>(&task_data[256]) - 1;
   r->psr = 1 << 24;
   r->r15 = reinterpret_cast<uintptr_t>(&task_code) & ~1;
-  etl::armv7m::set_psp(reinterpret_cast<uintptr_t>(r));
+  k::contexts[0].stack = reinterpret_cast<uintptr_t>(r);
+  k::current = &k::contexts[0];
 }
 
 __attribute__((noreturn))
@@ -102,9 +105,7 @@ void svc_dispatch() {
     // Drop privileges.
     etl::armv7m::set_control(1);
     // Force the stack pointer to the task's.
-    auto r =
-      reinterpret_cast<etl::armv7m::ExceptionFrame *>(&task_data[256]) - 1;
-    etl::armv7m::set_psp(reinterpret_cast<uintptr_t>(r));
+    etl::armv7m::set_psp(k::current->stack);
     booted = true;
   }
 }
