@@ -9,6 +9,7 @@ MEMORY {
 }
 
 EXTERN(_ZN3etl6armv7mL15exception_tableE)
+EXTERN(_ZN4demo4mainEv)
 
 ENTRY(etl_armv7m_reset_handler)
 
@@ -19,14 +20,31 @@ SECTIONS {
     /* Include initialized data here, so we initialize it during the copy. */
     /* We use a word copy, so ensure alignment. */
     . = ALIGN(4);
-  } >sram112_at_zero AT>rom
+  } >rom
 
-  /*
-   * Plain old .text contains functions without strict latency requirements,
-   * and rodata.  This implies that const data goes in high-latency Flash,
-   * and must be copied into RAM by any programs with latency requirements.
-   */
+  .demo_text : ALIGN(1024) {
+    KEEP(*(.text.startup._ZN4demo4mainEv))
+    *(.text._ZN4demo*)
+    . = ALIGN(4);
+    *(.rodata._ZN4demo*)
+  } >rom
+
+  .demo_data : {
+    PROVIDE(_demo_data_start = .);
+    *(.data.ZN4demo*)
+  } >sram112 AT>rom
+
+  .demo_bss (NOLOAD) : ALIGN(4) {
+    PROVIDE(_demo_bss_start = .);
+    *(.bss._ZN4demo*)
+    . = ALIGN(4);
+    PROVIDE(_demo_bss_end = .);
+    . += 512;
+    PROVIDE(_demo_stack = .);
+  } >sram112
+
   .text : {
+    . = ADDR(.demo_text) + 1024;
     *(.text*)
     . = ALIGN(4);
     *(.rodata*)

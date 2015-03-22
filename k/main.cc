@@ -7,20 +7,18 @@
 
 #include "k/context.h"
 
-__attribute__((aligned(32)))
-static void task_code() {
-  while (true);
+namespace demo {
+  extern void main();
 }
 
-__attribute__((aligned(512)))
-static uint8_t task_data[256];
+extern uint8_t _demo_data_start, _demo_stack;
 
 static void setup_mpu() {
   using etl::armv7m::mpu;
   using etl::armv7m::Mpu;
 
   mpu.write_rbar(Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&task_code) >> (32-27))
+      .with_addr_27(reinterpret_cast<uintptr_t>(demo::main) >> (32-27))
       .with_valid(true)
       .with_region(0));
   mpu.write_rasr(Mpu::rasr_value_t()
@@ -30,11 +28,11 @@ static void setup_mpu() {
       .with_c(true)
       .with_b(true)
       .with_s(false)
-      .with_size(4)
+      .with_size(9)
       .with_enable(true));
 
   mpu.write_rbar(Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&task_data) >> (32-27))
+      .with_addr_27(reinterpret_cast<uintptr_t>(&_demo_data_start) >> (32-27))
       .with_valid(true)
       .with_region(1));
   mpu.write_rasr(Mpu::rasr_value_t()
@@ -44,7 +42,7 @@ static void setup_mpu() {
       .with_c(false)
       .with_b(false)
       .with_s(false)
-      .with_size(7)
+      .with_size(10)
       .with_enable(true));
 
   mpu.write_ctrl(Mpu::ctrl_value_t()
@@ -63,9 +61,9 @@ struct Registers : etl::armv7m::ExceptionFrame {
 */
 
 static void prepare_task() {
-  auto r = reinterpret_cast<etl::armv7m::ExceptionFrame *>(&task_data[256]) - 1;
+  auto r = reinterpret_cast<etl::armv7m::ExceptionFrame *>(&_demo_stack) - 1;
   r->psr = 1 << 24;
-  r->r15 = reinterpret_cast<uintptr_t>(&task_code) & ~1;
+  r->r15 = reinterpret_cast<uintptr_t>(demo::main);
   k::contexts[0].stack = reinterpret_cast<uintptr_t>(r);
   k::current = &k::contexts[0];
 }
