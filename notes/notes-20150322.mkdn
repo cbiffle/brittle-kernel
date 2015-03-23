@@ -1,0 +1,114 @@
+Thoughts on the scope of the kernel
+===================================
+
+Been thinking a lot today about the system I sketched out yesterday.  In short,
+I think I can simplify the kernel dramatically without going completely nuts
+and pushing too much stuff into the system task.
+
+For clarity, there are three pieces to the system as envisaged today.
+
+- **The kernel** is the lowest level part and the only one that runs with
+  privilege.
+
+- **The system** is one or more tasks that run unprivileged but are trusted
+  and determine how the system appears to less trusted tasks.
+
+- **The app** is the application code running atop these.
+
+I'm specifically focused on the "static model" where the app's kernel objects
+are predeclared by link time.
+
+
+My main realization today is that the kernel need not concern itself with
+memory except for enforcing the separation between task and kernel memory.
+Since kernel memory is fixed in extent, this is easy.
+
+Any task with sufficient authority can rewrite a task's MPU configuration,
+giving it access to any section of the address space.  Attempts to give a task
+access to areas reserved by the kernel will be rejected by the kernel.  These
+areas are, roughly,
+
+- The kernel's code in ROM.
+- The kernel's state area and stack in RAM.
+- The MPU.
+- Possibly the NVIC.
+
+The system may want to regulate which areas of memory can be accessed by which
+task...or it might not.  It would be reasonable, albeit odd, to build a system
+like FreeRTOS atop this kernel, without inter-task protection.
+
+
+So, what's our list of kernel objects look like?
+
+- Tasks.
+- Task reply keys.
+- Ports.
+- Keyrings.
+- Interrupt senders.
+- One or more virtual objects for accessing primitive kernel services.
+
+And possibly:
+
+- Asynchronous messages.
+
+
+Asynchronous Messages Outside the Kernel
+========================================
+
+One *could* spin up a tiny task to transmit each asynchronous message.  Such a
+task would receive requests on a port and forward the message (blocking).  Once
+it finishes, different enquiries to that port could read back the results.
+
+Users could tell that it's still sending if non-blocking messages to that port
+are rejected.
+
+How could such an asynchronous transmission be canceled?  Before processing
+starts (while the sender is blocked in a queue) it's similar to the general
+interruption case that I need to figure out.  Once processing begins, though,
+the task is locked in and its reply key is in use.
+
+One could reboot the task to interrupt.
+
+
+Grants Outside the Kernel
+=========================
+
+Imagine that an application task wants to gather some data from a driver into
+a buffer in the app task's memory.
+
+It calls the system asking to create a grant to the destination area of memory.
+
+Some system task updates a table held in its memory, associated with the calling
+task.  It hands back a key to itself with a brand that links it back to that
+table entry.
+
+Calls on that key cause the system task, which can see into everyone else's
+address spaces, to transfer bytes from one to the other.
+
+A subsequent call from the creating task can destroy the grant.  The system can
+disable it immediately with a write to that table, but before the table entry
+can be reclaimed, prior keys to it must be collected.  This is similar to any
+other revocation problem, except that it's sensitive to brand.  Eesh.
+
+I hadn't considered brand-sensitive revocation.
+
+The general revocation operation I was imagining would, given some designator of
+an object (perhaps a key), eliminate some number of other keys to the same
+object and report back on whether more remained.  This loose definition gives me
+some flexibility to control absolute kernel runtimes.
+
+I don't see a way to adapt that concept to brands.  We can't iterate through
+the entire list searching for keys with a certain brand, because we can't stop
+the application from manipulating *other keys* to the same object, and I don't
+think it'd make sense to partition the key lists by brand.  So the list is
+unstable under iteration and we could miss things -- we'd have to repeat until a
+fixed point is found.  Ick.
+
+We do have a separate planned abstraction that might help, though: ports.  If
+ports are the unit of independent revocation for a task, then e.g. a grant would
+need to be associated with a system task's port in addition to a table.
+
+A single port for all grants is not sufficient.  We'd need at least a pool of
+ports that can be roped into playing this role.  The number of ports required is
+proportional to the number of grant-using tasks, which is (worst case) the
+number of tasks.
