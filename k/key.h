@@ -14,7 +14,9 @@ struct Message;  // see: k/ipc.h
  */
 class Key {
 public:
-  SysResult send(Message const *);
+  SysResult call(Message const *, Message *);
+
+  void fill(unsigned index, uint32_t brand);
 
 private:
   // Distinguishes successive occupants of a single object table slot.

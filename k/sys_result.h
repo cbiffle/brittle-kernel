@@ -13,6 +13,7 @@ enum class SysResult : uint32_t {
   fault,
   bad_key,
 
+  bad_message,
 };
 
 }  // namespace k

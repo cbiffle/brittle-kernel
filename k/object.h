@@ -11,7 +11,9 @@ struct Message;  // see: k/ipc.h
 
 class Object {
 public:
-  virtual SysResult send(uint32_t brand, Message const *) = 0;
+  virtual SysResult call(uint32_t brand,
+                         Message const *,
+                         Message *) = 0;
 };
 
 }  // namespace k

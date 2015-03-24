@@ -2,7 +2,7 @@
 
 namespace k {
 
-SysResult NullObject::send(uint32_t, Message const *) {
+SysResult NullObject::call(uint32_t, Message const *, Message *) {
   return SysResult::bad_key;
 }
 

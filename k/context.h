@@ -5,17 +5,29 @@
 
 #include "k/config.h"
 #include "k/key.h"
+#include "k/object.h"
 
 namespace k {
 
 struct Registers;  // see: k/registers.h
 
-struct Context {
+class Context : public Object {
+public:
+  SysResult call(uint32_t, Message const *, Message *) override;
+
+  // Accessors for use inside the kernel.
+  Registers * stack() const { return _stack; }
+  void set_stack(Registers * s) { _stack = s; }
+  Key & key(unsigned i) { return _keys[i]; }
+
+private:
   // Address of the top of the context's current stack.  When the task
   // is stopped, the machine registers are pushed onto this stack.
-  Registers * stack;
+  Registers * _stack;
   // Keys held by the context.
-  Key keys[config::n_task_keys];
+  Key _keys[config::n_task_keys];
+
+  SysResult write_register(uint32_t brand, Message const *);
 };
 
 extern Context contexts[config::n_contexts];

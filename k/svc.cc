@@ -17,27 +17,29 @@ namespace k {
 static bool booted = false;
 
 static bool svc_send() {
-  auto target_index = current->stack->ef.r0;
-  auto message = reinterpret_cast<Message const *>(current->stack->ef.r1);
+  auto target_index = current->stack()->ef.r0;
+  auto arg = reinterpret_cast<Message const *>(current->stack()->ef.r1);
+  auto result = reinterpret_cast<Message *>(current->stack()->ef.r2);
 
   if (target_index >= config::n_task_keys) {
-    current->stack->ef.r0 = unsigned(SysResult::bad_key_index);
+    current->stack()->ef.r0 = unsigned(SysResult::bad_key_index);
     return false;
   }
 
-  current->stack->ef.r0 = unsigned(current->keys[target_index].send(message));
+  auto sr = current->key(target_index).call(arg, result);
+  current->stack()->ef.r0 = unsigned(sr);
   return false;
 }
 
 static bool normal_svc_dispatch() {
-  auto r15 = current->stack->ef.r15;
+  auto r15 = current->stack()->ef.r15;
   auto sysnum = *reinterpret_cast<uint8_t const *>(r15 - 2);
   switch (sysnum) {
     case 0:
       return svc_send();
 
     default:
-      current->stack->ef.r0 = unsigned(SysResult::bad_svc);
+      current->stack()->ef.r0 = unsigned(SysResult::bad_svc);
       return false;
   }
 }
@@ -45,9 +47,9 @@ static bool normal_svc_dispatch() {
 void * svc_dispatch(void * stack) {
   if (ETL_LIKELY(booted)) {
     // Normal invocation.
-    current->stack = static_cast<Registers *>(stack);
+    current->set_stack(static_cast<Registers *>(stack));
     if (!normal_svc_dispatch()) {
-      current->stack->ef.r0 = unsigned(SysResult::fault);
+      current->stack()->ef.r0 = unsigned(SysResult::fault);
     }
   } else {
     // First syscall to start initial task.
@@ -55,7 +57,7 @@ void * svc_dispatch(void * stack) {
     booted = true;
   }
 
-  return current->stack;
+  return current->stack();
 }
 
 }  // namespace k

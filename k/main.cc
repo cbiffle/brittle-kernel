@@ -57,7 +57,10 @@ static void prepare_task() {
   auto r = reinterpret_cast<k::Registers *>(&_demo_stack) - 1;
   r->ef.psr = 1 << 24;
   r->ef.r15 = reinterpret_cast<uintptr_t>(demo::main);
-  k::contexts[0].stack = r;
+  k::contexts[0].set_stack(r);
+
+  k::contexts[0].key(0).fill(1, 0);
+
   k::current = &k::contexts[0];
 }
 
@@ -78,9 +81,15 @@ static void start_task() {
 static k::NullObject null;
 
 static void setup_objects() {
-  k::objects[0].generation[0] = 1;
-  k::objects[0].generation[1] = 0;
-  k::objects[0].ptr = &null;
+  auto constexpr special_objects = 2;
+  k::object_table[0].ptr = &null;
+  k::object_table[1].ptr = &k::object_table;
+
+  static_assert(k::config::n_objects >= k::config::n_contexts + special_objects,
+                "Not enough object table entries to hold all objects.");
+  for (unsigned i = 0; i < k::config::n_contexts; ++i) {
+    k::object_table[i + special_objects].ptr = &k::contexts[i];
+  }
 }
 
 int main() {

@@ -7,7 +7,7 @@ namespace k {
 
 class NullObject : public Object {
 public:
-  SysResult send(uint32_t, Message const *) override;
+  SysResult call(uint32_t, Message const *, Message *) override;
 };
 
 }  // namespace k
