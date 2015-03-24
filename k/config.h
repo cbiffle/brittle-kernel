@@ -4,7 +4,11 @@
 namespace k {
 namespace config {
 
-static constexpr unsigned n_contexts = 1;
+static constexpr unsigned
+  n_contexts = 1,
+  n_objects = 10,
+  n_task_keys = 16,
+  n_message_data = 4;
 
 }  // namespace config
 }  // namespace k

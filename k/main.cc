@@ -1,11 +1,13 @@
 #include "etl/armv7m/implicit_crt0.h"
-#include "etl/armv7m/exception_frame.h"
 #include "etl/armv7m/exception_table.h"
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/registers.h"
 #include "etl/armv7m/scb.h"
 
 #include "k/context.h"
+#include "k/null_object.h"
+#include "k/object_table.h"
+#include "k/registers.h"
 
 namespace demo {
   extern void main();
@@ -51,20 +53,11 @@ static void setup_mpu() {
       .with_enable(true));
 }
 
-/*
-struct Registers : etl::armv7m::ExceptionFrame {
-  using Word = etl::armv7m::Word;
-
-  Word r4, r5, r6, r7;
-  Word r8, r9, r10, r11;
-};
-*/
-
 static void prepare_task() {
-  auto r = reinterpret_cast<etl::armv7m::ExceptionFrame *>(&_demo_stack) - 1;
-  r->psr = 1 << 24;
-  r->r15 = reinterpret_cast<uintptr_t>(demo::main);
-  k::contexts[0].stack = reinterpret_cast<uintptr_t>(r);
+  auto r = reinterpret_cast<k::Registers *>(&_demo_stack) - 1;
+  r->ef.psr = 1 << 24;
+  r->ef.r15 = reinterpret_cast<uintptr_t>(demo::main);
+  k::contexts[0].stack = r;
   k::current = &k::contexts[0];
 }
 
@@ -82,9 +75,18 @@ static void start_task() {
   __builtin_unreachable();
 }
 
+static k::NullObject null;
+
+static void setup_objects() {
+  k::objects[0].generation[0] = 1;
+  k::objects[0].generation[1] = 0;
+  k::objects[0].ptr = &null;
+}
+
 int main() {
   etl::armv7m::scb.enable_faults();
 
+  setup_objects();
   setup_mpu();
   prepare_task();
   start_task();
