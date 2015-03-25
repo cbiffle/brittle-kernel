@@ -14,8 +14,8 @@ namespace k {
 Context contexts[config::n_contexts];
 Context * current;
 
-void Context::nullify_exchanged_keys() {
-  for (unsigned i = 0; i < config::n_message_keys; ++i) {
+void Context::nullify_exchanged_keys(unsigned preserved) {
+  for (unsigned i = preserved; i < config::n_message_keys; ++i) {
     _keys[i].nullify();
   }
 }
@@ -119,10 +119,7 @@ SysResult Context::read_key(uint32_t,
   if (r >= config::n_task_keys) return SysResult::bad_message;
 
   current->key(0) = key(r);
-  for (unsigned i = 1; i < config::n_message_keys; ++i) {
-    current->key(i).nullify();
-  }
-
+  current->nullify_exchanged_keys(1);
   return ustore(result, {0, 0, 0, 0});
 }
 

@@ -31,7 +31,7 @@ public:
   void set_stack(Registers * s) { _stack = s; }
   Key & key(unsigned i) { return _keys[i]; }
 
-  void nullify_exchanged_keys();
+  void nullify_exchanged_keys(unsigned preserved = 0);
 
 private:
   // Address of the top of the context's current stack.  When the task
