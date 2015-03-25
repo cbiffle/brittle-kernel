@@ -1,0 +1,22 @@
+Object Table Protocol
+=====================
+
+The object table tracks all kernel objects.  It is the source of authority: it
+can mint any sort of key to any object, determine if keys point to the same
+object, and extract brands.
+
+
+Mint Arbitrary Key (0)
+----------------------
+
+Mints a key to an object chosen by index with an arbitrary brand.  The key is
+current at return but will be revoked, like any other key, at any future
+generation change.
+
+Arguments:
+- d0: selector
+- d1: object index in table
+- d2: brand
+
+Results:
+- k0: newly minted key

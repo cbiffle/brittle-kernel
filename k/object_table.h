@@ -8,6 +8,13 @@
 
 namespace k {
 
+/*
+ * Tracks the location and identity of every kernel object.  Provides a place
+ * to store generation info that is stable across object destruction and
+ * reallocation, to allow us to amortize key revocation costs more aggressively.
+ *
+ * The ObjectTable is itself an Object, and is accessible to the system.
+ */
 class ObjectTable : public Object {
 public:
   struct Entry {

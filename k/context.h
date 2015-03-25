@@ -11,6 +11,17 @@ namespace k {
 
 struct Registers;  // see: k/registers.h
 
+/*
+ * A hardware execution context -- the kernel side of what an application
+ * might call a task.
+ *
+ * Contexts model only the unprivileged execution environment of the processor,
+ * plus some state needed by the kernel and scheduler.
+ *
+ * A context key gives authority to inspect and alter this machine state, *not*
+ * to communicate with the code it describes; that authority would be conferred
+ * by a gate key.
+ */
 class Context : public Object {
 public:
   SysResult call(uint32_t, Message const *, Message *) override;

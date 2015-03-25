@@ -5,6 +5,13 @@
 
 namespace k {
 
+/*
+ * The Null Object is the initial object referenced by all keys, before
+ * they have been initialized from some other key.  It is also the object
+ * to which keys refer after revocation.
+ *
+ * It does nothing -- it returns bad_key for all operations.
+ */
 class NullObject : public Object {
 public:
   SysResult call(uint32_t, Message const *, Message *) override;
