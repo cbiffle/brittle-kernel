@@ -20,6 +20,8 @@ public:
   void set_stack(Registers * s) { _stack = s; }
   Key & key(unsigned i) { return _keys[i]; }
 
+  void nullify_exchanged_keys();
+
 private:
   // Address of the top of the context's current stack.  When the task
   // is stopped, the machine registers are pushed onto this stack.

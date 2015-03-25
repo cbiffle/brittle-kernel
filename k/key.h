@@ -17,6 +17,7 @@ public:
   SysResult call(Message const *, Message *);
 
   void fill(unsigned index, uint32_t brand);
+  void nullify();
 
 private:
   // Distinguishes successive occupants of a single object table slot.

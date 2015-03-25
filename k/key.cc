@@ -20,10 +20,7 @@ void Key::lazy_revoke() {
   if (_generation[0] != te.generation[0]
       || _generation[1] != te.generation[1]
       || te.ptr == nullptr) {
-    // Reset to the null entry
-    _index = 0;
-    _generation[0] = object_table[0].generation[0];
-    _generation[1] = object_table[0].generation[1];
+    nullify();
   }
 }
 
@@ -33,6 +30,12 @@ void Key::fill(unsigned index, uint32_t brand) {
   _generation[1] = e.generation[1];
   _index = index;
   _brand = brand;
+}
+
+void Key::nullify() {
+  _index = 0;
+  _generation[0] = object_table[0].generation[0];
+  _generation[1] = object_table[0].generation[1];
 }
 
 }  // namespace k

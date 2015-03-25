@@ -10,4 +10,10 @@ SysResult Context::call(uint32_t brand, Message const * m, Message *) {
   return SysResult::bad_key;
 }
 
+void Context::nullify_exchanged_keys() {
+  for (unsigned i = 0; i < config::n_message_keys; ++i) {
+    _keys[i].nullify();
+  }
+}
+
 }  // namespace k

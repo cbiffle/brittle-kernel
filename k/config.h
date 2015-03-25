@@ -8,7 +8,8 @@ static constexpr unsigned
   n_contexts = 1,
   n_objects = 10,
   n_task_keys = 16,
-  n_message_data = 4;
+  n_message_data = 4,
+  n_message_keys = 4;
 
 }  // namespace config
 }  // namespace k
