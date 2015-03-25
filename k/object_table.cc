@@ -25,12 +25,15 @@ SysResult ObjectTable::call(uint32_t brand,
 SysResult ObjectTable::mint_key(uint32_t,
                                 Message const * arg,
                                 Message * result) {
-  auto d1 = CHECK(uload(&arg->data[1]));
-  if (d1 >= config::n_objects) {
+  auto index = CHECK(uload(&arg->data[1]));
+  auto brand = CHECK(uload(&arg->data[2]));
+
+  if (index >= config::n_objects) {
     return SysResult::bad_message;
   }
 
-  current->key(0).fill(d1, CHECK(uload(&arg->data[2])));
+  current->nullify_exchanged_keys();
+  current->key(0).fill(index, brand);
   return SysResult::success;
 }
 
