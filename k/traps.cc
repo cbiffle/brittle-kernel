@@ -7,7 +7,6 @@
 
 TRAP(nmi)
 TRAP(hard_fault)
-TRAP(mem_manage_fault)
 TRAP(bus_fault)
 TRAP(usage_fault)
 TRAP(debug_monitor)
