@@ -19,6 +19,9 @@ public:
   void fill(unsigned index, uint32_t brand);
   void nullify();
 
+  uint32_t get_index() const { return _index; }
+  uint32_t get_brand() const { return _brand; }
+
 private:
   // Distinguishes successive occupants of a single object table slot.
   uint32_t _generation[2];

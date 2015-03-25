@@ -33,6 +33,9 @@ public:
 
 private:
   Entry _objects[config::n_objects];
+
+  SysResult mint_key(uint32_t, Message const *, Message *);
+  SysResult read_key(uint32_t, Message const *, Message *);
 };
 
 extern ObjectTable object_table;
