@@ -36,7 +36,7 @@ protected:
   void expect_read32(char const * name, uintptr_t offset, uint32_t value) {
     expect_call_to(name)
       .with_data(1, offset)
-      .and_provide(0, {value}, {});
+      .and_provide(0, {value}, {{}});
   }
 };
 
@@ -67,7 +67,7 @@ TEST_F(UartTest, SendByte) {
    * Interrupt when that byte hits the wire.
    */
   expect_open_receive()
-    .and_provide(p_irq, {}, {"reply@irq"});
+    .and_provide(p_irq, {{}}, {"reply@irq"});
 
   // Status register read.
   expect_read32("hw", 0x0, 0xBEEF0000 | (1 << 7));
@@ -89,7 +89,7 @@ TEST_F(UartTest, ReceiveByte) {
    * Interrupt announcing receipt of a byte.
    */
   expect_open_receive()
-    .and_provide(p_irq, {}, {"reply@irq"});
+    .and_provide(p_irq, {{}}, {"reply@irq"});
 
   ASSERT_TRUE(get_task().is_port_masked(p_rx));
 
@@ -136,7 +136,7 @@ TEST_F(UartTest, FlushWhileIdle) {
 
   // Interrupt!
   expect_open_receive()
-    .and_provide(p_irq, {}, {"reply@irq"});
+    .and_provide(p_irq, {{}}, {"reply@irq"});
 
   // TODO: really, we want this port to be masked before we get to the
   // open_receive above.  That is actually what we've achieved here,

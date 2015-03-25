@@ -23,7 +23,9 @@ extern uintptr_t mm_fault_recovery_handler;
  * currently loaded on the MPU would be able to do so.  Otherwise, they
  * return SysResult::fault.
  */
+__attribute__((warn_unused_result))
 SysResultWith<etl::armv7m::Word> uload(etl::armv7m::Word const *);
+__attribute__((warn_unused_result))
 SysResultWith<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
 
 /*
@@ -31,7 +33,9 @@ SysResultWith<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
  * currently loaded on the MPU would be able to do so.  On success, they
  * return SysResult::success.  Otherwise, they return SysResult::fault.
  */
+__attribute__((warn_unused_result))
 SysResult ustore(etl::armv7m::Word *, etl::armv7m::Word);
+__attribute__((warn_unused_result))
 SysResult ustore(etl::armv7m::Byte *, etl::armv7m::Byte);
 
 }  // namespace k

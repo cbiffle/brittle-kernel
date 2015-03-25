@@ -80,7 +80,7 @@ int main() {
   mask(p_rx);
 
   while (true) {
-    ReceivedMessage rm {};
+    ReceivedMessage rm;
     auto r = open_receive(true, &rm);
     if (r != SysResult::success) continue;
 
@@ -123,21 +123,21 @@ static void write_dr(uint8_t value) {
 }
 
 static uint32_t read_dr() {
-  ReceivedMessage response{};
+  ReceivedMessage response;
   auto r = call(true, k_reg, Message{t_mem_read32, 4}, &response);
   assert(r == SysResult::success);
   return uint32_t(response.m.data[0]);
 }
 
 static uint32_t read_cr1() {
-  ReceivedMessage response{};
+  ReceivedMessage response;
   auto r = call(true, k_reg, Message{t_mem_read32, 0xC}, &response);
   assert(r == SysResult::success);
   return uint32_t(response.m.data[0]);
 }
 
 static uint32_t read_sr() {
-  ReceivedMessage response{};
+  ReceivedMessage response;
   auto r = call(true, k_reg, Message{t_mem_read32, 0}, &response);
   assert(r == SysResult::success);
   return uint32_t(response.m.data[0]);

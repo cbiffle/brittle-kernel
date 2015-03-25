@@ -18,6 +18,7 @@ struct Message {
   uint32_t data[config::n_message_data];
 };
 
+__attribute__((warn_unused_result))
 SysResult ustore(Message *, Message const &);
 
 }  // namespace k

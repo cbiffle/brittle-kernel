@@ -40,9 +40,9 @@ SysResult ObjectTable::read_key(uint32_t,
   auto index = current->key(0).get_index();
   auto brand = current->key(0).get_brand();
 
+  CHECK(ustore(result, {index, brand, 0, 0}));
   current->nullify_exchanged_keys();
-
-  ustore(result, {index, brand, 0, 0});
+  return SysResult::success;
 }
 
 }  // namespace k
