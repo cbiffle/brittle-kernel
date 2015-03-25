@@ -29,7 +29,11 @@ private:
   // Keys held by the context.
   Key _keys[config::n_task_keys];
 
-  SysResult write_register(uint32_t brand, Message const *);
+  SysResult read_register(uint32_t, Message const *, Message *);
+  SysResult write_register(uint32_t, Message const *, Message *);
+
+  SysResult read_key(uint32_t, Message const *, Message *);
+  SysResult write_key(uint32_t, Message const *, Message *);
 };
 
 extern Context contexts[config::n_contexts];

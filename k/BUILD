@@ -2,6 +2,7 @@ c_library('k',
   sources = [
     'context.cc',
     'entry.S',
+    'ipc.cc',
     'key.cc',
     'main.cc',
     'mm_fault.cc',

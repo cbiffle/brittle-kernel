@@ -1,0 +1,73 @@
+Context Protocol
+================
+
+This is the native protocol spoken by contexts, the kernel objects that
+implement tasks at the application and system level.  It allows control of the
+context and modification of its content.  Context keys should generally be
+closely held by the system, as the operations in this protocol can violate
+system invariants (although not kernel ones).
+
+
+Read Register (0)
+-----------------
+
+Reads a register, by index, from the context.
+
+Register indices are inherently platform-specific; see the example list for
+ARMv7-M below.
+
+Arguments:
+- d0: message selector.
+- d1: register index.
+
+Results:
+- d0: register contents.
+
+
+### Example register list for ARMv7-M
+
+- 0 - 15: general-purpose registers r0 - r15.
+- 16: program status register.
+
+
+Write Register (1)
+------------------
+
+Writes a register, by index, in the context.
+
+Register indices are shared with Read Register, above.
+
+Arguments:
+- d0: selector
+- d1: register index
+- d2: value
+
+Results: none.
+
+
+Read Key (2)
+------------
+
+Reads a key from the context's keyring by index.
+
+Arguments:
+- d0: selector.
+- d1: key index.
+
+Results:
+- k0: key from context.
+
+
+Write Key (3)
+-------------
+
+Writes a key into the context's keyring.
+
+Arguments:
+- d0: selector
+- d1: key index
+- k0: key
+
+Results: none.
+
+
