@@ -1,0 +1,174 @@
+Methods for Revocation
+======================
+
+So far I've considered two methods for key revocation.
+
+1. Link together all keys to an object.  Provide operations for incrementally
+   collecting and destroying keys from this list.
+   - Incremental step: O(1).
+   - Complete revocation: O(n).
+   - Requires two pointers per key to support O(1) key copying.
+   - Can't easily revoke a subset of keys.
+
+2. Include a "generation" indicator in each key.  Check the generation on use.
+   Provide an operation for changing the object's expected generation.
+   - Complete revocation: O(n).
+   - Requires M bits per key; assurance exponential in number of bits used.
+   - Could revoke subsets depending on how generation checking is defined.
+
+I understand method #1 pretty well, having used it in prior kernels.  Let's
+think more about #2.
+
+
+Limitations
+-----------
+
+Using the generation approach we could wind up with dangling pointers, if keys
+contain a direct reference to objects instead of indirection through a table.
+
+If objects are immortal, this is fine.
+
+If the model becomes more dynamic, it's dangerous.  Yes, we could scan through
+and find all pointers in kernel data structures, but that's linear in the size
+of kernel structures instead of in the number of references (as for linked
+keys).  Moreover, it introduces a linear-time operation into a mechanism that
+I'm specifically evaluating because it promises to avoid a linear-time
+operation!
+
+Using a table would improve a lot.  If a key references a table entry that is
+null, the key is bogus.  Otherwise, check the generation.  The generation in
+this case could even be stored *in* the table.
+
+The down side of this, of course, is the standard down side for object tables:
+it's another preallocated table.
+
+
+Size of Generation Field
+------------------------
+
+For comparison purposes, let's keep the key struct the same size in both cases.
+This means we've got two pointers' worth of bits to play with, or 64 bits on the
+target architecture.
+
+That's a very large number of bits.
+
+If an object's generation is updated every nanosecond, it would take 584 years
+to wrap around and cause an old key to become valid.
+
+Could we make it smaller?  Probably.  It's a tradeoff, and evaluating the
+tradeoff would require considering the key invalidation rate of the application.
+
+
+When's it Checked?
+------------------
+
+Three options make sense to me at first glance.
+
+1. Each object contains a generation field in a location the kernel can find it.
+   When an IPC happens the generation field gets checked.  On mismatch, the
+   kernel nulls out the offending key and reports an error.  (A task can appear
+   as multiple objects by using ports.)
+
+2. Each object is free to check the generation field itself, which means that
+   keys of different brands (for example) could have distinct generations.
+   For tasks, specifically, the messaging loop might be responsible for
+   verifying generation of messages.
+
+3. A hybrid of #1 and #2 where a field in the object indicates whether it's
+   using auto or manual generations.
+
+What's the use case driving the additional complexity of #2 and #3?
+
+Well: it seems likely that certain system tasks (and potentially application
+tasks) will want to be heavily polymorphic, issuing a wide variety of keys to
+themselves that simulate many objects.
+
+For example, in a POSIX system, every open file might be a key to the same task.
+
+In such a case, it'd be nice (required, perhaps) to be able to revoke keys to
+one "identity" of the task without affecting others.  e.g. when a file is closed
+in POSIX.  We have an existing facility for this -- ports -- but they must be
+preallocated and managed with kernel cooperation, which is unfortunate.  If we
+could find a method that doesn't involve the kernel, that might be nice.
+
+And that's the argument for #2.
+
+The immediate drawback for #2 is the need for additional complexity in every
+message loop.  What if a task forgot to check generation?  Then revocation
+wouldn't work.  (Though such a task would likely never change generations
+either, so it might be okay.)  Hence #3 as a compromise.
+
+I'm not certain that any of this is necessary.  If ports are sufficiently cheap,
+they can serve.
+
+
+Structure of a Key
+------------------
+
+A key, as stored and copied around, needs to include:
+- Generation info.
+- A pointer to the referenced kernel object.
+- The brand.
+
+I think we still need brands, specifically to hold things like access rights.
+The cartesian combination of orthogonal access rights would produce a really
+large number of ports.
+
+So that's looking like 16 bytes per key still.
+
+
+Tables
+------
+
+Let's consider this table thing again.
+
+Generation-based keys with a table:
+- Key stores generation, table index, brand.
+- Table stores object pointer, generation.
+- Any use of a key with a generation mismatch causes (lazy) revocation.
+- Any use of a key with a null pointer causes lazy revocation.
+
+To revoke:
+- Advance generation in table.
+- Optionally null the pointer.
+- Generation never gets rewound, lest we resurrect extant keys.
+
+Tables seem like a win for generationed keys, particularly if objects can be
+reallocated or moved.  It ensures the generation can always be found in a known
+place.
+
+Linked keys with a table:
+- Key stores link pointers, table index, brand.
+- Table stores object pointer, link roots.
+
+In that case, to revoke:
+- Mark some flag in the table entry indicating that it is being revoked.
+- Any use of a key with a table entry so marked is revoked.
+- Key consumption operation uses table index, burns keys from the list linked
+  there.
+- Kernel object can be immediately repurposed in a different table entry -- only
+  the table entry is locked during revocation.
+
+The only advantage of tables for linked keys is the ability to reuse kernel
+memory immediately, independent from the table entry.  Linked key revocation is
+still linear in the number of references, and still produces contention (of a
+table entry, here, not object memory) during the revocation process.  So it's
+the reduction in contention, really.
+
+
+I'm currently leaning toward generationed keys with an object table.  The amount
+of complexity required to implement linked keys with predictable timing....
+
+
+Keyrings
+--------
+
+Tasks need to be able to hold keys.  Because I figured I'd give tasks a small,
+fixed number of key registers, I also figured we'd want an expansion mechanism
+that can be used to hold either overflow keys or shared keys.  This is the
+keyring.
+
+With the key design described above, 16 keys would occupy 256 bytes.  That seems
+like a reasonable size to start playing with.
+
+

@@ -1,0 +1,77 @@
+On Kernel Abstractions
+======================
+
+It's increasingly apparent that the kernel ought to tell it like it is and leave
+policy decisions up to the system.
+
+The control key for a task should allow essentially arbitrary edits to the
+context's state, as long as they don't violate the kernel's protection.  It's up
+to the system to prevent distasteful changes.
+
+It also seems like the object table ought to be available to the system,
+allowing it to introspect over the set of objects and mint keys to arbitrary
+objects.  This is a terrifying authority root and should be closely held.
+
+Basically, every kernel data structure should be available for messaging by the
+system.  The kernel can control the types of changes that can be made by
+enforcing protocols.
+
+I may reconsider all this later.
+
+
+Faults!
+=======
+
+It seems like we want to get out of the fault handler (from the hardware's
+perspective) as quickly as possible.  Consider:
+- An MPU fault occurs in task code.
+- Kernel is entered.
+- Kernel goes to inspect state that would require unprivileged access.
+- Unprivileged access faults.
+
+Clearly, by the final step in that process, we have to have returned from the
+original MPU fault -- since we can't nest faults it would escalate to Hard
+Fault.
+
+So what do we *do* in a fault?  Continue considering MPU faults only.
+
+Hm.  I hadn't actually thought about this.
+
+For MPU faults in the kernel, it's easy:
+
+ - If some global indicates that we're deliberately doing an unprivileged access
+   that may fault, adjust the state to record this and return.
+
+ - Otherwise, crash.
+
+In task code we probably want to transform the fault into a message to
+something.  How would this work?
+
+- Suspend the task's volatile state.
+- Record details of the fault in the context somewhere.
+- Move the task into the wait queue of the recipient.
+- Mark the task, somehow, to avoid *any* results from being written into its
+  register set.  We must preserve all registers on fault.  This might be a
+  property of the reply key.
+
+Nuances:
+- If the object receiving the fault message is destroyed, or some event happens
+  causing waiting tasks to unblock, things become complicated.
+- If the recipient key is invalid or it rejects the message, things become
+  complicated.
+
+Perhaps there is a distinguished port on which such objects get queued, to be
+processed later by the system.
+
+
+The process described there could be done in the handler directly.  Since the
+faults happen synchronously we know we're not in a syscall and are safe to
+manipulate kernel structures.
+
+Interrupts are a different matter, of course.  Still.  Response might be
+similar.
+
+Sooooooo I haven't actually found a role for PendSV in this system yet.
+Deferred context switch is the main possibility, but it doesn't seem required
+for things like fault handling.  Which is good -- having it do a single thing
+simplifies the implementation.

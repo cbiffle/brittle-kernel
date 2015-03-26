@@ -1,0 +1,257 @@
+Priority, Memory, Timeslice Keys
+================================
+
+Are priorities small integers, or keys?
+
+Are timeslices large integers, or keys?
+
+How do we express memory ranges when configuring the MPU?
+
+Memory
+------
+
+The kernel *could* accept any old pointer/size pair when configuring an MPU
+region.  It would need to check that against the kernel's own requirements: that
+the region not cross any forbidden zones.
+
+Alternatively, we could issue keys to memory regions, and give programs the
+ability to derive sub-regions from a region.  If the operations on such keys are
+carefully constructed, no validation is required except for the very first one
+created.
+
+(The system would have to be prevented from minting arbitrary new ones, which is
+the first time we've run into that.)
+
+I'm specifically imagining using the brand info to describe the region, so that
+all such keys can point to the same kernel object.  That leaves us with few
+bits to work with, and in particular, does not leave enough bits to fully
+describe an ARMv7-M MPU region -- just an extent of memory.
+
+An extent of memory not including subregion disable bits, which is unfortunate.
+
+Since the kernel is not generally in the business of managing memory, it seems
+like *not* using capabilities to model task memory extents would be fine.  The
+system could always emulate this if it's desired for the application.
+
+
+Priorities, Timeslices
+----------------------
+
+I think the same thing probably goes here.  The raw interface to Contexts lets
+any integer timeslice be written, and lets any valid priority be set.  If the
+system wants to change that, it can.
+
+It is not important to the kernel that certain priorities only be used in
+certain cases.  Nor is it important that timeslices be derived from some root
+such that the CPU is not overcommitted.  These are properties the system might
+try to achieve, not the kernel.
+
+
+Hosting FreeRTOS?
+=================
+
+It might be practical to run FreeRTOS atop this kernel.  Why would we do that?
+
+Well, running FreeRTOS unprivileged would make it easier to find certain classes
+of bugs.  Keeping portions of the task state in kernel memory would make them
+difficult to corrupt.  Using messages for interrupts would limit the privilege
+of even the interrupt handlers.
+
+All of FreeRTOS's object handles would become synonyms for keys.  IPC wrappers
+would accept them as function arguments and move them into the proper place in
+the keyring.
+
+Of course, if the application atop FreeRTOS is written to expect arbitrarily
+shared memory and common code, our ability to isolate tasks from one another is
+hampered.  The system task might need to leave all of RAM and ROM mapped in all
+tasks.
+
+Similarly, if objects and tasks are not clearly associated, the simplest port
+might leave the true keys to objects in a master keyring and address them there.
+Tasks themselves might not hold any keys at all -- they might be kept by the
+system, which exposes operations in terms of indices or handles.
+
+This would allow tasks to forge one anothers' authority, of course, but the same
+is true of any FreeRTOS system.
+
+For the static model, FreeRTOS's dynamic object creation operations might pose a
+problem.  Though, then again, they might not: as long as enough Contexts are
+available in the kernel, the rest is system.
+
+Mutexes?
+--------
+
+Okay, here's an interesting one.  FreeRTOS mutexes have priority inheritance.
+Can we implement priority inheritance atop the kernel?
+
+- We need to store two priorities for each task: effective and base.
+- We need a structure containing all tasks waiting for the mutex, sorted by
+  priority, such that we can efficiently determine the highest priority in that
+  set.  A heap would work, but a traditional priority-indexed array of waiter
+  lists would also work.
+
+
+Approach #1: emulation
+----------------------
+
+A system task maintains the base priority for each task; the effective priority
+is plugged into its context.
+
+It also maintains a structure describing each mutex, including a flag indicating
+whether it's locked, a context key to the holder, and the prioritized list of
+waiters.
+
+(Getting the context key will be interesting.  We'd perhaps need to brand the
+syscall key handed to each task.  Alternatively, we could introspect on the
+reply key, which has the interesting added property that it lets us prove that
+a task is blocked for the muex.
+
+The task processes mutex-related messages in a timely fashion, without masking.
+If it receives a mutex lock request and the mutex is locked, it moves the reply
+key into a keyring, notes its location in a waiter record, and associates it
+with the mutex structure.  (Note that in the current IPC model, once we have
+accepted a call message, the caller is stuck and cannot abandon or time out
+without being destroyed.)
+
+If the addition of the caller to the structure causes the highest waiter
+priority to increase (note: this is trivially detectable in the prioritized
+array of lists structure) then we alter the effective priority of the task
+holding the mutex.
+
+If a waiter times out, we remove it from the list and recompute the effective
+priority.  (Note: timeouts would be a system-level decision involving scheduling
+receipt of another message at a later date to wake the task.)
+
+When we receive an unlock message, we (1) verify that it's from the holder, and
+(2) recompute the priority before (3) unblocking another caller.
+
+This becomes more complicated, as always, by transitive relationships.
+
+Task A locks mutex 1.
+
+Task B, with higher priority, tries to lock mutex 1.  Task A now inherits B's
+priority.
+
+Task C locks mutex 2, and then A tries to lock it.  C now inherits B's priority.
+
+Now B times out.  A's priority is reduced.  Because A is waiting on a mutex,
+we must recompute that mutex's priority.  In the extreme, for N tasks, we need
+up to N priority recomputations per unlock or timeout event.
+
+Still seems doable.
+
+
+Approach #2: kernel assisted emulation
+--------------------------------------
+
+Prioritized wait queues?  We have those already.  The simplest one is a message
+gate.
+
+The system allocates one message gate per mutex.  Folks attempting to lock the
+mutex become waiters on this gate, either by sending to it directly, or by
+action of the system task.  (Suggests a forwarding operation, which may be
+distinct from a send in how it behaves when the send must block.)
+
+When the mutex is available, this gate is opened, and its waiters are candidates
+for the next received message.  When we receive a message through this gate, its
+caller becomes the mutex holder.
+
+We must determine the highest priority of any remaining waiter on the gate (a
+new operation) and assign it to the holder.
+
+So imagine that the gate can send a message to the system (even when it's
+closed) to inform it when the highest priority of the waiters changes.  This
+might occur due to a timeout, a new message arriving, or a transitive priority
+change.  We could process this message by transferring the priority to the
+associated mutex holder, which might trigger (at most one) more message.
+
+While this mechanism is a little odd, the result is slick: it provides the
+system with a way to incrementally process the transitive priority updates.
+If the priority of the messages from the gate is derived somehow from the
+priority of the contexts involved, it even makes the process preemptible.
+
+On the other hand, preemptible means non-atomic, which is potentially confusing.
+You could easily starve out a mutex priority transfer midway.  Maybe this is
+fine -- as long as the thing doing the starving is higher priority than anyone
+involved with the mutex, it might actually be desirable.
+
+So what kernel support do we need?
+
+- Message gates, either in the current form or a new variant, must be able to
+  inform a task of changes in their situation.
+  - "New waiter has appeared"
+  - "Existing waiter unblocked"
+- We need to be able to query the highest priority waiter on such a gate
+  - (Or deliver it with the change messages.)
+- We may need to be able to selectively unblock such a waiter.
+  - This may just be directed receive.
+  - And open receive plus masking might be better.
+- We need a forwarding operation that can transfer the caller (app task) to a
+  new wait queue without blocking the forwarder (system task).
+  - And the caller needs to be interruptible.
+
+That last one is a subtle thing.
+
+Yes, we can forward any call already.  But what states are the tasks in?  Does
+the message receiver have a "callers" queue to which the caller is added?  Such
+a queue is not necessary in the current design... instead, the caller could stop
+being a member of *any* queue and be placed in a "waiting for reply" state, to
+be awoken (as always) only by the reply key or some sort of interruption.
+
+
+Calls, States, and Interruption
+===============================
+
+To continue the thoughts from above, here is an area that merits consideration:
+
+I've been thinking about *systems* that treat a caller as committed once the
+message has been received, but allow interruption during send-wait.  Is this a
+property of the *system* or the *kernel*?  i.e. shall the kernel provide a
+method to interrupt a task, reporting a call failure, even after its call
+message has been received?  Note that such an interruption would require atomic
+cancellation of the reply key.
+
+I think the robust construction of such a system would be difficult; it allows
+for forking in a state where I don't think forking makes sense.  But does that
+mean I should take steps to *prevent* it?  Probably not.
+
+Here's the motivating example: kernel-assisted mutex emulation.
+
+The system initially receives a lock request and transfers it to a gate.
+
+The timeout specified by the caller should apply at that gate (indeed, the
+presumption is that the time blocked waiting for the initial receive by the
+system task is negligible, so the timeout is meaningless there).
+
+This means that the system must schedule a message for the future to unblock the
+task, if it has not succeeded.  Should this message fire, we must somehow remove
+the task from the gate's sender queue without regard to priority.
+
+This sounds like interruption, but it's interruption *after* the message was
+originally received.  We could construct a forwarding operation that effectively
+"unreceives" the message, but this feels like extra mechanism that's basically
+just supporting a policy decision.
+
+As an alternative, just forward the damn message and keep track of whatever
+information (likely the context key) is necessary to later interrupt it with an
+error.
+
+Note that this mechanism is probably required for Minix-style task monitoring
+anyway.  We want to be able to destroy and replace a task whether or not it is
+currently waiting for its reply key to be used.
+
+So, then, what does this imply about the state of a task?
+
+- **Sending:** when sending, a task is always sending *to* something.  If that
+  something is busy, it must enter a queue of senders, to be processed in
+  priority order.  The task's state could simply be membership in this queue.
+  This state is unambiguously interruptible.
+
+- **Waiting for Reply:** in this state, the task could be a member of a
+  receivers queue on an object standing for its reply key.  This queue would
+  (barring bugs) only ever contain one object.  It might be more efficiently
+  represented as a state enumeration, so long as the object backing the reply
+  key has enough information to locate the task without a queue.  This state
+  must be interruptible in a way that revokes the reply key.
+
+We haven't learned anything here about receive states.

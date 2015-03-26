@@ -1,0 +1,81 @@
+Scheduling
+==========
+
+I'm inclined to leave a scheduler in the kernel.  I'm pretty sure it could be
+removed, but meh.
+
+Let's assume that:
+- The kernel is aware of a system clock that counts up.
+- The kernel is *not* aware of the count frequency of this clock or whether it
+  is constant.
+- There is, associated with each context, a time slice, measured in ticks of
+  this clock.
+- When the context becomes active, we add the time slice to the current time to
+  produce a preemption time.
+- If the context is still active when preemption time comes, it becomes
+  inactive.
+- If the context blocks (e.g. by entering open receive when no messages are
+  waiting, or by sending to an object that is not waiting to receive), it stops
+  being charged for time and becomes inactive.  Its time slice is reduced to
+  the unused portion of the time slice it had become when it became active.
+
+Whenever no context is active, the kernel tries to find a different context to
+make active.  The candidates are the set of runnable contexts; the one chosen
+has the highest priority.  Contexts without remaining time slice are not
+considered runnable.
+
+We can adjust the details later.
+
+
+Initial Authority
+=================
+
+What authority is the initial system task granted by the kernel?  Let's
+specifically consider the STM32F407 where it matters.
+
+**Object Table Key.**  The system receives a key to the object table.  This
+confers ridiculous authority over kernel objects.  This not only gives the
+system the ability to set up initial objects, it also allows it to later recover
+keys it believes lost by minting new ones.
+
+**Infinite Time.**  The initial task has an infinite timeslice and is initially
+set to the highest priority.  (It can change both of these properties if
+desired.)  Through the Object Table Key it can mint timeslice and priority keys
+arbitrarily and assign them to contexts.  The system is free to wildly
+overcommit the CPU if desired.
+
+**Direct access to all of RAM and ROM.**  With the kernel bits knocked out.  We
+could restrict this, but it keeps the kernel from needing to understand the
+task's memory layout or protection strategy.
+
+**Ability to grant peripheral memory.**  Whatever that means.  More
+consideration below.
+
+**Controlled access to some other bits.**  There are portions of the address
+space that cannot be left available to the system, because they could violate
+kernel invariants.  Here's an attempt at a comprehensive list.
+
+- Portions of the SCB -- specifically, changing the VTOR would allow an altered
+  vector table to come into force, allowing the execution of arbitrary interrupt
+  handlers in privileged mode.
+
+- The MPU.  Alteration of the MPU region definitions could allow violation of
+  the other rules listed here or the corruption of kernel state.
+
+- Basically everything above 0xE0000000 -- the defined parts of it are scary,
+  and I've found it to alias RAM unpredictably on STM32F407.
+
+- The SYSCFG Memory Remap register, if kernel memory is subject to such
+  remapping.
+
+- Any DMA controller, including any peripheral capable of arbitrary DMA.
+
+On the STM32F407 there are a surprising number of peripherals capable of
+independent DMA and bus mastering, including ethernet, USB OTG HS, and LCD.  In
+a strict interpretation we'd have to have the kernel intermediate on each of
+these peripherals.  Which is unfortunate.
+
+But without an IOMMU these sorts of peripherals can still wreak havoc if used
+uncontrolled.
+
+I think right now I'll focus on cases that don't use these peripherals.
