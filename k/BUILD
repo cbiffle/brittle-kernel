@@ -1,6 +1,7 @@
 c_library('k',
   sources = [
     'context.cc',
+    'cxxabi.cc',
     'entry.S',
     'ipc.cc',
     'key.cc',
