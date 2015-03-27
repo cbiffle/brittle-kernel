@@ -21,6 +21,9 @@ struct Message {
 __attribute__((warn_unused_result))
 SysResult ustore(Message *, Message const &);
 
+__attribute__((warn_unused_result))
+SysResultWith<Message> uload(Message const *);
+
 }  // namespace k
 
 #endif  // K_IPC_H

@@ -13,4 +13,12 @@ SysResult ustore(Message * addr, Message const & value) {
   return SysResult::success;
 }
 
+SysResultWith<Message> uload(Message const * addr) {
+  Message m;
+  for (unsigned i = 0; i < config::n_message_data; ++i) {
+    m.data[i] = CHECK(uload(&addr->data[i]));
+  }
+  return {etl::error::right, m};
+}
+
 }  // namespace k
