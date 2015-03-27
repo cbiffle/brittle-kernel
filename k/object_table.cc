@@ -15,7 +15,7 @@ SysResult ObjectTable::call(uint32_t brand,
   Message m = CHECK(caller->get_message());
   switch (m.data[0]) {
     case 0: return mint_key(brand, caller, m);
-    case 1: return mint_key(brand, caller, m);
+    case 1: return read_key(brand, caller, m);
     
     default:
       return SysResult::bad_message;
