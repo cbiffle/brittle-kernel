@@ -34,6 +34,7 @@ void Key::fill(unsigned index, uint32_t brand) {
 
 void Key::nullify() {
   _index = 0;
+  _brand = 0;
   _generation[0] = object_table[0].generation[0];
   _generation[1] = object_table[0].generation[1];
 }
