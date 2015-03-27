@@ -5,7 +5,7 @@
 
 #include "k/config.h"
 #include "k/key.h"
-#include "k/object.h"
+#include "k/sender.h"
 
 namespace k {
 
@@ -22,7 +22,7 @@ struct Registers;  // see: k/registers.h
  * to communicate with the code it describes; that authority would be conferred
  * by a gate key.
  */
-class Context : public Object {
+class Context : public Sender {
 public:
   SysResult call(uint32_t, Context *) override;
 
@@ -33,7 +33,7 @@ public:
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
-  SysResultWith<Message> get_message();
+  SysResultWith<Message> get_message() override;
   SysResult put_message(Message const &);
 
 private:
