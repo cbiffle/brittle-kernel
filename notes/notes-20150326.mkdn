@@ -255,3 +255,164 @@ So, then, what does this imply about the state of a task?
   must be interruptible in a way that revokes the reply key.
 
 We haven't learned anything here about receive states.
+
+
+Gates
+=====
+
+(Early notes referred to this as a "port" by analogy with Mach.  I am
+increasingly convinced that Mach is a dangerous source for analogies.  I forget
+where I got the term "gate" but I'm pretty sure it's one of Shap's projects.)
+
+A gate is a kernel object that emulates some number of other kernel objects by
+cooperating with code running in a context.
+
+When application or system programmers send a message "to" a task, they are
+actually sending a message to a gate.  The task will receive the message if:
+
+1. It executes a *directed receive* on the gate.  This will yield the single
+   highest priority message on that gate.
+
+2. It executes an *open receive* and the gate is *bound* to the task.
+
+Bound gates and normal gates may be intrinsically different types of objects;
+TBD.  A bound gate holds a reference to a task, and the task a list of its bound
+gates.  On open receive, the task looks through this list and takes the highest
+priority available message from it.  If no such message is available, the task
+enters an open receive state and waits.
+
+When a message arrives at a bound gate, it checks if its task is waiting, and,
+if so, performs a thread migration into the task.  Note that at most one task
+can be waiting.
+
+When a message is delivered from a bound gate, the task receives information
+about which gate it arrived through (the message direction).  What information
+isn't immediately clear; a gate key is wrong, because normal tasks can't
+meaningfully compare keys.  An object table index would uniquely identify the
+gate, but would not be meaningful to application tasks that don't manipulate the
+object table.  So perhaps the gate should have a configured integer it passes
+into the task.  This is in addition to the brand: brands are still valuable
+in the presence of direction info (see my previous notes).  But this does make
+the result ABI of a bound gate receive possibly different from a directed
+receive....
+
+Non-bound (normal) gates are similar except that they cannot participate in
+open receive, and they maintain a list of waiting tasks.  When a message
+arrives, the kernel migrates into the highest priority task among the waiters.
+
+It may or may not be possible to do directed receive on a bound gate.  If the
+gate is bound to some other task, it's definitely an error.  I'd need a
+motivating use case to support directed receive for bound gates.
+
+It is physically impossible to execute an open receive "on" a non-bound gate:
+the open receive does not take a gate argument.
+
+Gate Groups?
+------------
+
+On consideration, perhaps we should eliminate the concept of open receive (!)
+and switch to an abstraction I'm calling (for now) a "gate group."  A gate group
+is a (wait for it) group of gates.
+
+A task can execute a directed receive on the gate group.  At the time of the
+receive, the gate group would inspect the wait list of each associated gate,
+and deliver the highest priority waiting message.  If no such message exists,
+the receiving task blocks in directed recieve on the group itself.
+
+When a message arrives at a gate that is a member of a group, it would search
+the group's list of waiters and attempt to migrate directly.  If that fails, the
+sending task blocks on the gate.
+
+This feels like a cleaner solution, primarily because there's now a wait list
+for the receiving task to block in (the gate's).  This eliminates the need for a
+distinct open receive state -- and, indeed, the need for an open receive
+operation at all!
+
+We could maintain the direction words by making them part of the standard
+receive ABI.  Perhaps *every* gate has an associated "gate brand" that would be
+delivered to the task alongside the "message brand."
+
+Ooooooh... okay... this also makes the concept of opening and closing gates
+cleaner.  Open and closing a gate in a group would be accomplished by a message
+to the *group*.  The group serves as a control object for the task that uses it.
+
+Also nice: multiple tasks could service a gate group.
+
+Yes, this is better.  Let's do this.
+
+
+Reply Gates
+-----------
+
+Every key refers to an object in the object table.  Entries in the table are the
+units of revocation and versioning -- we can atomically revoke all the keys to a
+table entry.
+
+We need to be able to revoke a reply key without revoking keys to the
+corresponding context.  Thus the reply key cannot be a context key with e.g. a
+special brand.
+
+This all implies that a context's reply key must refer to a distinct but
+associated kernel object.  Because messages to tasks go through gates, it seems
+clear that this object is a *reply gate.*
+
+Each context could have an associated reply gate.  On a call from the object, a
+key to the reply gate would be minted.  On use of that key, the reply gate would
+deliver the message to the task and version itself, atomically invalidating all
+extant keys.  The task issuing the call would block in directed receive on its
+reply gate.  Anyone else attempting to receive from the reply gate key should
+fail.
+
+If interruption causes the task to unblock, we would also version its reply
+gate.  If the task was blocked in a call, its reply key is now invalid; if it
+was blocked for some other reason, this operation is still pretty cheap.
+
+Revocation of reply keys remains cheap, because no task ever blocks at the reply
+gate.  Observe:
+- We revoke reply keys whenever the associated task is not blocked in a call.
+- Only if the task is doing something other than blocking in a call could others
+  block on the reply key.
+- Delivery of a reply message results in immediate migration and does not block.
+
+
+Message Senders
+===============
+
+The current implementation assumes that a message comes from a task.  This isn't
+really true.  Interrupts, for one, can send messages.  The asynchronous message
+holder thing I've talked about would be able to send messages.
+
+Any object that sends messages must support the following:
+- Some way of getting the contents of message -- data and keys.
+- A list node, so that it can block if the recipient is not ready.
+- A priority, so that it can be prioritized among other outstanding messages.
+
+
+Message Receivers
+=================
+
+In the current design, only contexts can block to receive messages.  There is no
+concept of an asynchronous message receiver (that's basically what a gate is).
+
+So we don't need an abstraction atop context for this, I think.
+
+
+Do we need other types of lists?
+================================
+
+We need lists to describe:
+- Who is waiting at a gate to deliver a message.
+- Who is waiting at a gate to receive a message.
+- Which contexts are currently runnable.
+
+Many types of kernel objects never need to be a member of these lists, so it
+doesn't make sense to have every object have a list node.  We appear to only
+need lists of message senders and contexts.
+
+For type-safety, Contexts could contain two list nodes: one that is used when
+the context joins a list of Senders, and one that is used when the context joins
+a list of contexts.  Technically this is wasteful, but it does eliminate some
+casting.
+
+Hmmm.  The kernel clock driver may need to maintain a list of timers, sorted
+by deadline.
