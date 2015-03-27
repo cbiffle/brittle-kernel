@@ -7,13 +7,13 @@
 
 namespace k {
 
+struct Context;  // see: k/context.h
 struct Message;  // see: k/ipc.h
 
 class Object {
 public:
   virtual SysResult call(uint32_t brand,
-                         Message const *,
-                         Message *) = 0;
+                         Context * caller) = 0;
 };
 
 }  // namespace k

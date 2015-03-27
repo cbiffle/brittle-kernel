@@ -24,7 +24,7 @@ struct Registers;  // see: k/registers.h
  */
 class Context : public Object {
 public:
-  SysResult call(uint32_t, Message const *, Message *) override;
+  SysResult call(uint32_t, Context *) override;
 
   // Accessors for use inside the kernel.
   Registers * stack() const { return _stack; }
@@ -33,6 +33,9 @@ public:
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
+  SysResultWith<Message> get_message();
+  SysResult put_message(Message const &);
+
 private:
   // Address of the top of the context's current stack.  When the task
   // is stopped, the machine registers are pushed onto this stack.
@@ -40,11 +43,11 @@ private:
   // Keys held by the context.
   Key _keys[config::n_task_keys];
 
-  SysResult read_register(uint32_t, Message const *, Message *);
-  SysResult write_register(uint32_t, Message const *, Message *);
+  SysResult read_register(uint32_t, Context *, Message const &);
+  SysResult write_register(uint32_t, Context *, Message const &);
 
-  SysResult read_key(uint32_t, Message const *, Message *);
-  SysResult write_key(uint32_t, Message const *, Message *);
+  SysResult read_key(uint32_t, Context *, Message const &);
+  SysResult write_key(uint32_t, Context *, Message const &);
 };
 
 extern Context contexts[config::n_contexts];

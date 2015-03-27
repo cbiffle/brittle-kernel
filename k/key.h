@@ -7,14 +7,14 @@
 
 namespace k {
 
-struct Message;  // see: k/ipc.h
+struct Context;  // see: k/context.h
 
 /*
  * A Key is the data structure used to reference kernel objects.
  */
 class Key {
 public:
-  SysResult call(Message const *, Message *);
+  SysResult call(Context * caller);
 
   void fill(unsigned index, uint32_t brand);
   void nullify();

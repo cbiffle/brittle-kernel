@@ -20,12 +20,23 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   }
 }
 
-SysResult Context::call(uint32_t brand, Message const * arg, Message * result) {
-  switch (CHECK(uload(&arg->data[0]))) {
-    case 0: return read_register(brand, arg, result);
-    case 1: return write_register(brand, arg, result);
-    case 2: return read_key(brand, arg, result);
-    case 3: return write_key(brand, arg, result);
+SysResultWith<Message> Context::get_message() {
+  auto arg = reinterpret_cast<Message const *>(_stack->ef.r1);
+  return uload(arg);
+}
+
+SysResult Context::put_message(Message const & m) {
+  auto addr = reinterpret_cast<Message *>(_stack->ef.r2);
+  return ustore(addr, m);
+}
+
+SysResult Context::call(uint32_t brand, Context * caller) {
+  Message m = CHECK(caller->get_message());
+  switch (m.data[0]) {
+    case 0: return read_register(brand, caller, m);
+    case 1: return write_register(brand, caller, m);
+    case 2: return read_key(brand, caller, m);
+    case 3: return write_key(brand, caller, m);
 
     default:
       return SysResult::bad_message;
@@ -33,11 +44,10 @@ SysResult Context::call(uint32_t brand, Message const * arg, Message * result) {
 }
 
 SysResult Context::read_register(uint32_t,
-                                 Message const * arg,
-                                 Message * result) {
-  auto r = CHECK(uload(&arg->data[1]));
+                                 Context * caller,
+                                 Message const & arg) {
   Word value;
-  switch (r) {
+  switch (arg.data[1]) {
     case 13:
       value = reinterpret_cast<Word>(_stack);
       break;
@@ -69,22 +79,23 @@ SysResult Context::read_register(uint32_t,
       return SysResult::bad_message;
   }
 
-  return ustore(result, {value, 0, 0, 0});
+  CHECK(caller->put_message({value, 0, 0, 0}));
+  caller->nullify_exchanged_keys();
+  return SysResult::success;
 }
 
 SysResult Context::write_register(uint32_t,
-                                  Message const * arg,
-                                  Message * result) {
-  auto r = CHECK(uload(&arg->data[1]));
-  auto v = CHECK(uload(&arg->data[2]));
-  CHECK(ustore(result, {0, 0, 0, 0}));
+                                  Context * caller,
+                                  Message const & arg) {
+  auto r = arg.data[1];
+  auto v = arg.data[2];
 
   switch (r) {
     case 13:
       _stack = reinterpret_cast<decltype(_stack)>(v);
-      return SysResult::success;
+      break;
 
-#define GP_EF(n) case n: return ustore(&_stack->ef.r ## n, v);
+#define GP_EF(n) case n: CHECK(ustore(&_stack->ef.r ## n, v)); break;
     GP_EF(0);
     GP_EF(1);
     GP_EF(2);
@@ -94,9 +105,9 @@ SysResult Context::write_register(uint32_t,
     GP_EF(15);
 #undef GP
 
-    case 16: return ustore(&_stack->ef.psr, v);
+    case 16: CHECK(ustore(&_stack->ef.psr, v)); break;
 
-#define GP_KSAV(n) case n: return ustore(&_stack->r ## n, v);
+#define GP_KSAV(n) case n: CHECK(ustore(&_stack->r ## n, v));
     GP_KSAV(4);
     GP_KSAV(5);
     GP_KSAV(6);
@@ -110,29 +121,34 @@ SysResult Context::write_register(uint32_t,
     default:
       return SysResult::bad_message;
   }
+
+  CHECK(caller->put_message({0,0,0,0}));
+  caller->nullify_exchanged_keys();
+  return SysResult::success;
 }
 
 SysResult Context::read_key(uint32_t,
-                            Message const * arg,
-                            Message * result) {
-  auto r = CHECK(uload(&arg->data[1]));
+                            Context * caller,
+                            Message const & arg) {
+  auto r = arg.data[1];
   if (r >= config::n_task_keys) return SysResult::bad_message;
 
+  CHECK(caller->put_message({0, 0, 0, 0}));
   current->key(0) = key(r);
   current->nullify_exchanged_keys(1);
-  return ustore(result, {0, 0, 0, 0});
+  return SysResult::success;
 }
 
 SysResult Context::write_key(uint32_t,
-                            Message const * arg,
-                            Message * result) {
-  auto r = CHECK(uload(&arg->data[1]));
+                             Context * caller,
+                             Message const & arg) {
+  auto r = arg.data[1];
   if (r >= config::n_task_keys) return SysResult::bad_message;
 
+  CHECK(caller->put_message({0, 0, 0, 0}));
   key(r) = current->key(0);
   current->nullify_exchanged_keys();
-
-  return ustore(result, {0, 0, 0, 0});
+  return SysResult::success;
 }
 
 }  // namespace k

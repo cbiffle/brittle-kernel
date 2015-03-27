@@ -11,11 +11,11 @@ namespace k {
 ObjectTable object_table;
 
 SysResult ObjectTable::call(uint32_t brand,
-                            Message const * arg,
-                            Message * result) {
-  switch (CHECK(uload(&arg->data[0]))) {
-    case 0: return mint_key(brand, arg, result);
-    case 1: return mint_key(brand, arg, result);
+                            Context * caller) {
+  Message m = CHECK(caller->get_message());
+  switch (m.data[0]) {
+    case 0: return mint_key(brand, caller, m);
+    case 1: return mint_key(brand, caller, m);
     
     default:
       return SysResult::bad_message;
@@ -23,28 +23,29 @@ SysResult ObjectTable::call(uint32_t brand,
 }
 
 SysResult ObjectTable::mint_key(uint32_t,
-                                Message const * arg,
-                                Message * result) {
-  auto index = CHECK(uload(&arg->data[1]));
-  auto brand = CHECK(uload(&arg->data[2]));
+                                Context * caller,
+                                Message const & args) {
+  auto index = args.data[1];
+  auto brand = args.data[2];
 
   if (index >= config::n_objects) {
     return SysResult::bad_message;
   }
 
-  current->nullify_exchanged_keys();
-  current->key(0).fill(index, brand);
+  CHECK(caller->put_message({0,0,0,0}));
+  caller->key(0).fill(index, brand);
+  caller->nullify_exchanged_keys(1);
   return SysResult::success;
 }
 
 SysResult ObjectTable::read_key(uint32_t,
-                                Message const * arg,
-                                Message * result) {
+                                Context * caller,
+                                Message const & args) {
   auto index = current->key(0).get_index();
   auto brand = current->key(0).get_brand();
 
-  CHECK(ustore(result, {index, brand, 0, 0}));
-  current->nullify_exchanged_keys();
+  CHECK(caller->put_message({index, brand, 0, 0}));
+  caller->nullify_exchanged_keys();
   return SysResult::success;
 }
 

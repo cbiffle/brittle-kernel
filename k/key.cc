@@ -7,10 +7,10 @@
 
 namespace k {
 
-SysResult Key::call(Message const * arg, Message * result) {
+SysResult Key::call(Context * caller) {
   lazy_revoke();
 
-  return object_table[_index].ptr->call(_brand, arg, result);
+  return object_table[_index].ptr->call(_brand, caller);
 }
 
 void Key::lazy_revoke() {

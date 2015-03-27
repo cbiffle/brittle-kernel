@@ -21,13 +21,12 @@ static bool booted = false;
 static SysResult svc_send() {
   auto target_index = CHECK(uload(&current->stack()->ef.r0));
   auto arg = reinterpret_cast<Message const *>(current->stack()->ef.r1);
-  auto result = reinterpret_cast<Message *>(current->stack()->ef.r2);
 
   if (target_index >= config::n_task_keys) {
     return SysResult::bad_key_index;
   }
 
-  return current->key(target_index).call(arg, result);
+  return current->key(target_index).call(current);
 }
 
 static SysResult normal_svc_dispatch() {
