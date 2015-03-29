@@ -87,7 +87,7 @@ public:
     it->prev = _roots[p].prev;
     it->next = &_roots[p];
 
-    _roots[p].prev->next = _roots[p].prev = it;
+    _roots[p].prev = _roots[p].prev->next = it;
   }
 
 private:
