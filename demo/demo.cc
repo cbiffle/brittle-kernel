@@ -3,19 +3,26 @@ namespace demo {
 static unsigned volatile counter;
 
 struct Message { unsigned data[4]; };
+struct ReceivedMessage {
+  unsigned gate_brand;
+  unsigned sender_brand;
+  Message m;
+};
 
-static unsigned send(unsigned index, Message const * m) {
-  unsigned r0 asm ("r0") = index;
-  Message const * r1 asm("r1") = m;
-  asm volatile ("svc #0" : "+r"(r0) : "r"(r1), "m"(*m));
-  return r0;
+__attribute__((naked))
+static unsigned call(unsigned index, Message const * m, ReceivedMessage * out) {
+  asm volatile (
+      "svc #1\n"
+      "bx lr\n"
+      );
 }
 
 void main() {
   counter = 0;
   while (true) {
-    auto m = Message { counter, 0, 0, 0 };
-    send(0, &m);
+    auto m = Message { 1, counter, 0, 0 };
+    ReceivedMessage rm;
+    call(4, &m, &rm);
     ++counter;
   }
 }

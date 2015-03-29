@@ -32,13 +32,45 @@ public:
    * Context-specific accessors for use inside the kernel.
    */
 
+  void set_reply_gate_index(unsigned index) { _reply_gate_index = index; }
+
   Registers * stack() const { return _stack; }
   void set_stack(Registers * s) { _stack = s; }
   Key & key(unsigned i) { return _keys[i]; }
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
-  SysResult do_send();
+  SysResult do_send(bool call);
+
+  SysResult put_message(uint32_t gate_brand,
+                        uint32_t sender_brand,
+                        Message const &);
+
+  /*
+   * Context-specific analog to block_in_send.  Asks the Context to save the
+   * (gate) brand and block itself on the provided list, preparing to receive a
+   * message.
+   *
+   * If the context is unwilling to block, it returns SysResult::would_block.
+   * Any failure will be reported back as the status of the receive.
+   *
+   * The context can later become runnable once again through an invocation
+   * of either complete_blocked_receive or interrupt.
+   */
+  SysResult block_in_receive(uint32_t brand, List<Context> &);
+
+  /*
+   * Takes a context out of receive state due to reception of a message from
+   * the provided sender.  Analog of Sender::complete_blocked_send.
+   *
+   * Unlike complete_blocked_send, this can fail, typically due to faults
+   * attempting to access the delivered message.  Such failures will be
+   * reported back to the sender as delivery failures.
+   *
+   * The brand here is the brand of key used by the sender to initiate the
+   * message.
+   */
+  SysResult complete_blocked_receive(uint32_t brand, Sender *);
 
 
   /*************************************************************
@@ -100,6 +132,9 @@ private:
   // Brand from the key that was used in the current send, saved for
   // use later even if the key gets modified.
   uint32_t _saved_brand;
+  bool _calling;
+
+  uint32_t _reply_gate_index;
 
   // Factors of deliver_from
   SysResult read_register(uint32_t, Sender *, Message const &);

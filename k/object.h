@@ -57,6 +57,15 @@ public:
    */
   virtual SysResult deliver_from(uint32_t brand, Sender *) = 0;
 
+  /*
+   * The given Context wants to receive a message from this object.  This
+   * operation is typically valid only on gates, but is implemented uniformly
+   * on all objects to avoid the need for a cast.
+   *
+   * The default implementation returns SysResult::bad_key.
+   */
+  virtual SysResult deliver_to(uint32_t brand, Context *);
+
 protected:
   Object();
 

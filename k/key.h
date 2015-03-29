@@ -7,6 +7,7 @@
 
 namespace k {
 
+struct Context;  // see: k/context.h
 struct Sender;  // see: k/sender.h
 
 /*
@@ -52,6 +53,12 @@ public:
    * referenced object, supplemented by this key's brand.
    */
   SysResult deliver_from(Sender *);
+
+  /*
+   * Facade function for Object::deliver_to; calls through to the
+   * referenced object, supplemented by this key's brand.
+   */
+  SysResult deliver_to(Context *);
 
 private:
   // Distinguishes successive occupants of a single object table slot.

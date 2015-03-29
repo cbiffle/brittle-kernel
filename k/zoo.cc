@@ -2,10 +2,12 @@
 
 #include "k/null_object.h"
 #include "k/object_table.h"
+#include "k/reply_gate.h"
 
 namespace k {
 
 Context contexts[config::n_contexts];
+ReplyGate reply_gates[config::n_contexts];
 
 static NullObject null;
 
@@ -26,6 +28,10 @@ void init_zoo() {
   for (unsigned i = 0; i < config::n_contexts; ++i) {
     object_table[i + special_objects].ptr = &contexts[i];
     contexts[i].set_index(i + special_objects);
+
+    object_table[i + special_objects + config::n_contexts].ptr =
+      &reply_gates[i];
+    contexts[i].set_reply_gate_index(i + special_objects + config::n_contexts);
   }
 }
 

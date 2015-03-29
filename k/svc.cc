@@ -32,7 +32,11 @@ static void normal_svc_dispatch() {
 
   switch (sysnum) {
     case 0:
-      result = current->do_send();
+      result = current->do_send(false);
+      break;
+
+    case 1:
+      result = current->do_send(true);
       break;
 
     default:

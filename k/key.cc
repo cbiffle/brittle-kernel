@@ -25,6 +25,12 @@ SysResult Key::deliver_from(Sender * sender) {
   return object_table[_index].ptr->deliver_from(_brand, sender);
 }
 
+SysResult Key::deliver_to(Context * context) {
+  lazy_revoke();
+
+  return object_table[_index].ptr->deliver_to(_brand, context);
+}
+
 void Key::lazy_revoke() {
   ETL_ASSERT(_index < config::n_objects);
 

@@ -60,7 +60,7 @@ static void prepare_task() {
   r->ef.r15 = reinterpret_cast<uintptr_t>(demo::main);
   k::contexts[0].set_stack(r);
 
-  k::contexts[0].key(0).fill(1, 0);
+  k::contexts[0].key(4).fill(1, 0);
 
   k::current = &k::contexts[0];
 }

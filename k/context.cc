@@ -38,7 +38,7 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   }
 }
 
-SysResult Context::do_send() {
+SysResult Context::do_send(bool call) {
   // r0 and r1, as part of the exception frame, can be accessed
   // without protection -- we haven't yet allowed for a race that
   // could cause them to become inaccessible.
@@ -60,9 +60,51 @@ SysResult Context::do_send() {
   // we expect every possible implementation of deliver_from to
   // remember to call complete_send.  So we provide it here.
 
+  if (call) {
+    key(0).fill(_reply_gate_index, 0);
+    _calling = true;
+  } else {
+    _calling = false;
+  }
   auto r = key(target_index).deliver_from(this);
   if (r != SysResult::success) complete_send(r);
   return SysResult::success;
+}
+
+SysResult Context::block_in_receive(uint32_t brand, List<Context> & list) {
+  bool const blocking = true;  // TODO: nonblocking receives
+
+  if (!blocking) return SysResult::would_block;
+
+  _saved_brand = brand;
+  _ctx_item.unlink();
+  list.insert(&_ctx_item);
+  return SysResult::success;
+}
+
+SysResult Context::complete_blocked_receive(uint32_t sender_brand,
+                                            Sender * sender) {
+  // TODO: faults the *sender's* supervisor
+  auto m = CHECK(sender->get_message());
+
+  // TODO: report faults in the line below to *our* supervisor.
+  CHECK(put_message(_saved_brand, sender_brand, m));
+
+  for (unsigned i = 0; i < config::n_message_keys; ++i) {
+    key(i) = sender->get_message_key(i);
+  }
+
+  _ctx_item.unlink();  // from the receiver list
+  runnable.insert(&_ctx_item);
+}
+
+SysResult Context::put_message(uint32_t gate_brand,
+                               uint32_t sender_brand,
+                               Message const & m) {
+  auto addr = reinterpret_cast<ReceivedMessage *>(_stack->ef.r2);
+  CHECK(ustore(&addr->gate_brand, gate_brand));
+  CHECK(ustore(&addr->sender_brand, sender_brand));
+  return ustore(&addr->m, m);
 }
 
 
@@ -84,6 +126,13 @@ void Context::complete_send(SysResult result) {
   // cannot be reported without faulting, we don't currently do
   // anything special to repair this.  (TODO: message to supervisor)
   IGNORE(ustore(&_stack->ef.r0, unsigned(result)));
+
+  if (result == SysResult::success && _calling) {
+    auto rk = key(0);
+    nullify_exchanged_keys();
+    auto r = rk.deliver_to(this);
+    ETL_ASSERT(r == SysResult::success);
+  }
 }
 
 SysResult Context::block_in_send(uint32_t brand, List<Sender> & list) {
