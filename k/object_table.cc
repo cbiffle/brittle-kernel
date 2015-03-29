@@ -10,6 +10,14 @@
 
 namespace k {
 
+void ObjectTable::invalidate(unsigned index) {
+  ETL_ASSERT(index < config::n_objects);
+
+  if (++_objects[index].generation[0] == 0) {
+    ++_objects[index].generation[1];
+  }
+}
+
 SysResult ObjectTable::deliver_from(uint32_t brand, Sender * sender) {
   Message m = CHECK(sender->get_message());
   switch (m.data[0]) {

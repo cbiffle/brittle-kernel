@@ -29,6 +29,14 @@ public:
 
   Entry & operator[](unsigned index) { return _objects[index]; }
 
+  /*
+   * Invalidates all extant keys for the object at a given index.  The keys
+   * will be lazily revoked.
+   *
+   * Precondition: index is valid.
+   */
+  void invalidate(unsigned index);
+
   SysResult deliver_from(uint32_t, Sender *) override;
 
 private:
