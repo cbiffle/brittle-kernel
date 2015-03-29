@@ -1,9 +1,24 @@
 #include "k/sender.h"
 
+#include "etl/assert.h"
+
+#include "k/key.h"
+
 namespace k {
 
-Sender::Sender()
-  : _item{this},
-    _priority{0} {}
+Key Sender::get_message_key(unsigned index) {
+  return Key::null();
+}
+
+void Sender::complete_send(SysResult) {
+}
+
+SysResult Sender::block_in_send(uint32_t, List<Sender> &) {
+  return SysResult::would_block;
+}
+
+void Sender::complete_blocked_send() {
+  ETL_ASSERT(false);
+}
 
 }  // namespace k

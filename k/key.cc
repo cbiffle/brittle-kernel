@@ -7,10 +7,22 @@
 
 namespace k {
 
-SysResult Key::call(Context * caller) {
+Key Key::filled(unsigned index, uint32_t brand) {
+  Key k;
+  k.fill(index, brand);
+  return k;
+}
+
+Key null() {
+  Key k;
+  k.nullify();
+  return k;
+}
+
+SysResult Key::deliver_from(Sender * sender) {
   lazy_revoke();
 
-  return object_table[_index].ptr->call(_brand, caller);
+  return object_table[_index].ptr->deliver_from(_brand, sender);
 }
 
 void Key::lazy_revoke() {

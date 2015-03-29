@@ -24,6 +24,12 @@ SysResult ustore(Message *, Message const &);
 __attribute__((warn_unused_result))
 SysResultWith<Message> uload(Message const *);
 
+struct ReceivedMessage {
+  uint32_t gate_brand;
+  uint32_t sender_brand;
+  Message m;
+};
+
 }  // namespace k
 
 #endif  // K_IPC_H

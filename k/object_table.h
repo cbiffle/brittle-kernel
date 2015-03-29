@@ -29,13 +29,13 @@ public:
 
   Entry & operator[](unsigned index) { return _objects[index]; }
 
-  SysResult call(uint32_t, Context *) override;
+  SysResult deliver_from(uint32_t, Sender *) override;
 
 private:
   Entry _objects[config::n_objects];
 
-  SysResult mint_key(uint32_t, Context *, Message const &);
-  SysResult read_key(uint32_t, Context *, Message const &);
+  SysResult mint_key(uint32_t, Sender *, Message const &);
+  SysResult read_key(uint32_t, Sender *, Message const &);
 };
 
 extern ObjectTable object_table;

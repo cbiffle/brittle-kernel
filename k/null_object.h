@@ -14,7 +14,7 @@ namespace k {
  */
 class NullObject : public Object {
 public:
-  SysResult call(uint32_t, Context *) override;
+  SysResult deliver_from(uint32_t, Sender *) override;
 };
 
 }  // namespace k

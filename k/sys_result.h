@@ -17,6 +17,7 @@ enum class SysResult : uint32_t {
   bad_key,
 
   bad_message,
+  would_block,
 };
 
 template<typename V>
