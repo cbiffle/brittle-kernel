@@ -38,6 +38,33 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   }
 }
 
+SysResult Context::do_send() {
+  // r0 and r1, as part of the exception frame, can be accessed
+  // without protection -- we haven't yet allowed for a race that
+  // could cause them to become inaccessible.
+  auto target_index = _stack->ef.r0;
+  auto arg = reinterpret_cast<Message const *>(_stack->ef.r1);
+
+  if (target_index >= config::n_task_keys) {
+    return SysResult::bad_key_index;
+  }
+
+  // Alright, we're handing off control to some object.  From
+  // this point forward we must be more careful with our
+  // accesses.  In particular, it is no longer our job (as the
+  // dispatcher) to report the result through to the caller;
+  // for all we know, the caller is deleted before this returns!
+  // So, we must return success to the dispatcher, suppressing
+  // its reporting behavior.
+  // However, we cannot simply let errors go unreported, nor can
+  // we expect every possible implementation of deliver_from to
+  // remember to call complete_send.  So we provide it here.
+
+  auto r = key(target_index).deliver_from(this);
+  if (r != SysResult::success) complete_send(r);
+  return SysResult::success;
+}
+
 
 /*******************************************************************************
  * Implementation of Sender

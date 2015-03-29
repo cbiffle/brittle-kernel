@@ -38,6 +38,8 @@ public:
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
+  SysResult do_send();
+
 
   /*************************************************************
    * Implementation of Sender.

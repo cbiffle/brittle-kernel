@@ -18,33 +18,6 @@ namespace k {
 
 static bool booted = false;
 
-static SysResult svc_send() {
-  // r0 and r1, as part of the exception frame, can be accessed
-  // without protection -- we haven't yet allowed for a race that
-  // could cause them to become inaccessible.
-  auto target_index = current->stack()->ef.r0;
-  auto arg = reinterpret_cast<Message const *>(current->stack()->ef.r1);
-
-  if (target_index >= config::n_task_keys) {
-    return SysResult::bad_key_index;
-  }
-
-  // Alright, we're handing off control to some object.  From
-  // this point forward we must be more careful with our
-  // accesses.  In particular, it is no longer our job (as the
-  // dispatcher) to report the result through to the caller;
-  // for all we know, the caller is deleted before this returns!
-  // So, we must expose success to the dispatcher, suppressing
-  // its reporting behavior.
-  // However, we cannot simply let errors go unreported, nor can
-  // we expect every possible implementation of deliver_from to
-  // remember to call complete_send.  So we provide it here.
-
-  auto r = current->key(target_index).deliver_from(current);
-  if (r != SysResult::success) current->complete_send(r);
-  return SysResult::success;
-}
-
 static void normal_svc_dispatch() {
   // The fact that we're here in an SVC, instead of escalated to a
   // MemMang fault, means that the exception frame falls within
@@ -59,7 +32,7 @@ static void normal_svc_dispatch() {
 
   switch (sysnum) {
     case 0:
-      result = svc_send();
+      result = current->do_send();
       break;
 
     default:
