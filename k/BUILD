@@ -16,6 +16,7 @@ c_library('k',
     'svc.cc',
     'unprivileged.cc',
     'unprivileged.S',
+    'zoo.cc',
   ],
   deps = [
     '//etl:assert_loop'

@@ -10,8 +10,6 @@
 
 namespace k {
 
-ObjectTable object_table;
-
 SysResult ObjectTable::deliver_from(uint32_t brand, Sender * sender) {
   Message m = CHECK(sender->get_message());
   switch (m.data[0]) {

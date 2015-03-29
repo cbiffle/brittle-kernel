@@ -8,6 +8,7 @@
 #include "k/null_object.h"
 #include "k/object_table.h"
 #include "k/registers.h"
+#include "k/zoo.h"
 
 namespace demo {
   extern void main();
@@ -78,24 +79,10 @@ static void start_task() {
   __builtin_unreachable();
 }
 
-static k::NullObject null;
-
-static void setup_objects() {
-  auto constexpr special_objects = 2;
-  k::object_table[0].ptr = &null;
-  k::object_table[1].ptr = &k::object_table;
-
-  static_assert(k::config::n_objects >= k::config::n_contexts + special_objects,
-                "Not enough object table entries to hold all objects.");
-  for (unsigned i = 0; i < k::config::n_contexts; ++i) {
-    k::object_table[i + special_objects].ptr = &k::contexts[i];
-  }
-}
-
 int main() {
   etl::armv7m::scb.enable_faults();
 
-  setup_objects();
+  k::init_zoo();
   setup_mpu();
   prepare_task();
   start_task();

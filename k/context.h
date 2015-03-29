@@ -107,7 +107,6 @@ private:
   SysResult write_key(uint32_t, Sender *, Message const &);
 };
 
-extern Context contexts[config::n_contexts];
 extern Context * current;
 extern List<Context> runnable;
 

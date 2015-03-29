@@ -17,7 +17,6 @@ namespace k {
  * Global objects
  */
 
-Context contexts[config::n_contexts];
 Context * current;
 List<Context> runnable;
 
