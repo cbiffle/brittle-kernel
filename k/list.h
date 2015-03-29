@@ -39,11 +39,7 @@ public:
   /*
    * Creates an empty list.
    */
-  List() {
-    for (unsigned i = 0; i < config::n_priorities; ++i) {
-      _roots[i] = { &_roots[i], &_roots[i] };
-    }
-  }
+  List() = default;
 
   /*
    * Checks whether the list is currently empty.
@@ -82,6 +78,17 @@ public:
     ETL_ASSERT(false);
   }
 
+  void insert(Item * it) {
+    ETL_ASSERT(it->next == it);
+
+    auto p = it->owner->get_priority();
+    ETL_ASSERT(p < config::n_priorities);
+
+    it->prev = _roots[p].prev;
+    it->next = &_roots[p];
+
+    _roots[p].prev->next = _roots[p].prev = it;
+  }
 
 private:
   Itemoid _roots[config::n_priorities];
