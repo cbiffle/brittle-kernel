@@ -63,8 +63,8 @@ static void prepare_task() {
   using etl::armv7m::Mpu;
 
   auto r = reinterpret_cast<k::Registers *>(&_app_stack) - 1;
-  r->ef.psr = 1 << 24;
-  r->ef.r15 = reinterpret_cast<uintptr_t>(&_app_base);
+  r->psr = 1 << 24;
+  r->r15 = reinterpret_cast<uintptr_t>(&_app_base);
   k::contexts[0].set_stack(r);
 
   // Enable all of ROM.

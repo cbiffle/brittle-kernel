@@ -23,4 +23,7 @@ c_library('k',
   deps = [
     '//etl:assert_loop'
   ],
+  local = {
+    'cxx_flags': ['-Wno-invalid-offsetof'],
+  },
 )

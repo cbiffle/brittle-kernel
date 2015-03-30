@@ -5,6 +5,7 @@
 #include "etl/error/check.h"
 #include "etl/error/ignore.h"
 
+#include "k/context_layout.h"
 #include "k/ipc.h"
 #include "k/memory_map.h"
 #include "k/registers.h"
@@ -35,6 +36,11 @@ Context::Context()
     _saved_brand{0} {}
 
 void Context::nullify_exchanged_keys(unsigned preserved) {
+  // Had to do this somewhere, this is as good a place as any.
+  static_assert(K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _registers),
+      "K_CONTEXT_SAVE_OFFSET is wrong");
+  static_assert(K_CONTEXT_STACK_OFFSET == __builtin_offsetof(Context, _stack),
+      "K_CONTEXT_STACK_OFFSET is wrong");
   for (unsigned i = preserved; i < config::n_message_keys; ++i) {
     _keys[i].nullify();
   }
@@ -44,8 +50,8 @@ SysResult Context::do_send(bool call) {
   // r0 and r1, as part of the exception frame, can be accessed
   // without protection -- we haven't yet allowed for a race that
   // could cause them to become inaccessible.
-  auto target_index = _stack->ef.r0;
-  auto arg = reinterpret_cast<Message const *>(_stack->ef.r1);
+  auto target_index = _stack->r0;
+  auto arg = reinterpret_cast<Message const *>(_stack->r1);
 
   if (target_index >= config::n_task_keys) {
     return SysResult::bad_key_index;
@@ -103,7 +109,7 @@ SysResult Context::complete_blocked_receive(uint32_t sender_brand,
 SysResult Context::put_message(uint32_t gate_brand,
                                uint32_t sender_brand,
                                Message const & m) {
-  auto addr = reinterpret_cast<ReceivedMessage *>(_stack->ef.r2);
+  auto addr = reinterpret_cast<ReceivedMessage *>(_stack->r2);
   CHECK(ustore(&addr->gate_brand, gate_brand));
   CHECK(ustore(&addr->sender_brand, sender_brand));
   return ustore(&addr->m, m);
@@ -129,7 +135,7 @@ uint32_t Context::get_priority() const {
 }
 
 SysResultWith<Message> Context::get_message() {
-  auto arg = reinterpret_cast<Message const *>(_stack->ef.r1);
+  auto arg = reinterpret_cast<Message const *>(_stack->r1);
   return uload(arg);
 }
 
@@ -137,7 +143,7 @@ void Context::complete_send(SysResult result) {
   // If the task has set itself up in such a way that the result
   // cannot be reported without faulting, we don't currently do
   // anything special to repair this.  (TODO: message to supervisor)
-  IGNORE(ustore(&_stack->ef.r0, unsigned(result)));
+  IGNORE(ustore(&_stack->r0, unsigned(result)));
 
   if (result == SysResult::success && _calling) {
     auto rk = key(0);
@@ -160,7 +166,7 @@ SysResult Context::block_in_send(uint32_t brand, List<Sender> & list) {
 
 void Context::complete_blocked_send() {
   // TODO: report faults in the line below to the supervisor.
-  IGNORE(ustore(&_stack->ef.r0, uint32_t(SysResult::success)));
+  IGNORE(ustore(&_stack->r0, uint32_t(SysResult::success)));
   runnable.insert(&_ctx_item);
 }
 
@@ -197,7 +203,7 @@ SysResult Context::read_register(uint32_t,
       value = reinterpret_cast<Word>(_stack);
       break;
 
-#define GP_EF(n) case n: value = CHECK(uload(&_stack->ef.r ## n)); break
+#define GP_EF(n) case n: value = CHECK(uload(&_stack->r ## n)); break
     GP_EF(0);
     GP_EF(1);
     GP_EF(2);
@@ -207,18 +213,18 @@ SysResult Context::read_register(uint32_t,
     GP_EF(15);
 #undef GP_EF
 
-    case 16: value = CHECK(uload(&_stack->ef.psr)); break;
+    case 16: value = CHECK(uload(&_stack->psr)); break;
 
-#define GP_KSAV(n) case n: value = CHECK(uload(&_stack->r ## n)); break
-    GP_KSAV(4);
-    GP_KSAV(5);
-    GP_KSAV(6);
-    GP_KSAV(7);
-    GP_KSAV(8);
-    GP_KSAV(9);
-    GP_KSAV(10);
-    GP_KSAV(11);
-#undef GP_KSAV
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+      value = _registers[arg.data[1] - 4];
+      break;
 
     default:
       return SysResult::bad_message;
@@ -243,7 +249,7 @@ SysResult Context::write_register(uint32_t,
       _stack = reinterpret_cast<decltype(_stack)>(v);
       break;
 
-#define GP_EF(n) case n: CHECK(ustore(&_stack->ef.r ## n, v)); break;
+#define GP_EF(n) case n: CHECK(ustore(&_stack->r ## n, v)); break;
     GP_EF(0);
     GP_EF(1);
     GP_EF(2);
@@ -253,18 +259,18 @@ SysResult Context::write_register(uint32_t,
     GP_EF(15);
 #undef GP
 
-    case 16: CHECK(ustore(&_stack->ef.psr, v)); break;
+    case 16: CHECK(ustore(&_stack->psr, v)); break;
 
-#define GP_KSAV(n) case n: CHECK(ustore(&_stack->r ## n, v));
-    GP_KSAV(4);
-    GP_KSAV(5);
-    GP_KSAV(6);
-    GP_KSAV(7);
-    GP_KSAV(8);
-    GP_KSAV(9);
-    GP_KSAV(10);
-    GP_KSAV(11);
-#undef GP_KSAV
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+      _registers[r - 4] = v;
+      break;
 
     default:
       return SysResult::bad_message;

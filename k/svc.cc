@@ -22,7 +22,7 @@ static void normal_svc_dispatch() {
   // The fact that we're here in an SVC, instead of escalated to a
   // MemMang fault, means that the exception frame falls within
   // valid user memory.  So we can use direct access to get r15.
-  auto r15 = current->stack()->ef.r15;
+  auto r15 = current->stack()->r15;
 
   // Similarly, the negative displacement we apply to r15 to get
   // the sysnum should ensure that the address is valid.
@@ -47,7 +47,7 @@ static void normal_svc_dispatch() {
   if (result != SysResult::success) {
     // Attempt to report to the caller that they have screwed up.
     // Should this fault, we just tolerate it.
-    IGNORE(ustore(&current->stack()->ef.r0, unsigned(result)));
+    IGNORE(ustore(&current->stack()->r0, unsigned(result)));
   } else {
     // If the svc impl returns success, it's signalling that it has
     // handled caller reporting -- we mustn't do it again.

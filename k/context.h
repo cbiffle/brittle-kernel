@@ -9,11 +9,10 @@
 #include "k/key.h"
 #include "k/list.h"
 #include "k/object.h"
+#include "k/registers.h"
 #include "k/sender.h"
 
 namespace k {
-
-struct Registers;  // see: k/registers.h
 
 /*
  * A hardware execution context -- the kernel side of what an application
@@ -128,6 +127,10 @@ private:
   // Address of the top of the context's current stack.  When the task
   // is stopped, the machine registers are pushed onto this stack.
   Registers * _stack;
+
+  // Area for saving the context's callee-save registers.
+  uint32_t _registers[8];
+
   // Keys held by the context.
   Key _keys[config::n_task_keys];
 
