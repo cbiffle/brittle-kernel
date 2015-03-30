@@ -10,15 +10,48 @@
 #include "k/registers.h"
 #include "k/zoo.h"
 
-namespace demo {
-  extern void main();
-}
-
-extern uint8_t _demo_data_start, _demo_stack;
+extern uint8_t _app_ram_start, _app_base, _app_stack;
+extern uint8_t _kernel_rom_start, _kernel_ram_start;
 
 static void setup_mpu() {
   using etl::armv7m::mpu;
   using etl::armv7m::Mpu;
+
+  /*
+   * Use regions 7 and 6 to mask off kernel ROM and RAM, respectively.
+   *
+   * This limits tasks to 6 regions, but simplifies validation, as these
+   * regions are the highest priority ones and can't be overridden.
+   */
+  mpu.write_rbar(Mpu::rbar_value_t()
+      .with_addr_27(reinterpret_cast<uintptr_t>(&_kernel_rom_start) >> (32-27))
+      .with_valid(true)
+      .with_region(7));
+
+  mpu.write_rasr(Mpu::rasr_value_t()
+      .with_xn(false)
+      .with_ap(Mpu::AccessPermissions::p_read_u_none)
+      .with_tex(0)
+      .with_c(true)
+      .with_b(true)
+      .with_s(false)
+      .with_size(12)
+      .with_enable(true));
+
+  mpu.write_rbar(Mpu::rbar_value_t()
+      .with_addr_27(reinterpret_cast<uintptr_t>(&_kernel_ram_start) >> (32-27))
+      .with_valid(true)
+      .with_region(6));
+
+  mpu.write_rasr(Mpu::rasr_value_t()
+      .with_xn(false)
+      .with_ap(Mpu::AccessPermissions::p_write_u_none)
+      .with_tex(0)
+      .with_c(true)
+      .with_b(true)
+      .with_s(false)
+      .with_size(15)
+      .with_enable(true));
 
   mpu.write_ctrl(Mpu::ctrl_value_t()
       .with_privdefena(true)
@@ -29,14 +62,15 @@ static void setup_mpu() {
 static void prepare_task() {
   using etl::armv7m::Mpu;
 
-  auto r = reinterpret_cast<k::Registers *>(&_demo_stack) - 1;
+  auto r = reinterpret_cast<k::Registers *>(&_app_stack) - 1;
   r->ef.psr = 1 << 24;
-  r->ef.r15 = reinterpret_cast<uintptr_t>(demo::main);
+  r->ef.r15 = reinterpret_cast<uintptr_t>(&_app_base);
   k::contexts[0].set_stack(r);
 
+  // Enable all of ROM.
   k::contexts[0].region(0) = {
     .rbar = Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(demo::main) >> (32-27)),
+      .with_addr_27(reinterpret_cast<uintptr_t>(&_kernel_rom_start) >> (32-27)),
     .rasr = Mpu::rasr_value_t()
       .with_xn(false)
       .with_ap(Mpu::AccessPermissions::p_read_u_read)
@@ -44,13 +78,14 @@ static void prepare_task() {
       .with_c(true)
       .with_b(true)
       .with_s(false)
-      .with_size(9)
+      .with_size(19)
       .with_enable(true),
   };
 
+  // Enable all of RAM.
   k::contexts[0].region(1) = {
     .rbar = Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&_demo_data_start) >> (32-27)),
+      .with_addr_27(reinterpret_cast<uintptr_t>(&_app_ram_start) >> (32-27)),
     .rasr = Mpu::rasr_value_t()
       .with_xn(false)
       .with_ap(Mpu::AccessPermissions::p_write_u_write)
@@ -58,7 +93,7 @@ static void prepare_task() {
       .with_c(false)
       .with_b(false)
       .with_s(false)
-      .with_size(10)
+      .with_size(16)
       .with_enable(true),
   };
 
