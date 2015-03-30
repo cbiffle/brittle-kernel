@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "etl/armv7m/mpu.h"
+
 #include "k/config.h"
 #include "k/key.h"
 #include "k/list.h"
@@ -26,6 +28,11 @@ struct Registers;  // see: k/registers.h
  */
 class Context : public Object, public Sender {
 public:
+  struct Region {
+    etl::armv7m::Mpu::rbar_value_t rbar;
+    etl::armv7m::Mpu::rasr_value_t rasr;
+  };
+
   Context();
 
   /*************************************************************
@@ -45,6 +52,10 @@ public:
   SysResult put_message(uint32_t gate_brand,
                         uint32_t sender_brand,
                         Message const &);
+
+  void apply_to_mpu();
+
+  Region & region(unsigned index) { return _regions[index]; }
 
   /*
    * Context-specific analog to block_in_send.  Asks the Context to save the
@@ -136,12 +147,17 @@ private:
 
   uint32_t _reply_gate_index;
 
+  Region _regions[config::n_task_regions];
+
   // Factors of deliver_from
   SysResult read_register(uint32_t, Sender *, Message const &);
   SysResult write_register(uint32_t, Sender *, Message const &);
 
   SysResult read_key(uint32_t, Sender *, Message const &);
   SysResult write_key(uint32_t, Sender *, Message const &);
+
+  SysResult read_region(uint32_t, Sender *, Message const &);
+  SysResult write_region(uint32_t, Sender *, Message const &);
 };
 
 extern Context * current;

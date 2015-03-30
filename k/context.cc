@@ -1,12 +1,14 @@
 #include "k/context.h"
 
+#include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 #include "etl/error/check.h"
 #include "etl/error/ignore.h"
 
+#include "k/ipc.h"
+#include "k/memory_map.h"
 #include "k/registers.h"
 #include "k/reply_sender.h"
-#include "k/ipc.h"
 #include "k/unprivileged.h"
 
 using etl::armv7m::Word;
@@ -107,6 +109,16 @@ SysResult Context::put_message(uint32_t gate_brand,
   return ustore(&addr->m, m);
 }
 
+void Context::apply_to_mpu() {
+  using etl::armv7m::mpu;
+
+  for (unsigned i = 0; i < config::n_task_regions; ++i) {
+    mpu.write_rnr(i);
+    mpu.write_rbar(_regions[i].rbar);
+    mpu.write_rasr(_regions[i].rasr);
+  }
+}
+
 
 /*******************************************************************************
  * Implementation of Sender
@@ -168,6 +180,8 @@ SysResult Context::deliver_from(uint32_t brand, Sender * sender) {
     case 1: return write_register(brand, sender, m);
     case 2: return read_key(brand, sender, m);
     case 3: return write_key(brand, sender, m);
+    case 4: return read_region(brand, sender, m);
+    case 5: return write_region(brand, sender, m);
 
     default:
       return SysResult::bad_message;
@@ -290,6 +304,80 @@ SysResult Context::write_key(uint32_t,
   sender->complete_send();
 
   ReplySender reply_sender{0};  // TODO priority
+  IGNORE(reply.deliver_from(&reply_sender));
+  return SysResult::success;
+}
+
+SysResult Context::read_region(uint32_t,
+                               Sender * sender,
+                               Message const & arg) {
+  auto n = arg.data[1];
+  auto reply = sender->get_message_key(0);
+  sender->complete_send();
+
+  Message response;
+  if (n >= config::n_task_regions) {
+    response = {0};
+  } else {
+    response = {1, uint32_t(_regions[n].rbar), uint32_t(_regions[n].rasr)};
+  }
+  ReplySender reply_sender{
+    0,
+    response,
+  };
+  IGNORE(reply.deliver_from(&reply_sender));
+  return SysResult::success;
+}
+
+static bool region_valid(etl::armv7m::Mpu::rbar_value_t rbar,
+                         etl::armv7m::Mpu::rasr_value_t rasr) {
+  using etl::armv7m::Mpu;
+
+  // Ironically, the VALID bit must be clear for the region to be valid.
+  if (rbar.get_valid()) return false;
+
+  switch (rasr.get_ap()) {
+    // Disallow any setting that would prevent privileged access.
+    case Mpu::AccessPermissions::p_none_u_none:
+    case Mpu::AccessPermissions::p_read_u_none:
+    case Mpu::AccessPermissions::p_read_u_read:
+      return false;
+
+    default:
+      break;
+  }
+
+  // Disallow reserved values of SIZE.
+  if (rasr.get_size() < 4) return false;
+
+  auto begin = reinterpret_cast<uint8_t *>(rbar.get_addr_27() << 5);
+  auto end = begin + (1 << (rasr.get_size() + 1));
+  return is_unprivileged_access_ok(begin, end);
+}
+
+SysResult Context::write_region(uint32_t,
+                                Sender * sender,
+                                Message const & arg) {
+  auto n = arg.data[1];
+  auto rbar_raw = arg.data[2];
+  auto rasr_raw = arg.data[3];
+  auto reply = sender->get_message_key(0);
+  sender->complete_send();
+
+  Message response;
+  auto rbar = etl::armv7m::Mpu::rbar_value_t(rbar_raw);
+  auto rasr = etl::armv7m::Mpu::rasr_value_t(rasr_raw);
+
+  if (n >= config::n_task_regions) {
+    response = {0};
+  } else if (!region_valid(rbar, rasr)) {
+    response = {0};
+  } else {
+    response = {1};
+    _regions[n] = { {rbar}, {rasr} };
+  }
+
+  ReplySender reply_sender{0, response};  // TODO priority
   IGNORE(reply.deliver_from(&reply_sender));
   return SysResult::success;
 }

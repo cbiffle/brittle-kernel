@@ -71,3 +71,35 @@ Arguments:
 Results: none.
 
 
+Read MPU Region (4)
+-------------------
+
+Reads out the contents of one of the MPU regions.
+
+Arguments:
+- d0: selector
+- d1: region index
+
+Results:
+- d0: result code
+- d1: Region Base Address Register
+- d2: Region Address and Size Register
+
+
+Write MPU Region (5)
+--------------------
+
+Alters one of the MPU regions.
+
+The change takes effect when the context is next activated, unless it is
+already the active context, in which case it takes effect immediately, before
+return from the send.
+
+Arguments:
+- d0: selector
+- d1: region index
+- d2: Region Base Address Register
+- d3: Region Address and Size Register
+
+Results:
+- d0: result code
