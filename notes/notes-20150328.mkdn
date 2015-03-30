@@ -1,0 +1,249 @@
+Implementation of blocking sends, calls, receives
+=================================================
+
+For each of these operations there is a fast path and a blocking path.  On the
+fast path, copies are minimized and information is held in registers.
+
+On the blocking path, state must be saved out to RAM to be used at some later
+date.
+
+
+Sends, Calls
+------------
+
+Sends and calls have a lot in common.  I'll describe them together, highlighting
+the areas where there are differences.
+
+Code running in a context can perform sends and calls via `svc`, but other
+objects, such as interrupt senders, can also issue them.
+
+An object wishing to send a message calls the `send` member function on the
+recipient, passing:
+- itself, as the `caller`.
+- the `brand` used at invocation.  This is meaningful mostly for calls from
+  task code, but is always passed.
+
+The recipient either:
+- Returns an error indicating that the send is not processed,
+- Blocks the sender, or
+- Completes the transaction without blocking.
+
+In general, kernel objects don't block senders.  Gates are the main exception.
+
+When a message arrives at a gate, *if* a context is waiting to receive, then:
+- The gate transfers the message from the sender to the recipient.
+  - Note that this may fault, so it's done first.
+- The gate transfers keys from the sender to the recipient.
+- The gate checks whether the sender wants to atomically transition into
+  receive mode on k0 in the message.  If so, we treat the message as a call and
+  switch the caller.
+- Pend a context switch to be performed when the kernel exits.
+
+In the current sketch, the value returned from `send` is exposed to the sender
+when the sender resumes.
+
+
+Questions Raised There
+----------------------
+
+Are sends and calls distinct, for most purposes?
+
+At initiation, a call replaces k0 of the caller's keyring with a newly minted
+reply key, whereas a send carries k0 verbatim.
+
+A primitive call that hits a kernel object must not reply directly to the
+caller, but rather use the key -- to allow forwarding!  (This is actually a
+bug in the implementation as it stands today.)  So in the case of an "instant"
+primitive call, we must respond to the send with another send.
+
+That send must be non-blocking (note: not yet implemented), because kernel
+objects do not in general have the ability to block.
+
+Do we have a potential for infinite recursion here?  Could this fail to
+terminate?
+
+- Create two keyrings.
+- Store a reference to the other in slot #0 of each.
+- Send the first a message asking to retrieve slot #0, passing a key to the
+  second as the alleged reply key.
+- The data portion of the response happens to be a request to retrieve slot #0.
+  The key happens to come back in k0, which the recipient of the reply
+  interprets as a reply key.
+
+So, yes.  We could force kernel objects into coroutine behavior.  We could try
+to carefully design protocols so they can't do this, but it seems likely we'd
+miss something.  This is worrisome because it would burn CPU without regard for
+priority, effectively taking out the system.  We need a structural defense.
+
+Solutions?
+
+- Distinguish calls and forwarded calls from sends.  In such a case the send
+  from the first kernel object could not be confused for a call, and the
+  recipient would not attempt to blindly invoke k0.
+
+- Distinguish the reply key from the message content keys, e.g. by passing it
+  separately.
+
+- Have kernel objects decline to send to other active kernel objects: only reply
+  to gates and only non-blocking.  Since a kernel object will never be waiting
+  on the far end of a gate, this prevents cycles that don't emerge at least
+  briefly into non-kernel code.
+
+The latter option is probably the simplest, because a kernel object sending keys
+to another kernel object has no obvious place to *put* them.  When a context is
+involved, the keys are quickly deposited into the context's keyring.  Currently
+I have no plans for any other object capable of receiving and storing messages.
+
+
+Sends and Calls, Take Two
+-------------------------
+
+A call can originate only from an `svc` from context code.  A send can also
+originate from any kernel object.
+
+The two operations are distinct in two ways:
+1. When originating a call, k0 of the sender is replaced with a newly minted key
+   to the sender's reply gate.
+
+2. A flag is recorded in the sender that can be retrieved by a virtual member
+   function at any time up until the sender is resumed or interrupted.  This
+   flag is stubbed out in objects that are not contexts.
+
+In the `svc` path for sends and calls, the context is set up for the operation,
+the recipient is identified from the context's keyring, and then the `svc`
+handler invokes the recipient's `send` member function.
+
+For sends originating from within the kernel, the sender directly invokes the
+`send` function of the recipient.
+
+From that point forward the effect is the same.
+
+### Sends to objects that aren't gates
+
+For most objects, the implementation of `send` will:
+- Load the message from the sender into kernel space.  This is a virtual member
+  function on the sender, because if the sender is in-kernel it's a trivial
+  copy, but if the sender is a context it's more involved.
+
+- Inspect the message parameters and decide how to respond.
+
+If the message requires a response (and basically every message of this sort
+does), the implementation will then:
+
+- Use magic kernel facilities to determine whether k0 passed by the sender is a
+  gate key.  (Any gate key will do, but a reply gate key is typical.)
+
+- Identify a recipient blocked at said gate.
+
+- Deliver the response into the recipient.
+
+Every step of this process may fail, resulting in the behavior described below:
+
+- k0 may not be a gate key.
+  - The sender is not informed; we return a success code.  To do otherwise would
+    reveal the implementation of k0 to the sender.
+
+- No recipient may be waiting at the gate.
+  - The sender could be informed; the sender can just as well check if someone
+    is waiting at the gate itself.
+
+- The recipient may have identified bogus memory for receiving messages such
+  that copying the data into the recipient faults.
+  - The sender could be informed; again, it held the gate key and could detect
+    this condition itself.
+  - The reply recipient returns from receive with a fault code.  (Eventually
+    this could be converted into a message to a supervisor.)
+
+
+### Sends to gates
+
+Gates are slightly different in that they can block the caller.
+
+(Note: don't interpret that to mean that *only* gates can block the caller.  I'm
+using gates here because they're the clearest case.)
+
+For a gate, the implementation of `send` will check to see if a context is
+waiting at the other side of the gate.
+
+If a recipient is waiting,
+- The message gets transferred into the recipient.
+  - On fault, the recipient is resumed with an error code, and an error is
+    returned to the sender.
+
+- The keys get transferred into the recipient.
+
+- The sender is asked if they want to transition to receive on the object
+  referenced by k0.  If so, the sender's state is altered.
+
+- The recipient is unblocked from the gate and returned to the runnable list.
+  Its return code is set to success.
+
+- The gate pends a context switch.
+
+If no recipient is waiting,
+
+- The sender gets added to the gate's list of waiting senders.
+
+- The gate pends a context switch.
+
+
+On Fault Behavior
+-----------------
+
+I've got a previous discussion of this in my notes, but I'm finding more cases
+where faults can happen during kernel processing and it's worth thinking in more
+detail about it.
+
+- Contexts need a buffer to store fault information.  Ideally this is
+  message-sized.  Could be larger, in which case it'd need to be accessed
+  through the task key.
+
+- Contexts need a "faulted" status.  This will change where the source data for
+  the message is, so when a recipient goes to copy the data out, it comes from
+  kernel buffer instead of task memory.
+
+- Contexts need a key to their supervisor.  Faults are converted into sends on
+  this key.  This means that each context can have a unique brand.
+
+- The fault send doesn't necessarily need to be call-like.  Instead, the
+  supervisor could either be handed the context key, or presumed to already
+  possess it.  It would take explicit action to resume the task instead of
+  "returning."
+
+- A single send from a task could result in several context activations under
+  the hood -- which is in turn way simpler using deferred context switches than
+  direct ones.
+
+
+What information would we need to retain to resume the task after a fault, in
+the general sense?
+
+Imagine that the task was blocked in receive on a gate, and the fault occurred
+while copying a message into the task.
+
+- It seems pretty clear that we need to not deliver that message.  If some other
+  task is waiting on the gate, it should get the message instead.
+
+- It would be rude to leave a faulting task in the receivers queue.  I mean, if
+  it's marked as faulting, it can at least be skipped, but that increases the
+  cost of operations on that gate.
+
+- Besides, the task *must* change queues: to the senders queue of its supervisor
+  gate.
+
+- All this means that the task's receive operation, which has faulted, needs to
+  be either reconstructed by the supervisor, or returned to the task as failed
+  and retried.
+
+- Reconstructing the receive state seems difficult, but it's the sort of thing
+  we could try to allow.  But I think we should assume that retry is the normal
+  recourse.
+
+
+What's the initial state of things?
+
+- The initial task's initial supervisor key points to an object that, when
+  messaged, halts the system or reboots or something.
+
+
+

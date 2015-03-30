@@ -1,0 +1,138 @@
+Progress and Status
+===================
+
+- Calls work, with reply key generation and revocation.
+- We've just crossed 1kloc.
+- Still single-tasking.
+- Feels like some complexity/indirection still needs to fall away.
+
+Right now, we use unprivileged accesses whenever accepting or delivering
+messages to/from contexts.  This is good, but the current approach is naive: it
+assumes that the relevant context's environment is already loaded into the MPU.
+
+When we're single-tasking, this assumption is correct by definition.  But once
+we have more than one runnable task, we need to be smarter about this.
+
+
+Error reporting is a mixed bag.  Kernel objects need to move to using
+SysResults to indicate the status of the message transfer only, and signalling
+other errors in-band in the response message.  Otherwise they're damn hard to
+proxy.
+
+
+The system still can't fully provision new contexts, because the context
+protocol still doesn't allow for setting up the MPU environment -- and the
+kernel definitely doesn't validate it.
+
+
+Context state feels a little ad-hoc.  We've got two list items and a bool
+(`_calling`).  There's probably a clearer state enum hiding in the design.
+Current states are roughly:
+
+- Runnable.
+- Running (if distinct from Runnable).
+- Blocked on send.
+- Blocked on call.  Similar to blocked on send, but changes the behavior at
+  delivery.
+- Blocked on receive.
+
+Evident future states:
+- Inactive.
+- Halted.
+- Faulted, if distinct from halted.
+
+
+Fault handling in general is pretty weak in the current implementation.  We need
+to identify the places where a context can fault and generate messages to
+supervisors.  This is probably going to mean reserving more space in Context to
+record the message details, hacking Context's Sender implementation to have
+multiple personalities... that might suffice.
+
+We also need to specify and implement the default supervisor.  I'm currently
+imagining it as an object that responds to any message by rebooting.  This could
+be used as an emergency trap in a variety of cases.
+
+
+If an object's priority changes, any lists of which it's a constituent must be
+updated.  Currently this is ... probably impossible.  Oops.  So we need a way to
+trace from list item to its containing list.
+
+
+The relationship between contexts and reply gates is pretty weird.  The context
+knows the *index* of the reply gate, so that it can mint keys whenever necessary
+to avoid revocation.  If the reply gate were ever destroyed and recreated under
+a different index, we'd have to be super careful to set that back up correctly.
+
+More generally, object-level microreboots are completely unimplemented.  Object
+table invalidation is in place -- a required part -- but objects themselves
+can't rewind their states, nor can we repurpose object table entries for
+entirely new objects even if we wanted to.
+
+
+Interruption is unimplemented.  We'll want to take care with it, to ensure that
+the interrupted object gets status indicated correctly.  Interruption is
+probably more general than just Contexts; any Sender that might block is a
+candidate.
+
+Context interruption is the most nuanced, I suspect.  We must poke the
+interrupted status into unprivileged space somewhere *and* invalidate the reply
+gate key, just in case.
+
+
+Next Steps
+==========
+
+It'd be nice to see the system do something.  Blowing some text out on the
+serial port seems like a good place to start.
+
+The initial task is created with access to its ROM and RAM areas, but would need
+to introduce more memory to the map to access peripherals.
+
+The general process would be:
+
+1. Using the object table key, the task derives its own context key.
+
+2. It uses that context key to expand its memory map to include the power
+   control peripheral.
+  - The kernel checks the addition.
+
+3. It pokes at the power control peripheral to enable the UART.
+
+4. It adjusts the memory map to reveal the UART.
+  - Might just add the entire APB instead.
+
+5. It pokes the UART directly to do output.
+
+
+So, to do this, the missing parts are:
+
+- The demo code needs code for messing with power control and the UART.
+  - Could do a biffields-derived version, or a standalone poking approach.
+
+- The kernel needs to be able to alter the context memory map.
+
+
+A more fundamental missing part has to do with the technical debt around how the
+demo and kernel are currently linked.
+
+The kernel and app have surprisingly little relation to each other in this
+model.
+
+- Both consume a configuration file that lays out the required kernel objects
+  and their positions in the object table.
+
+- The kernel needs to know its own extent and a single address (the initial
+  entry point) in the app.
+
+- The app needs to be linked to avoid the kernel.
+
+
+We could derive RAM and ROM boundaries from the configuration and use separate
+linker scripts for each part, later merging them ... somehow.
+
+- Produce binaries with `-r` or `-Ur` and then combine them using `ld`.
+  - Advantage: if all symbols are disjoint, can debug both simultaneously.
+  - Disadvantage: potential for symbol collisions.
+- Orchestrate openocd to erase, then flash one, then the other.
+  - Could still load second symbol table in GDB if no symbols conflict.
+- 
