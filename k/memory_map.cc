@@ -7,7 +7,7 @@ namespace k {
 bool is_unprivileged_access_ok(void * begin, void * end) {
   using etl::armv7m::mpu;
 
-  if (begin > &mpu && end < (&mpu + 1)) return false;
+  if (begin <= (&mpu + 1) && &mpu <= end) return false;
   return true;
 }
 
