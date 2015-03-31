@@ -1,0 +1,77 @@
+A Security Hole
+===============
+
+There's a problem with the kernel entry sequence that's been bothering me.  It
+uses `stmfd` to deposit the callee-save registers, which is a privileged
+access.  So unprivileged code could move the stack pointer to the edge of its
+memory and use the kernel to blow data into an adjacent area.
+
+The easiest solution would be to `stmfd` into kernel space, e.g. a reserved
+register save area in the Context.  This complicates context save somewhat,
+but may actually simplify register access so long as the ABI doesn't deal with
+registers r4 - r11.
+
+
+Initial Unprivileged Environment
+================================
+
+I keep wobbling on this one.
+
+We need to grant the initial context some authority over RAM and ROM, or it
+won't be able to start without faulting!  But what?
+
+So far I've tried:
+- Grant an arbitrary, small, region.  This was for early bringup.
+- Grant the hardcoded extent of RAM and ROM, but with holes knocked in it --
+  high priority unchangeable regions -- preventing kernel access.
+
+I don't love either of these.  The latter, in particular, means that tasks only
+have six regions to work with, instead of 8, and that could cramp one's style.
+
+It also breaks down when there are more than two disjoint regions we want to
+disallow.
+
+What if we defined a smaller grant with the assumption that the app would fix
+it?  Something like a boot sector.
+
+Something like:
+
+The kernel grants the initial task access to
+- The first 512 bytes of ROM after the end of kernel space.
+- The first 512 bytes of RAM after the end of kernel space.
+
+The task begins executing at the beginning of the ROM grant, with the stack
+pointer set to the end of the RAM grant.
+
+The expectation is that the task's startup code -- quite possibly its C runtime
+startup routine -- would use the other authority granted to replace those grants
+with the intended environment.
+
+
+Setting up that intended environment could be kind of difficult.  Again,
+consider the STM32F407.  Replicating the native memory map, at least for
+ROM/RAM, *without* using negative grants (which are hard to manage) is
+hard.
+
+Assume 8kiB of kernel ROM and RAM (each).
+
+The bottom 8kiB could be denied by a single 64kiB region with the bottom
+subregion disabled.  This would cover all of CCM, but would only partially cover
+Flash.
+
+- CCM: 64kiB with bottom SRD
+- Flash: 64kiB with bottom SRD + 64kiB + 128kiB + 256kiB + 512kiB
+- SRAM: 128kiB
+
+Seven regions.  And that's the cheapest approach I could come up with, and
+without any peripheral access.
+
+Should the kernel be able to reason about negative grants?  I worry about it
+being expensive and error prone.
+
+
+Okay.  It is a rare system that really wants to map all of memory into a single
+context.  Even the system could swap its grants out as needed.  We're looking at
+things like large FreeRTOS systems.
+
+

@@ -1,0 +1,154 @@
+Address Range Capabilities
+==========================
+
+Been tightening down the MPU's allowable address ranges, and it's starting to
+feel both error-prone and complicated.  I'm once again feeling like address
+range capabilities with well-defined derivation operations would simplify the
+kernel (and perhaps the application).
+
+Note that these would not necessarily be exposed to the application.
+
+The idea:
+
+1. The authority universe would be seeded with address ranges describing all
+   areas of the address space that are potentially accessible to unprivileged
+   code.
+
+2. The system could obtain keys to these ranges.
+
+3. Once a key is obtained, it can be reduced in scope, but probably not
+   expanded.
+
+Note the "probably" there.  It will depend on how the scheme is implemented.
+Thoughts below.
+
+
+The Address Space Singleton
+---------------------------
+
+A single kernel object represents "the address space" and is the object
+referenced by all address range capabilities.
+
+Different areas of the address space are encoded in the key brands.  We could
+use an encoding similar to the RBAR in the MPU, something like...
+
+- Top e.g. 27 bits of the address, where some of the LSBs are insignificant for
+  large ranges, since the hardware and kernel require natural pow2 alignment.
+
+- Log2 of region size (5 bits).
+
+This would constrain minimum region size (or at least alignment) to 32 bytes,
+just like the hardware.
+
+These keys could be handed to a context for loading into the MPU.
+
+They would also support derivation operations:
+
+- **Split.**  Given an address range key, produces address range keys
+  representing the top and bottom half, if it is larger than 32 bytes.
+
+One downside of this approach: we can't encode subregion disable bits anywhere.
+There simply isn't room in the brand.
+
+Another tricky part: the existence of this object means the system can no longer
+be trusted to mint truly arbitrary keys.  Objects may need a say in whether the
+key being minted is valid.  We'd need an in-kernel validity check for this,
+though at least it's during minting instead of during every MPU load.
+
+We also can't distinguish W/R/X permissions in this scheme.
+
+
+Aside: How Many Bits?
+---------------------
+
+For regions of 256 bytes and fewer, we need to record:
+- Base (up to 27 bits)
+- Size (up to 3 bits)
+- W/R/X (3 bits)
+- Total: 33 bits
+
+For regions of 256 bytes and larger, subregion bits come into play, and we need:
+- Base (up to 24 bits)
+- Size (up to 5 bits)
+- W/R/X (3 bits)
+- SRD (8 bits)
+- Total: 40 bits
+
+And this completely ignores the caching policies, etc. supported by the MPU.  In
+all the MPU uses 64 bits per region with 51 bits specified.  We can likely do
+away with a couple of those bits:
+
+- One is an enable bit, which can be implied by an address range vs. a null key
+  in a given slot.
+
+- One controls privileged write, which we probably won't let applications set.
+
+Expanding brands to 64 bits is possible, but would bloat keys by another four
+bytes, to 20 bytes.  (We're already paying 64 bits for generation, which is
+perhaps too conservative.)
+
+We could shrink generation to 48 and expand brand accordingly for no additional
+cost.  This would reduce generation uniqueness; `2**48` nanoseconds is around
+three days.
+
+...alternatively, I could make the border between brand and generation fuzzier.
+Reply gates should have large generations, but objects like these address ranges
+describe configuration information.  Revoking them doesn't really make sense.
+(Revoking an intermediary key might.)
+
+If the objects were in control of generation validation, it would mean they were
+passed the generation (or maybe just the key) and could comment on it.  This
+would let different objects decide they only need (say) 32-bit generations and
+64-bit brands.
+
+Let's keep thinking.
+
+
+The Address Space Roots
+-----------------------
+
+The application expresses to the kernel that certain areas of the address space
+are "cool" for it to use, at build time.  (Build-time tools could check this for
+validity, but when it comes right down to it, all sorts of bad things can be
+introduced at build time.)
+
+Each of these areas becomes a kernel object, with its base and extent recorded.
+
+Address range capabilities are now keys to these objects.  A single key can
+represent, at most, the address space controlled by that object.
+
+Subsets of the object's space are possible, and are encoded in the brand.  For
+an object controlling `2**N` bytes of space, up to `N-5` splits are possible.
+The largest practical object would control `2**31`, allowing for 26 splits.
+
+This doesn't save us any bits, but does simplify the key minting problem: if no
+key to an object can describe an area outside of its range, then minting is
+safe.
+
+I feel like this approach, combined with stashing information in the generation
+field, is the strongest one so far.
+
+
+Object Per Size
+---------------
+
+There are 27 kernel objects (likely each of the same class), each representing
+one possible pow2 size of an address range.  This frees us from needing to
+encode size in the brand.
+
+For the objects representing sizes 32 - 128, we need to encode:
+- Base address (27 bits)
+- W/R/X (3 bits)
+- Total: 30 bits
+
+(And again, this is ignoring some aspects of the memory architecture.)
+
+For the objects representing sizes `2**32` - 256, we need:
+- Base address (24 bits)
+- SRD (8 bits)
+- W/R/X (3 bits)
+- Total: 35 bits :-(
+
+Slightly too large to fit in current brand fields, no room for memory
+attributes, and doesn't solve the minting problem.
+
