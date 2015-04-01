@@ -152,3 +152,55 @@ For the objects representing sizes `2**32` - 256, we need:
 Slightly too large to fit in current brand fields, no room for memory
 attributes, and doesn't solve the minting problem.
 
+
+Smaller Generations
+-------------------
+
+I think I've got it.
+
+A 32-bit generation number is fine for most objects and their anticipated
+revocation rates.  Particularly since the object I expect to be rebooted most
+often -- the unprivileged task -- doesn't necessarily entail a revocation.
+
+Reply gates are the exception.
+
+So use 32-bit generations and extend the reply gate's notion of uniqueness to
+include the brand.  A 32-bit brand would suffice; reply gates don't use the
+brand otherwise.
+
+But here we have a case where 64-bit brands would be really useful.  By
+shrinking the generation size we can enlarge the brand without taking more space
+per key.
+
+This will make calls slightly more expensive, as more information must be loaded
+and delivered.  But not hugely, and it seems like a win.
+
+
+Redux
+-----
+
+Assume 64-bit brands.
+
+Let's use the address space root model described above: for each contiguous
+region of address space potentially accessible by unprivileged code, there is a
+kernel object defined at configuration time.  Keys to this object represent
+authority over some subset of its address space.
+
+We would support the following operations on such a key:
+
+- **Split.**  Derive the top and bottom address ranges of a previous range.
+  Note that, unlike in Potato, the previous key remains valid.
+
+- **Punch hole.**  Derives a key where one or more subregions are disabled.
+
+- **Drop privilege.**  Derives a key with reduced read, write, or execute
+  privilege.
+
+We would also probably support reads and writes through messages.
+
+Critically, no operation on the key can *increase* the authority it confers.  To
+do that, we have to go back to the root object and mint a key.
+
+If an arbitrary key can be minted, we can mint bogus keys.  Any key that confers
+greater authority than the object itself has should be either "rounded down" or
+treated as null.
