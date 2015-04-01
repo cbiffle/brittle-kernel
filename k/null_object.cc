@@ -2,7 +2,7 @@
 
 namespace k {
 
-SysResult NullObject::deliver_from(uint32_t, Sender *) {
+SysResult NullObject::deliver_from(Brand, Sender *) {
   return SysResult::bad_key;
 }
 

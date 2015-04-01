@@ -1,9 +1,8 @@
 #ifndef K_KEY_H
 #define K_KEY_H
 
-#include <stdint.h>
-
 #include "k/sys_result.h"
+#include "k/types.h"
 
 namespace k {
 
@@ -19,7 +18,7 @@ public:
    * Static factory function for producing a key filled in with the
    * given object table index and brand.
    */
-  static Key filled(unsigned index, uint32_t brand);
+  static Key filled(TableIndex index, Brand brand);
 
   /*
    * Static factory function for producing a null key.
@@ -30,7 +29,7 @@ public:
    * Fills a key in-place with the given object table index and
    * brand.  After this returns the key will be current.
    */
-  void fill(unsigned index, uint32_t brand);
+  void fill(TableIndex index, Brand brand);
 
   /*
    * Replaces the contents of a key with the null key.
@@ -41,12 +40,12 @@ public:
    * Gets the object table index for the object referenced by this
    * key.
    */
-  uint32_t get_index() const { return _index; }
+  TableIndex get_index() const { return _index; }
 
   /*
    * Gets the brand stored within this key.
    */
-  uint32_t get_brand() const { return _brand; }
+  Brand get_brand() const { return _brand; }
 
   /*
    * Facade function for Object::deliver_from; calls through to the
@@ -61,13 +60,13 @@ public:
   SysResult deliver_to(Context *);
 
 private:
+  // Uninterpreted data, invisible to the key holder, but  made available to
+  // the object when the key is used.
+  Brand _brand;
   // Distinguishes successive occupants of a single object table slot.
-  uint32_t _generation[2];
+  Generation _generation;
   // Index of the object table slot.
-  uint32_t _index;
-  // 32 bits of uninterpreted data made available to the object when the
-  // key is used.
-  uint32_t _brand;
+  TableIndex _index;
 
   void lazy_revoke();
 };

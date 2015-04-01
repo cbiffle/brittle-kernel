@@ -1,8 +1,6 @@
 #ifndef K_CONTEXT_H
 #define K_CONTEXT_H
 
-#include <stdint.h>
-
 #include "etl/armv7m/mpu.h"
 
 #include "k/config.h"
@@ -11,6 +9,7 @@
 #include "k/object.h"
 #include "k/registers.h"
 #include "k/sender.h"
+#include "k/types.h"
 
 namespace k {
 
@@ -38,7 +37,7 @@ public:
    * Context-specific accessors for use inside the kernel.
    */
 
-  void set_reply_gate_index(unsigned index) { _reply_gate_index = index; }
+  void set_reply_gate_index(TableIndex index) { _reply_gate_index = index; }
 
   Registers * stack() const { return _stack; }
   void set_stack(Registers * s) { _stack = s; }
@@ -48,8 +47,8 @@ public:
 
   SysResult do_send(bool call);
 
-  SysResult put_message(uint32_t gate_brand,
-                        uint32_t sender_brand,
+  SysResult put_message(Brand gate_brand,
+                        Brand sender_brand,
                         Message const &);
 
   void apply_to_mpu();
@@ -67,7 +66,7 @@ public:
    * The context can later become runnable once again through an invocation
    * of either complete_blocked_receive or interrupt.
    */
-  SysResult block_in_receive(uint32_t brand, List<Context> &);
+  SysResult block_in_receive(Brand brand, List<Context> &);
 
   /*
    * Takes a context out of receive state due to reception of a message from
@@ -80,7 +79,7 @@ public:
    * The brand here is the brand of key used by the sender to initiate the
    * message.
    */
-  SysResult complete_blocked_receive(uint32_t brand, Sender *);
+  SysResult complete_blocked_receive(Brand brand, Sender *);
 
 
   /*************************************************************
@@ -90,7 +89,7 @@ public:
   /*
    * Overridden to return this context's priority.
    */
-  uint32_t get_priority() const override;
+  Priority get_priority() const override;
 
   /*
    * Overridden to safely load this context's outgoing message from
@@ -112,7 +111,7 @@ public:
   /*
    * Overridden to support real blocking if permitted by task code.
    */
-  SysResult block_in_send(uint32_t brand, List<Sender> &) override;
+  SysResult block_in_send(Brand brand, List<Sender> &) override;
 
   void complete_blocked_send() override;
 
@@ -121,7 +120,7 @@ public:
    * Implementation of Object.
    */
 
-  SysResult deliver_from(uint32_t, Sender *) override;
+  SysResult deliver_from(Brand, Sender *) override;
 
 private:
   // Address of the top of the context's current stack.  When the task
@@ -129,7 +128,7 @@ private:
   Registers * _stack;
 
   // Area for saving the context's callee-save registers.
-  uint32_t _registers[8];
+  std::uintptr_t _registers[8];
 
   // Keys held by the context.
   Key _keys[config::n_task_keys];
@@ -141,26 +140,26 @@ private:
   // List item used to link this context into lists of generic senders.
   List<Sender>::Item _sender_item;
 
-  uint32_t _priority;
+  Priority _priority;
 
   // Brand from the key that was used in the current send, saved for
   // use later even if the key gets modified.
-  uint32_t _saved_brand;
+  Brand _saved_brand;
   bool _calling;
 
-  uint32_t _reply_gate_index;
+  TableIndex _reply_gate_index;
 
   Region _regions[config::n_task_regions];
 
   // Factors of deliver_from
-  SysResult read_register(uint32_t, Sender *, Message const &);
-  SysResult write_register(uint32_t, Sender *, Message const &);
+  SysResult read_register(Brand, Sender *, Message const &);
+  SysResult write_register(Brand, Sender *, Message const &);
 
-  SysResult read_key(uint32_t, Sender *, Message const &);
-  SysResult write_key(uint32_t, Sender *, Message const &);
+  SysResult read_key(Brand, Sender *, Message const &);
+  SysResult write_key(Brand, Sender *, Message const &);
 
-  SysResult read_region(uint32_t, Sender *, Message const &);
-  SysResult write_region(uint32_t, Sender *, Message const &);
+  SysResult read_region(Brand, Sender *, Message const &);
+  SysResult write_region(Brand, Sender *, Message const &);
 };
 
 extern Context * current;

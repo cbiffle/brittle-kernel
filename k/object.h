@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "k/sys_result.h"
+#include "k/types.h"
 
 namespace k {
 
@@ -18,17 +19,17 @@ public:
    * Sets the object table index for this object, so that the object can find
    * itself and make keys.
    */
-  void set_index(uint32_t index) { _index = index; }
+  void set_index(TableIndex index) { _index = index; }
 
   /*
    * Gets the objet table index for this object.
    */
-  uint32_t get_index() const { return _index; }
+  TableIndex get_index() const { return _index; }
 
   /*
    * Generates a key to this object with the given brand.
    */
-  Key make_key(uint32_t brand);
+  Key make_key(Brand);
 
   /*
    * Delivers a message from 'sender' to this object, through a key bearing
@@ -55,7 +56,7 @@ public:
    * to e.g. access parameters at the addresses that the sender passed would
    * result in failure.
    */
-  virtual SysResult deliver_from(uint32_t brand, Sender *) = 0;
+  virtual SysResult deliver_from(Brand, Sender *) = 0;
 
   /*
    * The given Context wants to receive a message from this object.  This
@@ -64,13 +65,13 @@ public:
    *
    * The default implementation returns SysResult::bad_key.
    */
-  virtual SysResult deliver_to(uint32_t brand, Context *);
+  virtual SysResult deliver_to(Brand, Context *);
 
 protected:
   Object();
 
 private:
-  uint32_t _index;
+  TableIndex _index;
 };
 
 }  // namespace k

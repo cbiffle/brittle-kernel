@@ -2,6 +2,7 @@
 #define K_SENDER_H
 
 #include "k/sys_result.h"
+#include "k/types.h"
 
 namespace k {
 
@@ -22,7 +23,7 @@ public:
    * This is used to determine the order in which pending messages are
    * processed.
    */
-  virtual uint32_t get_priority() const = 0;
+  virtual Priority get_priority() const = 0;
 
   /*
    * Returns a copy of the sender's current message, or one of the
@@ -79,7 +80,7 @@ public:
    * If blocking is accepted, the sender will be freed later by a call
    * to complete_blocked_send.
    */
-  virtual SysResult block_in_send(uint32_t brand, List<Sender> &);
+  virtual SysResult block_in_send(Brand, List<Sender> &);
 
   /*
    * Finishes the blocking phase of a send begun by block_in_send.

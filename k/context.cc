@@ -79,7 +79,7 @@ SysResult Context::do_send(bool call) {
   return SysResult::success;
 }
 
-SysResult Context::block_in_receive(uint32_t brand, List<Context> & list) {
+SysResult Context::block_in_receive(Brand brand, List<Context> & list) {
   bool const blocking = true;  // TODO: nonblocking receives
 
   if (!blocking) return SysResult::would_block;
@@ -90,7 +90,7 @@ SysResult Context::block_in_receive(uint32_t brand, List<Context> & list) {
   return SysResult::success;
 }
 
-SysResult Context::complete_blocked_receive(uint32_t sender_brand,
+SysResult Context::complete_blocked_receive(Brand sender_brand,
                                             Sender * sender) {
   // TODO: faults the *sender's* supervisor
   auto m = CHECK(sender->get_message());
@@ -106,8 +106,8 @@ SysResult Context::complete_blocked_receive(uint32_t sender_brand,
   runnable.insert(&_ctx_item);
 }
 
-SysResult Context::put_message(uint32_t gate_brand,
-                               uint32_t sender_brand,
+SysResult Context::put_message(Brand gate_brand,
+                               Brand sender_brand,
                                Message const & m) {
   auto addr = reinterpret_cast<ReceivedMessage *>(_stack->r2);
   CHECK(ustore(&addr->gate_brand, gate_brand));
@@ -130,7 +130,7 @@ void Context::apply_to_mpu() {
  * Implementation of Sender
  */
 
-uint32_t Context::get_priority() const {
+Priority Context::get_priority() const {
   return _priority;
 }
 
@@ -143,7 +143,7 @@ void Context::complete_send(SysResult result) {
   // If the task has set itself up in such a way that the result
   // cannot be reported without faulting, we don't currently do
   // anything special to repair this.  (TODO: message to supervisor)
-  IGNORE(ustore(&_stack->r0, unsigned(result)));
+  IGNORE(ustore(&_stack->r0, uintptr_t(result)));
 
   if (result == SysResult::success && _calling) {
     auto rk = key(0);
@@ -153,7 +153,7 @@ void Context::complete_send(SysResult result) {
   }
 }
 
-SysResult Context::block_in_send(uint32_t brand, List<Sender> & list) {
+SysResult Context::block_in_send(Brand brand, List<Sender> & list) {
   bool const blocking = true;  // TODO: nonblocking sends
 
   if (!blocking) return SysResult::would_block;
@@ -166,7 +166,7 @@ SysResult Context::block_in_send(uint32_t brand, List<Sender> & list) {
 
 void Context::complete_blocked_send() {
   // TODO: report faults in the line below to the supervisor.
-  IGNORE(ustore(&_stack->r0, uint32_t(SysResult::success)));
+  IGNORE(ustore(&_stack->r0, uintptr_t(SysResult::success)));
   runnable.insert(&_ctx_item);
 }
 
@@ -179,7 +179,7 @@ Key Context::get_message_key(unsigned index) {
  * Implementation of Object
  */
 
-SysResult Context::deliver_from(uint32_t brand, Sender * sender) {
+SysResult Context::deliver_from(Brand brand, Sender * sender) {
   Message m = CHECK(sender->get_message());
   switch (m.data[0]) {
     case 0: return read_register(brand, sender, m);
@@ -194,7 +194,7 @@ SysResult Context::deliver_from(uint32_t brand, Sender * sender) {
   }
 }
 
-SysResult Context::read_register(uint32_t,
+SysResult Context::read_register(Brand,
                                  Sender * sender,
                                  Message const & arg) {
   Word value;
@@ -238,7 +238,7 @@ SysResult Context::read_register(uint32_t,
   return SysResult::success;
 }
 
-SysResult Context::write_register(uint32_t,
+SysResult Context::write_register(Brand,
                                   Sender * sender,
                                   Message const & arg) {
   auto r = arg.data[1];
@@ -284,7 +284,7 @@ SysResult Context::write_register(uint32_t,
   return SysResult::success;
 }
 
-SysResult Context::read_key(uint32_t,
+SysResult Context::read_key(Brand,
                             Sender * sender,
                             Message const & arg) {
   auto r = arg.data[1];
@@ -299,7 +299,7 @@ SysResult Context::read_key(uint32_t,
   return SysResult::success;
 }
 
-SysResult Context::write_key(uint32_t,
+SysResult Context::write_key(Brand,
                              Sender * sender,
                              Message const & arg) {
   auto r = arg.data[1];
@@ -314,7 +314,7 @@ SysResult Context::write_key(uint32_t,
   return SysResult::success;
 }
 
-SysResult Context::read_region(uint32_t,
+SysResult Context::read_region(Brand,
                                Sender * sender,
                                Message const & arg) {
   auto n = arg.data[1];
@@ -361,7 +361,7 @@ static bool region_valid(etl::armv7m::Mpu::rbar_value_t rbar,
   return is_unprivileged_access_ok(begin, end);
 }
 
-SysResult Context::write_region(uint32_t,
+SysResult Context::write_region(Brand,
                                 Sender * sender,
                                 Message const & arg) {
   auto n = arg.data[1];

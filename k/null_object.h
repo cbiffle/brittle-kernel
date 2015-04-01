@@ -14,7 +14,7 @@ namespace k {
  */
 class NullObject : public Object {
 public:
-  SysResult deliver_from(uint32_t, Sender *) override;
+  SysResult deliver_from(Brand, Sender *) override;
 };
 
 }  // namespace k

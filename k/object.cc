@@ -6,11 +6,11 @@ namespace k {
 
 Object::Object() : _index{0} {}
 
-Key Object::make_key(uint32_t brand) {
+Key Object::make_key(Brand brand) {
   return Key::filled(_index, brand);
 }
 
-SysResult Object::deliver_to(uint32_t, Context *) {
+SysResult Object::deliver_to(Brand, Context *) {
   return SysResult::bad_key;
 }
 

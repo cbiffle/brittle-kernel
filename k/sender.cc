@@ -13,7 +13,7 @@ Key Sender::get_message_key(unsigned index) {
 void Sender::complete_send(SysResult) {
 }
 
-SysResult Sender::block_in_send(uint32_t, List<Sender> &) {
+SysResult Sender::block_in_send(Brand, List<Sender> &) {
   return SysResult::would_block;
 }
 

@@ -1,11 +1,13 @@
+#include <cstdint>
+
 namespace demo {
 
 static unsigned volatile counter;
 
 struct Message { unsigned data[4]; };
 struct ReceivedMessage {
-  unsigned gate_brand;
-  unsigned sender_brand;
+  uint64_t gate_brand;
+  uint64_t sender_brand;
   Message m;
 };
 

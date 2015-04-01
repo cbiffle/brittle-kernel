@@ -10,15 +10,13 @@
 
 namespace k {
 
-void ObjectTable::invalidate(unsigned index) {
+void ObjectTable::invalidate(TableIndex index) {
   ETL_ASSERT(index < config::n_objects);
 
-  if (++_objects[index].generation[0] == 0) {
-    ++_objects[index].generation[1];
-  }
+  ++_objects[index].generation;
 }
 
-SysResult ObjectTable::deliver_from(uint32_t brand, Sender * sender) {
+SysResult ObjectTable::deliver_from(Brand brand, Sender * sender) {
   Message m = CHECK(sender->get_message());
   switch (m.data[0]) {
     case 0: return mint_key(brand, sender, m);
@@ -29,7 +27,7 @@ SysResult ObjectTable::deliver_from(uint32_t brand, Sender * sender) {
   }
 }
 
-SysResult ObjectTable::mint_key(uint32_t,
+SysResult ObjectTable::mint_key(Brand,
                                 Sender * sender,
                                 Message const & args) {
   auto index = args.data[1];
@@ -48,7 +46,7 @@ SysResult ObjectTable::mint_key(uint32_t,
   return SysResult::success;
 }
 
-SysResult ObjectTable::read_key(uint32_t,
+SysResult ObjectTable::read_key(Brand,
                                 Sender * sender,
                                 Message const & args) {
   auto k = sender->get_message_key(1);
@@ -60,7 +58,11 @@ SysResult ObjectTable::read_key(uint32_t,
   sender->complete_send();
 
   // TODO: systematic reply priorities?
-  ReplySender reply_sender{0, {index, brand}};
+  ReplySender reply_sender{0, {
+    index,
+    uint32_t(brand),
+    uint32_t(brand >> 32),
+  }};
   IGNORE(reply.deliver_from(&reply_sender));
   return SysResult::success;
 }
