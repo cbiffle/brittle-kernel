@@ -2,10 +2,8 @@ target remote localhost:3333
 
 define flash
   mon reset halt
-  symbol-file
   load
   load latest/demo/demo
-  add-symbol-file latest/demo/kernel 0x08000000
   add-symbol-file latest/demo/demo 0x08004000
   mon reset halt
 end
