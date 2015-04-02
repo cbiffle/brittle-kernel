@@ -24,7 +24,6 @@ c_binary('demo',
   environment = 'stm32f407',
   deps = [
     ':code',
-    '//k',
     '//etl/armv7m:exception_table',
     '//etl/stm32f4xx:interrupt_table',
     '//etl/armv7m:implicit_crt0',
