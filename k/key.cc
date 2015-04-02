@@ -13,7 +13,7 @@ Key Key::filled(TableIndex index, Brand brand) {
   return k;
 }
 
-Key null() {
+Key Key::null() {
   Key k;
   k.nullify();
   return k;

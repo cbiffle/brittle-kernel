@@ -10,48 +10,9 @@
 #include "k/registers.h"
 #include "k/zoo.h"
 
-extern uint8_t _app_ram_start, _app_base, _app_stack;
-extern uint8_t _kernel_rom_start, _kernel_ram_start;
-
 static void setup_mpu() {
   using etl::armv7m::mpu;
   using etl::armv7m::Mpu;
-
-  /*
-   * Use regions 7 and 6 to mask off kernel ROM and RAM, respectively.
-   *
-   * This limits tasks to 6 regions, but simplifies validation, as these
-   * regions are the highest priority ones and can't be overridden.
-   */
-  mpu.write_rbar(Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&_kernel_rom_start) >> (32-27))
-      .with_valid(true)
-      .with_region(7));
-
-  mpu.write_rasr(Mpu::rasr_value_t()
-      .with_xn(false)
-      .with_ap(Mpu::AccessPermissions::p_read_u_none)
-      .with_tex(0)
-      .with_c(true)
-      .with_b(true)
-      .with_s(false)
-      .with_size(12)
-      .with_enable(true));
-
-  mpu.write_rbar(Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&_kernel_ram_start) >> (32-27))
-      .with_valid(true)
-      .with_region(6));
-
-  mpu.write_rasr(Mpu::rasr_value_t()
-      .with_xn(false)
-      .with_ap(Mpu::AccessPermissions::p_write_u_none)
-      .with_tex(0)
-      .with_c(true)
-      .with_b(true)
-      .with_s(false)
-      .with_size(15)
-      .with_enable(true));
 
   mpu.write_ctrl(Mpu::ctrl_value_t()
       .with_privdefena(true)
@@ -62,43 +23,28 @@ static void setup_mpu() {
 static void prepare_task() {
   using etl::armv7m::Mpu;
 
-  auto r = reinterpret_cast<k::Registers *>(&_app_stack) - 1;
+  auto & ctx = k::contexts[0];
+
+  // Enable initial ROM grant.
+  auto rom_key = k::init_rom.make_key(k::init_rom_brand);
+  ETL_ASSERT(rom_key);  // Failure indicates misconfiguration.
+  ctx.memory_region(0) = rom_key.ref();
+
+  // Enable initial RAM grant.
+  auto ram_key = k::init_ram.make_key(k::init_ram_brand);
+  ETL_ASSERT(ram_key);  // Failure indicates misconfiguration.
+  ctx.memory_region(1) = ram_key.ref();
+
+  auto rom_begin = k::init_rom.get_region_begin(k::init_rom_brand);
+  auto ram_end   = k::init_ram.get_region_end(k::init_ram_brand);
+  auto r = static_cast<k::Registers *>(ram_end) - 1;
   r->psr = 1 << 24;
-  r->r15 = reinterpret_cast<uintptr_t>(&_app_base);
-  k::contexts[0].set_stack(r);
+  r->r15 = reinterpret_cast<uintptr_t>(rom_begin);
+  ctx.set_stack(r);
 
-  // Enable all of ROM.
-  k::contexts[0].region(0) = {
-    .rbar = Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&_kernel_rom_start) >> (32-27)),
-    .rasr = Mpu::rasr_value_t()
-      .with_xn(false)
-      .with_ap(Mpu::AccessPermissions::p_read_u_read)
-      .with_tex(0)
-      .with_c(true)
-      .with_b(true)
-      .with_s(false)
-      .with_size(19)
-      .with_enable(true),
-  };
-
-  // Enable all of RAM.
-  k::contexts[0].region(1) = {
-    .rbar = Mpu::rbar_value_t()
-      .with_addr_27(reinterpret_cast<uintptr_t>(&_app_ram_start) >> (32-27)),
-    .rasr = Mpu::rasr_value_t()
-      .with_xn(false)
-      .with_ap(Mpu::AccessPermissions::p_write_u_write)
-      .with_tex(0)
-      .with_c(false)
-      .with_b(false)
-      .with_s(false)
-      .with_size(16)
-      .with_enable(true),
-  };
-
-
-  k::contexts[0].key(4).fill(1, 0);
+  // Provide the context with its initial authority (in the form of a single
+  // key to the object table).
+  ctx.key(4).fill(1, 0);
 }
 
 __attribute__((noreturn))

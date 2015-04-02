@@ -7,6 +7,7 @@
 #include "k/key.h"
 #include "k/list.h"
 #include "k/object.h"
+#include "k/region.h"
 #include "k/registers.h"
 #include "k/sender.h"
 #include "k/types.h"
@@ -26,11 +27,6 @@ namespace k {
  */
 class Context : public Object, public Sender {
 public:
-  struct Region {
-    etl::armv7m::Mpu::rbar_value_t rbar;
-    etl::armv7m::Mpu::rasr_value_t rasr;
-  };
-
   Context();
 
   /*************************************************************
@@ -53,7 +49,7 @@ public:
 
   void apply_to_mpu();
 
-  Region & region(unsigned index) { return _regions[index]; }
+  Key & memory_region(unsigned index) { return _memory_regions[index]; }
 
   /*
    * Context-specific analog to block_in_send.  Asks the Context to save the
@@ -149,7 +145,7 @@ private:
 
   TableIndex _reply_gate_index;
 
-  Region _regions[config::n_task_regions];
+  Key _memory_regions[config::n_task_regions];
 
   // Factors of deliver_from
   SysResult read_register(Brand, Sender *, Message const &);

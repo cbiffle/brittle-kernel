@@ -1,0 +1,102 @@
+Memory Region Protocol
+======================
+
+A memory region is a naturally aligned power-of-two-sized section of address
+space.  It bears some combination of:
+- Read/write execute permissions, and
+- The cache policy and memory ordering.
+
+In an architecture-specific peculiarity, memory regions larger than 128 bytes
+can have each eighth of their address space individually enabled or disabled.
+
+Memory regions are treated here as "value objects."  A memory region key is
+effectively immutable, but operations on it can derive new keys with different
+properties.  These keys confer equal or lesser authority compared to their
+"parent" key.
+
+
+Inspect Page (0)
+----------------
+
+Returns the actual ARMv7-M MPU values that would be loaded if this page were
+added to an address space.  This encoding is awkward but honest.
+
+Arguments:
+- d0: selector
+
+Results:
+- d0: success code
+- d1: Region Base Address Register contents
+- d2: Region Attribute and Size Register contents
+
+
+Split Page (1)
+--------------
+
+Derives two new memory region keys, representing the bottom and top halves of
+this memory region.  Other attributes (read/write/execute permissions,
+cacheability, etc.) are unchanged.
+
+As always, the original key is not altered.
+
+Splitting is impossible in the following circumstances:
+
+ 1. The memory region is already the architecture's minimum size (32 bytes).
+
+ 2. The memory region is 256 bytes in size and has subregions disabled, since
+    the resulting 128-byte memory regions cannot have subregions disabled.
+
+Any areas of the original memory region rendered inaccessible by subregion
+disable bits will remain inaccessible in the derived keys, by expanding each
+disabled region to affect two adjacent (and half-sized) subregions.
+
+Arguments:
+- d0: selector
+
+Results:
+- d0: success code
+- k0: bottom half
+- k1: top half
+
+
+Disable Subregions (2)
+----------------------
+
+Derives a new memory region key with some subregions (possibly all!) disabled.
+The given disable mask is bitwise-ORed with the original disable mask, so if
+all the requested subregions are already disabled, the new key is identical.
+
+As always, the original key is not altered.
+
+This operation will be refused if the memory region is 128 bytes or smaller.
+
+Arguments:
+- d0: selector
+- d1: disable mask (in low 8 bits)
+
+Results:
+- d0: success code
+- k0: new key
+
+
+Drop Privileges (3)
+-------------------
+
+Derives a new memory region key with certain privileges missing, controlled by
+the arguments.  If the existing key didn't have the permissions in question,
+the new key is identical.
+
+As always, the original key is not altered.
+
+Arguments:
+- d0: selector
+- d1: privileges to drop bitmask
+  - 0: execute
+  - 1: write
+  - 2: read
+
+Results:
+- d0: success code
+- k0: new key
+
+

@@ -82,8 +82,7 @@ Arguments:
 
 Results:
 - d0: result code
-- d1: Region Base Address Register
-- d2: Region Address and Size Register
+- k0: region key
 
 
 Write MPU Region (5)
@@ -95,11 +94,13 @@ The change takes effect when the context is next activated, unless it is
 already the active context, in which case it takes effect immediately, before
 return from the send.
 
+Primitive memory range keys can be loaded directly into the region registers.
+Any other type of key will be treated as a null key and confer no authority.
+
 Arguments:
 - d0: selector
 - d1: region index
-- d2: Region Base Address Register
-- d3: Region Address and Size Register
+- k1: region key
 
 Results:
 - d0: result code

@@ -58,7 +58,9 @@ SECTIONS {
 
   .app : {
     . = ORIGIN(rom) + 16384;
-    PROVIDE(_app_base = .);
+    PROVIDE(_app_rom_start = .);
+    . = ORIGIN(rom) + LENGTH(rom);
+    PROVIDE(_app_rom_end = .);
   } >rom
 
   .bss (NOLOAD) : {
@@ -77,6 +79,6 @@ SECTIONS {
   .app_ram (NOLOAD) : {
     PROVIDE(_app_ram_start = .);
     . = ORIGIN(sram112) + LENGTH(sram112);
-    PROVIDE(_app_stack = .);
+    PROVIDE(_app_ram_end = .);
   } >sram112
 }

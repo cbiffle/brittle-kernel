@@ -14,4 +14,8 @@ SysResult Object::deliver_to(Brand, Context *) {
   return SysResult::bad_key;
 }
 
+bool Object::is_address_range() const {
+  return false;
+}
+
 }  // namespace k

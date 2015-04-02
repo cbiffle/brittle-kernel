@@ -71,6 +71,12 @@ public:
    */
   virtual SysResult deliver_to(Brand, Context *);
 
+  /*
+   * Checks whether this Object is really an AddressRange.  The default
+   * implementation returns false.
+   */
+  virtual bool is_address_range() const;
+
 protected:
   Object();
 
