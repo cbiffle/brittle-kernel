@@ -41,7 +41,15 @@ SysResult ObjectTable::mint_key(Brand,
   sender->complete_send();
 
   ReplySender reply_sender{0};  // TODO: systematic reply priorities?
-  reply_sender.set_key(0, Key::filled(index, brand));
+
+  // Give the recipient a chance to reject the brand.
+  if (_objects[index].ptr) {
+    auto maybe_key = _objects[index].ptr->make_key(brand);
+    if (maybe_key) {
+      reply_sender.set_message({1});
+      reply_sender.set_key(0, maybe_key.ref());
+    }
+  }
   IGNORE(reply.deliver_from(&reply_sender));
   return SysResult::success;
 }

@@ -6,8 +6,8 @@ namespace k {
 
 Object::Object() : _index{0} {}
 
-Key Object::make_key(Brand brand) {
-  return Key::filled(_index, brand);
+etl::data::Maybe<Key> Object::make_key(Brand brand) {
+  return { Key::filled(_index, brand) };
 }
 
 SysResult Object::deliver_to(Brand, Context *) {

@@ -3,13 +3,15 @@
 
 #include <stdint.h>
 
+#include "etl/data/maybe.h"
+
+#include "k/key.h"
 #include "k/sys_result.h"
 #include "k/types.h"
 
 namespace k {
 
 struct Context;  // see: k/context.h
-struct Key;      // see: k/key.h
 struct Message;  // see: k/ipc.h
 struct Sender;   // see: k/sender.h
 
@@ -27,9 +29,11 @@ public:
   TableIndex get_index() const { return _index; }
 
   /*
-   * Generates a key to this object with the given brand.
+   * Generates a key to this object with the given brand, if the brand is
+   * acceptable for this object.  The default implementation accepts all
+   * brands.  Subclasses can implement this to be more selective.
    */
-  Key make_key(Brand);
+  virtual etl::data::Maybe<Key> make_key(Brand);
 
   /*
    * Delivers a message from 'sender' to this object, through a key bearing
