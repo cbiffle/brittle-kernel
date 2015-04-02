@@ -16,6 +16,7 @@ public:
   explicit ReplySender(uint32_t priority);
   explicit ReplySender(uint32_t priority, Message const &);
 
+  void set_message(Message const & m) { _m = m; }
   void set_key(unsigned index, Key const &);
 
   /*
