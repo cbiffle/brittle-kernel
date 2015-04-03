@@ -7,6 +7,7 @@
 namespace k {
 
 struct Context;  // see: k/context.h
+struct Object;  // see: k/object.h
 struct Sender;  // see: k/sender.h
 
 /*
@@ -46,6 +47,8 @@ public:
    * Gets the brand stored within this key.
    */
   Brand get_brand() const { return _brand; }
+
+  Object * get();
 
   /*
    * Facade function for Object::deliver_from; calls through to the
