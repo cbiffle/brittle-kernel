@@ -8,6 +8,7 @@
 #include "k/address_range.h"
 #include "k/context_layout.h"
 #include "k/ipc.h"
+#include "k/object_table.h"
 #include "k/registers.h"
 #include "k/reply_sender.h"
 #include "k/unprivileged.h"
@@ -68,7 +69,7 @@ SysResult Context::do_send(bool call) {
   // remember to call complete_send.  So we provide it here.
 
   if (call) {
-    key(0).fill(_reply_gate_index, 0);
+    key(0) = object_table[_reply_gate_index].ptr->make_key(0).ref();
     _calling = true;
   } else {
     _calling = false;

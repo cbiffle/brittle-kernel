@@ -20,6 +20,7 @@ public:
 
   SysResult deliver_from(Brand, Sender *) override;
   SysResult deliver_to(Brand, Context *) override;
+  etl::data::Maybe<Key> make_key(Brand) override;
 
 private:
   List<Context> _receivers;

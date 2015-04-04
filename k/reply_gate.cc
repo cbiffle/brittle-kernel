@@ -23,4 +23,8 @@ SysResult ReplyGate::deliver_to(Brand brand, Context * context) {
   return context->block_in_receive(brand, _receivers);
 }
 
+etl::data::Maybe<Key> ReplyGate::make_key(Brand) {
+  return Object::make_key(_expected_brand);
+}
+
 }  // namespace k
