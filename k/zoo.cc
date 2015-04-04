@@ -73,12 +73,14 @@ void init_zoo() {
   static_assert(config::n_objects >= 2*config::n_contexts + special_objects,
                 "Not enough object table entries for objects in zoo.");
   for (unsigned i = 0; i < config::n_contexts; ++i) {
-    object_table[i + special_objects].ptr = &contexts[i];
-    contexts[i].set_index(i + special_objects);
+    unsigned ctx_i = i + special_objects;
+    object_table[ctx_i].ptr = &contexts[i];
+    contexts[i].set_index(ctx_i);
 
-    object_table[i + special_objects + config::n_contexts].ptr =
-      &reply_gates[i];
-    contexts[i].set_reply_gate_index(i + special_objects + config::n_contexts);
+    unsigned rep_i = ctx_i + config::n_contexts;
+    object_table[rep_i].ptr = &reply_gates[i];
+    reply_gates[i].set_index(rep_i);
+    contexts[i].set_reply_gate_index(rep_i);
   }
 }
 
