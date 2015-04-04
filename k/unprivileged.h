@@ -38,6 +38,9 @@ SysResult ustore(etl::armv7m::Word *, etl::armv7m::Word);
 __attribute__((warn_unused_result))
 SysResult ustore(etl::armv7m::Byte *, etl::armv7m::Byte);
 
+__attribute__((warn_unused_result))
+SysResult ustore(etl::armv7m::DoubleWord *, etl::armv7m::DoubleWord);
+
 }  // namespace k
 
 #endif  // K_UNPRIVILEGED_H

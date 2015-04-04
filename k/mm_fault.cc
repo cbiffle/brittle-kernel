@@ -1,3 +1,5 @@
+#include "k/mm_fault.h"
+
 #include "etl/armv7m/exception_frame.h"
 
 #include "etl/assert.h"

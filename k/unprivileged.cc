@@ -1,6 +1,9 @@
 #include "k/unprivileged.h"
 
+#include "etl/error/check.h"
+
 using etl::armv7m::Byte;
+using etl::armv7m::DoubleWord;
 using etl::armv7m::Word;
 
 namespace k {
@@ -54,6 +57,11 @@ SysResult ustore(Word * addr, Word value) {
 
 SysResult ustore(Byte * addr, Byte value) {
   return ustore_common(addr, value);
+}
+
+SysResult ustore(DoubleWord * addr, DoubleWord value) {
+  CHECK(ustore(reinterpret_cast<Word *>(addr), Word(value)));
+  return ustore(reinterpret_cast<Word *>(addr) + 1, Word(value >> 32));
 }
 
 }  // namespace k

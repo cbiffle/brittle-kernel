@@ -19,6 +19,8 @@ static unsigned call(unsigned index, Message const * m, ReceivedMessage * out) {
       );
 }
 
+void main();
+
 void main() {
   counter = 0;
   while (true) {

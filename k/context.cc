@@ -47,11 +47,10 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
 }
 
 SysResult Context::do_send(bool call) {
-  // r0 and r1, as part of the exception frame, can be accessed
-  // without protection -- we haven't yet allowed for a race that
-  // could cause them to become inaccessible.
+  // r0, as part of the exception frame, can be accessed without protection --
+  // we haven't yet allowed for a race that could cause it to become
+  // inaccessible.
   auto target_index = _stack->r0;
-  auto arg = reinterpret_cast<Message const *>(_stack->r1);
 
   if (target_index >= config::n_task_keys) {
     return SysResult::bad_key_index;
@@ -104,6 +103,8 @@ SysResult Context::complete_blocked_receive(Brand sender_brand,
 
   _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
+
+  return SysResult::success;
 }
 
 SysResult Context::put_message(Brand gate_brand,
@@ -316,6 +317,8 @@ SysResult Context::write_key(Brand,
   auto reply = sender->get_message_key(0);
   auto new_key = sender->get_message_key(1);
   sender->complete_send();
+
+  key(r) = new_key;
 
   ReplySender reply_sender{0};  // TODO priority
   IGNORE(reply.deliver_from(&reply_sender));

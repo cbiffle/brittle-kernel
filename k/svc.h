@@ -3,7 +3,7 @@
 
 namespace k {
 
-void svc_dispatch();
+void * svc_dispatch(void * stack);
 
 }  // namespace k
 

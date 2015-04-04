@@ -5,6 +5,7 @@
 
 #include "k/config.h"
 #include "k/sys_result.h"
+#include "k/types.h"
 
 namespace k {
 
@@ -25,8 +26,8 @@ __attribute__((warn_unused_result))
 SysResultWith<Message> uload(Message const *);
 
 struct ReceivedMessage {
-  uint32_t gate_brand;
-  uint32_t sender_brand;
+  Brand gate_brand;
+  Brand sender_brand;
   Message m;
 };
 
