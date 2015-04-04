@@ -70,7 +70,7 @@ void init_zoo() {
   init_ram.set_index(3);
 
   // Then, wire up the contexts.
-  static_assert(config::n_objects >= config::n_contexts + special_objects,
+  static_assert(config::n_objects >= 2*config::n_contexts + special_objects,
                 "Not enough object table entries for objects in zoo.");
   for (unsigned i = 0; i < config::n_contexts; ++i) {
     object_table[i + special_objects].ptr = &contexts[i];
