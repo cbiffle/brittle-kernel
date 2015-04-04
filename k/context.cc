@@ -357,6 +357,8 @@ SysResult Context::write_region(Brand,
     _memory_regions[n] = object_key;
   }
 
+  if (current == this) apply_to_mpu();
+
   IGNORE(reply.deliver_from(&reply_sender));
   return SysResult::success;
 }
