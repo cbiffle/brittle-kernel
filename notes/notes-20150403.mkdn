@@ -1,0 +1,99 @@
+Thoughts on a FreeRTOS Port
+===========================
+
+FreeRTOS is useful, and I have some legacy apps based on it.  It's also barely
+an operating system, which makes it a particularly weird choice for porting to
+this principled kernel.  But I think I can do it.
+
+
+Why?
+----
+
+Why saddle a kernel designed for robust protected operation with an operating
+system that barely supports it?  Because it would improve things.
+
+- Running the FreeRTOS system code in unprivileged mode would improve our
+  ability to catch bugs in the system.
+
+- The kernel data structures, including the vector table, would be automatically
+  protected from corruption by misbehaving applications.
+
+- We could limit the impact of confused deputy errors, which are sadly trivial
+  to induce in FreeRTOS (e.g. pass the system a bad queue pointer).
+
+- We could incrementally increase protection levels, by e.g. factoring some of
+  the system code out into isolated tasks.
+
+- It's also a real-world example to prove out the kernel design.
+
+
+How?
+----
+
+Sure, one could write an API-compatible system that runs atop our kernel and
+acts like FreeRTOS, but that's not a port -- it's a rewrite.  How could we do a
+minimally invasive port?
+
+FreeRTOS thinks it's responsible for everything -- it's designed to run on the
+bare metal.  As a result, it does some things that our kernel also kinda does:
+
+- It keeps lists of tasks and their states.
+- It contains a priority-based scheduler.
+- It messes around with interrupts.
+
+We could port it while preserving most of this.
+
+
+Running a legacy task scheduler
+-------------------------------
+
+This one's a little weird but easy.  We allocate a *single* Context for all
+FreeRTOS tasks to share.  FreeRTOS's scheduler does its thing as it always has;
+only the context switch logic changes.
+
+Instead of reloading processor registers or messing with stack frames during a
+context switch, the scheduler reloads the Context object from information kept
+in the TCB.
+
+The priority of the Context doesn't actually matter from FreeRTOS's perspective,
+but it does matter in the grand scheme of things, as we'll see below.
+
+FreeRTOS doesn't use system calls -- tasks directly run the operating system
+code.  We would continue doing this.  The Context swapping code runs in two
+circumstances: in response to a PendSV, and in response to SysTick.
+
+
+PendSV and SysTick
+------------------
+
+We dedicate a small system task to managing interrupts from PendSV and SysTick.
+It receives messages from kernel interrupt senders and does the following:
+
+- In response to a SysTick, it updates the time, and falls through to the PendSV
+  switching code.
+
+- In response to a PendSV, it checks for a better runnable task, and swaps out
+  the task Context.
+
+
+Interrupts and interrupt priorities
+-----------------------------------
+
+Hardware interrupt priorities are almost immaterial in this kernel, since they
+only affect the priority of setting the kernel interrupt messages to pending.
+
+More interesting is where the messages *go*.  Since they need to interrupt task
+code -- which, it seems, will have no awareness of messages -- they must go to a
+separate context.
+
+To preserve the hardware's preemption behavior, we can allocate one Context per
+preemption priority in use.  (Max of 16 on the STM32.)  Each context will run a
+small message loop that looks at the received message and calls the legacy
+interrupt handler.
+
+In traditional FreeRTOS, interrupts can preempt the system most of the time.  We
+can reproduce this by setting the task Context to the lowest priority, the
+system Context to one higher, and interrupts from there on up.
+
+But the system occasionally needs to mask interrupts.  We can do this by
+altering the priority of the system Context to prevent preemption.
