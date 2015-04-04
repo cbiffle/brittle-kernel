@@ -16,7 +16,8 @@ generation change.
 Arguments:
 - d0: selector
 - d1: object index in table
-- d2: brand
+- d2: brand low bits
+- d3: brand high bits
 
 Results:
 - k0: newly minted key

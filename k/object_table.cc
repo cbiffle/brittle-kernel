@@ -31,7 +31,7 @@ SysResult ObjectTable::mint_key(Brand,
                                 Sender * sender,
                                 Message const & args) {
   auto index = args.data[1];
-  auto brand = args.data[2];
+  auto brand = args.data[2] | (Brand(args.data[3]) << 32);
   auto reply = sender->get_message_key(0);
 
   if (index >= config::n_objects) {
