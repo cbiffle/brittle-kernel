@@ -31,12 +31,20 @@ static void normal_svc_dispatch() {
   SysResult result;
 
   switch (sysnum) {
-    case 0:
+    case 0:  // Send Message
       result = current->do_send(false);
       break;
 
-    case 1:
+    case 1:  // Call
       result = current->do_send(true);
+      break;
+
+    case 2:  // Move Key
+      {
+        auto to = current->stack()->r0 % config::n_task_keys;
+        auto from = current->stack()->r1 % config::n_task_keys;
+        current->key(to) = current->key(from);
+      }
       break;
 
     default:
