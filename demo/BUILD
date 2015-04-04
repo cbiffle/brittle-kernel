@@ -24,13 +24,13 @@ c_binary('demo',
   environment = 'stm32f407',
   deps = [
     ':code',
-    '//etl/armv7m:exception_table',
-    '//etl/stm32f4xx:interrupt_table',
-    '//etl/armv7m:implicit_crt0',
+    '//etl/stm32f4xx',
   ],
   extra = {
     'cxx_flags': [
       '-ffreestanding',
+      '-nostdlib',
+      '-nodefaultlibs',
     ],
   },
   local = {
@@ -43,6 +43,9 @@ c_binary('demo',
 
 c_library('code',
   sources = [
+    'context.cc',
     'demo.cc',
+    'ipc.cc',
+    'object_table.cc',
   ],
 )

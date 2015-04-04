@@ -31,7 +31,7 @@ static Region init_rom_region {
     .with_addr_27(reinterpret_cast<uintptr_t>(&_app_rom_start) >> 5),
   .rasr = Region::Rasr()
     .with_ap(Mpu::AccessPermissions::p_read_u_read)
-    .with_size(8)
+    .with_size(13)
     .with_enable(true),
 };
 Brand const init_rom_brand = uint32_t(init_rom_region.rbar)
@@ -48,15 +48,22 @@ static Region init_ram_region {
     .with_addr_27(reinterpret_cast<uintptr_t>(&_app_ram_start) >> 5),
   .rasr = Region::Rasr()
     .with_ap(Mpu::AccessPermissions::p_write_u_write)
-    .with_size(8)
+    .with_size(15)
     .with_enable(true),
 };
 Brand const init_ram_brand = uint32_t(init_ram_region.rbar)
                            | uint64_t(uint32_t(init_ram_region.rasr)) << 32;
 
+AddressRange peripherals{
+  {reinterpret_cast<uint8_t *>(0x40000000),
+   reinterpret_cast<uint8_t *>(0x60000000)},
+  true,
+  AddressRange::ReadOnly::no,
+};
+
 void init_zoo() {
   // First, wire up the special objects.
-  auto constexpr special_objects = 4;
+  auto constexpr special_objects = 5;
   object_table[0].ptr = &null;
   null.set_index(0);
 
@@ -68,6 +75,9 @@ void init_zoo() {
 
   object_table[3].ptr = &init_ram;
   init_ram.set_index(3);
+
+  object_table[4].ptr = &peripherals;
+  peripherals.set_index(4);
 
   // Then, wire up the contexts.
   static_assert(config::n_objects >= 2*config::n_contexts + special_objects,
