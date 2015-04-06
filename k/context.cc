@@ -38,10 +38,13 @@ Context::Context()
 
 void Context::nullify_exchanged_keys(unsigned preserved) {
   // Had to do this somewhere, this is as good a place as any.
-  static_assert(K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _registers),
+  // (The fields in question are private, so this can't be at top level.)
+  // (Putting it in the ctor hits the ill-defined non-trivial ctor rules.)
+  static_assert(
+      K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _registers),
       "K_CONTEXT_SAVE_OFFSET is wrong");
-  static_assert(K_CONTEXT_STACK_OFFSET == __builtin_offsetof(Context, _stack),
-      "K_CONTEXT_STACK_OFFSET is wrong");
+
+  // Right, actual implementation now:
   for (unsigned i = preserved; i < config::n_message_keys; ++i) {
     _keys[i].nullify();
   }
