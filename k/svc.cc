@@ -65,7 +65,7 @@ static void normal_svc_dispatch() {
 void * svc_dispatch(void * stack) {
   if (ETL_LIKELY(booted)) {
     // Normal invocation.
-    current->set_stack(static_cast<Registers *>(stack));
+    current->set_stack(static_cast<StackRegisters *>(stack));
     normal_svc_dispatch();
   } else {
     // First syscall to start initial task.

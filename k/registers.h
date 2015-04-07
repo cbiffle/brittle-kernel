@@ -9,7 +9,7 @@ namespace k {
  * Machine registers, as stashed on the application stack by kernel entry
  * routines.
  */
-using Registers = etl::armv7m::ExceptionFrame;
+using StackRegisters = etl::armv7m::ExceptionFrame;
 
 }  // namespace k
 

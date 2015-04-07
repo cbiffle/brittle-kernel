@@ -37,7 +37,7 @@ static void prepare_task() {
 
   auto rom_begin = k::init_rom.get_region_begin(k::init_rom_brand);
   auto ram_end   = k::init_ram.get_region_end(k::init_ram_brand);
-  auto r = static_cast<k::Registers *>(ram_end) - 1;
+  auto r = static_cast<k::StackRegisters *>(ram_end) - 1;
   r->psr = 1 << 24;
   r->r15 = reinterpret_cast<uintptr_t>(rom_begin);
   ctx.set_stack(r);

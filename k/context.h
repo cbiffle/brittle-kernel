@@ -35,8 +35,8 @@ public:
 
   void set_reply_gate_index(TableIndex index) { _reply_gate_index = index; }
 
-  Registers * stack() const { return _stack; }
-  void set_stack(Registers * s) { _stack = s; }
+  StackRegisters * stack() const { return _stack; }
+  void set_stack(StackRegisters * s) { _stack = s; }
   Key & key(unsigned i) { return _keys[i]; }
 
   void nullify_exchanged_keys(unsigned preserved = 0);
@@ -121,7 +121,7 @@ public:
 private:
   // Address of the top of the context's current stack.  When the task
   // is stopped, the machine registers are pushed onto this stack.
-  Registers * _stack;
+  StackRegisters * _stack;
 
   // Area for saving the context's callee-save registers.
   std::uintptr_t _registers[8];
