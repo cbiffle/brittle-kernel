@@ -15,17 +15,17 @@ properties.  These keys confer equal or lesser authority compared to their
 "parent" key.
 
 
-Inspect Page (0)
-----------------
+Inspect Region (0)
+------------------
 
 Returns the actual ARMv7-M MPU values that would be loaded if this page were
 added to an address space.  This encoding is awkward but honest.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 
 Results:
-- d0: success code
+- d0: success descriptor
 - d1: Region Base Address Register contents
 - d2: Region Attribute and Size Register contents
 
@@ -51,12 +51,15 @@ disable bits will remain inaccessible in the derived keys, by expanding each
 disabled region to affect two adjacent (and half-sized) subregions.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 
 Results:
-- d0: success code
-- k0: bottom half
-- k1: top half
+- d0: success descriptor
+- k1: bottom half
+- k2: top half
+
+Exceptions:
+- `k.region_too_small` if the region cannot be split.
 
 
 Disable Subregions (2)
@@ -71,12 +74,12 @@ As always, the original key is not altered.
 This operation will be refused if the memory region is 128 bytes or smaller.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: disable mask (in low 8 bits)
 
 Results:
-- d0: success code
-- k0: new key
+- d0: success descriptor
+- k1: new key
 
 
 Drop Privileges (3)
@@ -89,7 +92,7 @@ the new key is identical.
 As always, the original key is not altered.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: privileges to drop bitmask
   - 0: execute
   - 1: write
@@ -97,6 +100,4 @@ Arguments:
 
 Results:
 - d0: success code
-- k0: new key
-
-
+- k1: new key

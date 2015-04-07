@@ -41,41 +41,47 @@ public:
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
-  SysResult do_send(bool call);
+  void do_syscall();
 
-  SysResult put_message(Brand gate_brand,
-                        Brand sender_brand,
-                        Message const &);
+  void put_message(Brand sender_brand,
+                   Message const &);
 
   void apply_to_mpu();
 
   Key & memory_region(unsigned index) { return _memory_regions[index]; }
 
   /*
-   * Context-specific analog to block_in_send.  Asks the Context to save the
-   * (gate) brand and block itself on the provided list, preparing to receive a
-   * message.
-   *
-   * If the context is unwilling to block, it returns SysResult::would_block.
-   * Any failure will be reported back as the status of the receive.
+   * Context-specific analog to complete_send.  Notifies the Context of a
+   * receive operation that was able to complete without blocking.
+   */
+  void complete_receive(Brand, Sender *);
+
+  /*
+   * Context-specific analog to complete_send.  Notifies the Context of a
+   * receive operation that was unable to complete due to an exception.
+   */
+  void complete_receive(Exception, uint32_t = 0);
+
+  /*
+   * Context-specific analog to block_in_send.  Asks the Context to block
+   * itself on the provided list, preparing to receive a message.
    *
    * The context can later become runnable once again through an invocation
    * of either complete_blocked_receive or interrupt.
    */
-  SysResult block_in_receive(Brand brand, List<Context> &);
+  void block_in_receive(List<Context> &);
 
   /*
    * Takes a context out of receive state due to reception of a message from
    * the provided sender.  Analog of Sender::complete_blocked_send.
-   *
-   * Unlike complete_blocked_send, this can fail, typically due to faults
-   * attempting to access the delivered message.  Such failures will be
-   * reported back to the sender as delivery failures.
-   *
-   * The brand here is the brand of key used by the sender to initiate the
-   * message.
    */
-  SysResult complete_blocked_receive(Brand brand, Sender *);
+  void complete_blocked_receive(Brand, Sender *);
+
+  /*
+   * Takes a context out of receive state due to an exception.  Analog of
+   * Sender::complete_blocked_send.
+   */
+  void complete_blocked_receive(Exception, uint32_t = 0);
 
 
   /*************************************************************
@@ -88,10 +94,9 @@ public:
   Priority get_priority() const override;
 
   /*
-   * Overridden to safely load this context's outgoing message from
-   * unprivileged space.
+   * Overridden to load the message out of saved registers.
    */
-  SysResultWith<Message> get_message() override;
+  Message get_message() override;
 
   /*
    * Overridden to copy keys from context key registers.
@@ -99,24 +104,30 @@ public:
   Key get_message_key(unsigned index) override;
 
   /*
-   * Overridden to store the result into data registers and transition
-   * the context into reply state, when relevant.
+   * Overridden to indicate success and switch the context into reply state,
+   * when relevant.
    */
-  void complete_send(SysResult) override;
+  void complete_send() override;
+
+  /*
+   * Overridden to record the exception and abort any remaining phase.
+   */
+  void complete_send(Exception, uint32_t = 0) override;
 
   /*
    * Overridden to support real blocking if permitted by task code.
    */
-  SysResult block_in_send(Brand brand, List<Sender> &) override;
+  void block_in_send(Brand brand, List<Sender> &) override;
 
   void complete_blocked_send() override;
+  void complete_blocked_send(Exception, uint32_t = 0) override;
 
 
   /*************************************************************
    * Implementation of Object.
    */
 
-  SysResult deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
 private:
   // Address of the top of the context's current stack.  When the task
@@ -147,15 +158,23 @@ private:
 
   Key _memory_regions[config::n_task_regions];
 
+  Descriptor get_descriptor() const;
+
+  void do_ipc();
+  void do_copy_key();
+  void do_bad_sys();
+
+  Key make_reply_key() const;
+
   // Factors of deliver_from
-  SysResult read_register(Brand, Sender *, Message const &);
-  SysResult write_register(Brand, Sender *, Message const &);
+  void read_register(Brand, Sender *, Message const &);
+  void write_register(Brand, Sender *, Message const &);
 
-  SysResult read_key(Brand, Sender *, Message const &);
-  SysResult write_key(Brand, Sender *, Message const &);
+  void read_key(Brand, Sender *, Message const &);
+  void write_key(Brand, Sender *, Message const &);
 
-  SysResult read_region(Brand, Sender *, Message const &);
-  SysResult write_region(Brand, Sender *, Message const &);
+  void read_region(Brand, Sender *, Message const &);
+  void write_region(Brand, Sender *, Message const &);
 };
 
 extern Context * current;

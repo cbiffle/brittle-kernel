@@ -54,13 +54,7 @@ public:
    * Facade function for Object::deliver_from; calls through to the
    * referenced object, supplemented by this key's brand.
    */
-  SysResult deliver_from(Sender *);
-
-  /*
-   * Facade function for Object::deliver_to; calls through to the
-   * referenced object, supplemented by this key's brand.
-   */
-  SysResult deliver_to(Context *);
+  void deliver_from(Sender *);
 
 private:
   // Uninterpreted data, invisible to the key holder, but  made available to

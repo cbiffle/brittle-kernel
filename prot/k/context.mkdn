@@ -17,11 +17,15 @@ Register indices are inherently platform-specific; see the example list for
 ARMv7-M below.
 
 Arguments:
-- d0: message selector.
+- d0: descriptor
 - d1: register index.
 
 Results:
-- d0: register contents.
+- d0: success descriptor.
+- d1: register contents.
+
+Exceptions:
+- `k.index_out_of_range`
 
 
 ### Example register list for ARMv7-M
@@ -38,11 +42,15 @@ Writes a register, by index, in the context.
 Register indices are shared with Read Register, above.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: register index
 - d2: value
 
-Results: none.
+Results:
+- d0: success descriptor.
+
+Exceptions:
+- `k.index_out_of_range`
 
 
 Read Key (2)
@@ -51,11 +59,15 @@ Read Key (2)
 Reads a key from the context's keyring by index.
 
 Arguments:
-- d0: selector.
+- d0: descriptor.
 - d1: key index.
 
 Results:
-- k0: key from context.
+- d0: success descriptor.
+- k1: key from context.
+
+Exceptions:
+- `k.index_out_of_range`
 
 
 Write Key (3)
@@ -64,11 +76,15 @@ Write Key (3)
 Writes a key into the context's keyring.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: key index
-- k0: key
+- k1: key
 
-Results: none.
+Results:
+- d0: success descriptor.
+
+Exceptions:
+- `k.index_out_of_range`
 
 
 Read MPU Region (4)
@@ -77,12 +93,15 @@ Read MPU Region (4)
 Reads out the contents of one of the MPU regions.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: region index
 
 Results:
-- d0: result code
-- k0: region key
+- d0: success descriptor
+- k1: region key
+
+Exceptions:
+- `k.index_out_of_range`
 
 
 Write MPU Region (5)
@@ -98,9 +117,12 @@ Primitive memory range keys can be loaded directly into the region registers.
 Any other type of key will be treated as a null key and confer no authority.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: region index
 - k1: region key
 
 Results:
-- d0: result code
+- d0: success descriptor
+
+Exceptions:
+- `k.index_out_of_range`

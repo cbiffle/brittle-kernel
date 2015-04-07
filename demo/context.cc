@@ -5,12 +5,14 @@
 namespace context {
 
 bool set_region(unsigned k, unsigned region_index, unsigned region_key) {
-  move_key(1, region_key);
+  copy_key(1, region_key);
 
-  ReceivedMessage rm;
-  if (call(k, {5, region_index, 0, 0}, &rm)) return false;
+  auto rm = ipc({
+      Descriptor::call(5, k),
+      region_index,
+    });
 
-  return rm.m.data[0];
+  return rm.m.d0.get_error() == false;
 }
 
 }  // namespace context

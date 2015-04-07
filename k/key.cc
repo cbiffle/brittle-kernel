@@ -24,12 +24,8 @@ Object * Key::get() {
   return object_table[_index].ptr;
 }
 
-SysResult Key::deliver_from(Sender * sender) {
-  return get()->deliver_from(_brand, sender);
-}
-
-SysResult Key::deliver_to(Context * context) {
-  return get()->deliver_to(_brand, context);
+void Key::deliver_from(Sender * sender) {
+  get()->deliver_from(_brand, sender);
 }
 
 void Key::lazy_revoke() {

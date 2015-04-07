@@ -36,13 +36,13 @@ public:
    */
   void invalidate(TableIndex index);
 
-  SysResult deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
 private:
   Entry _objects[config::n_objects];
 
-  SysResult mint_key(Brand, Sender *, Message const &);
-  SysResult read_key(Brand, Sender *, Message const &);
+  void mint_key(Brand, Sender *, Message const &);
+  void read_key(Brand, Sender *, Message const &);
 };
 
 extern ObjectTable object_table;

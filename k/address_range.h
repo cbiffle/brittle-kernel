@@ -37,7 +37,7 @@ public:
    */
   etl::data::Maybe<Key> make_key(Brand) override;
 
-  SysResult deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
   /*
    * Overridden to insist that this is, in fact, an AddressRange.
@@ -49,7 +49,7 @@ private:
   bool _xn;
   ReadOnly _read_only;
 
-  SysResult inspect(Brand, Sender *, Message const &);
+  void inspect(Brand, Sender *, Message const &);
 };
 
 }  // namespace k

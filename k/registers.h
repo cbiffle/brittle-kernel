@@ -3,6 +3,9 @@
 
 #include "etl/armv7m/exception_frame.h"
 
+#include "k/ipc.h"
+#include "k/types.h"
+
 namespace k {
 
 /*
@@ -16,6 +19,13 @@ using StackRegisters = etl::armv7m::ExceptionFrame;
  */
 union SavedRegisters {
   uint32_t raw[8];
+
+  struct {
+    Message m;
+    Brand b;
+  } sys;
+
+  SavedRegisters() : raw{} {}
 };
 
 }  // namespace k

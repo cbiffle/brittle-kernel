@@ -2,8 +2,6 @@
 
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
-#include "etl/error/check.h"
-#include "etl/error/ignore.h"
 
 #include "k/address_range.h"
 #include "k/context_layout.h"
@@ -40,9 +38,8 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   // Had to do this somewhere, this is as good a place as any.
   // (The fields in question are private, so this can't be at top level.)
   // (Putting it in the ctor hits the ill-defined non-trivial ctor rules.)
-  static_assert(
-      K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _save),
-      "K_CONTEXT_SAVE_OFFSET is wrong");
+  static_assert(K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _save),
+                "K_CONTEXT_SAVE_OFFSET is wrong");
 
   // Right, actual implementation now:
   for (unsigned i = preserved; i < config::n_message_keys; ++i) {
@@ -50,74 +47,84 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   }
 }
 
-SysResult Context::do_send(bool call) {
-  // r0, as part of the exception frame, can be accessed without protection --
-  // we haven't yet allowed for a race that could cause it to become
-  // inaccessible.
-  auto target_index = _stack->r0;
+Descriptor Context::get_descriptor() const {
+  return _save.sys.m.d0;
+}
 
-  if (target_index >= config::n_task_keys) {
-    return SysResult::bad_key_index;
+void Context::do_syscall() {
+  switch (get_descriptor().get_sysnum()) {
+    case 0:  // IPC
+      do_ipc();
+      break;
+
+    case 1:  // Copy Key
+      do_copy_key();
+      break;
+    
+    default:
+      do_bad_sys();
+      break;
   }
+}
 
-  // Alright, we're handing off control to some object.  From
-  // this point forward we must be more careful with our
-  // accesses.  In particular, it is no longer our job (as the
-  // dispatcher) to report the result through to the caller;
-  // for all we know, the caller is deleted before this returns!
-  // So, we must return success to the dispatcher, suppressing
-  // its reporting behavior.
-  // However, we cannot simply let errors go unreported, nor can
-  // we expect every possible implementation of deliver_from to
-  // remember to call complete_send.  So we provide it here.
+void Context::do_ipc() {
+  auto d = get_descriptor();
 
-  if (call) {
-    key(0) = object_table[_reply_gate_index].ptr->make_key(0).ref();
-    _calling = true;
+  // Perform first phase of IPC.
+  if (d.get_send_enabled()) {
+    key(d.get_target()).deliver_from(this);
+  } else if (d.get_receive_enabled()) {
+    key(d.get_source()).get()->deliver_to(this);
   } else {
-    _calling = false;
+    // Simply return with registers unchanged.
+    // (Weirdo.)
   }
-  auto r = key(target_index).deliver_from(this);
-  if (r != SysResult::success) complete_send(r);
-  return SysResult::success;
 }
 
-SysResult Context::block_in_receive(Brand brand, List<Context> & list) {
-  bool const blocking = true;  // TODO: nonblocking receives
-
-  if (!blocking) return SysResult::would_block;
-
-  _saved_brand = brand;
-  _ctx_item.unlink();
-  list.insert(&_ctx_item);
-  return SysResult::success;
+void Context::do_copy_key() {
+  auto d = get_descriptor();
+  key(d.get_target()) = key(d.get_source());
 }
 
-SysResult Context::complete_blocked_receive(Brand sender_brand,
-                                            Sender * sender) {
-  // TODO: faults the *sender's* supervisor
-  auto m = CHECK(sender->get_message());
+void Context::do_bad_sys() {
+  put_message(0, Message::failure(Exception::bad_syscall));
+}
 
-  // TODO: report faults in the line below to *our* supervisor.
-  CHECK(put_message(_saved_brand, sender_brand, m));
+void Context::complete_receive(Brand brand, Sender * sender) {
+  put_message(brand, sender->get_message());
 
   for (unsigned i = 0; i < config::n_message_keys; ++i) {
     key(i) = sender->get_message_key(i);
   }
-
-  _ctx_item.unlink();  // from the receiver list
-  runnable.insert(&_ctx_item);
-
-  return SysResult::success;
 }
 
-SysResult Context::put_message(Brand gate_brand,
-                               Brand sender_brand,
-                               Message const & m) {
-  auto addr = reinterpret_cast<ReceivedMessage *>(_stack->r2);
-  CHECK(ustore(&addr->gate_brand, gate_brand));
-  CHECK(ustore(&addr->sender_brand, sender_brand));
-  return ustore(&addr->m, m);
+void Context::complete_receive(Exception e, uint32_t param) {
+  put_message(0, Message::failure(e, param));
+  nullify_exchanged_keys();
+}
+
+void Context::block_in_receive(List<Context> & list) {
+  // TODO should we decide to permit non-blocking recieves... here's the spot.
+  _ctx_item.unlink();
+  list.insert(&_ctx_item);
+}
+
+void Context::complete_blocked_receive(Brand brand, Sender * sender) {
+  _ctx_item.unlink();  // from the receiver list
+  runnable.insert(&_ctx_item);
+  complete_receive(brand, sender);
+}
+
+void Context::complete_blocked_receive(Exception e, uint32_t param) {
+  _ctx_item.unlink();  // from the receiver list
+  runnable.insert(&_ctx_item);
+  complete_receive(e, param);
+}
+
+void Context::put_message(Brand brand, Message const & m) {
+  _save.sys.m = m;
+  _save.sys.m.d0 = _save.sys.m.d0.sanitized();
+  _save.sys.b = brand;
 }
 
 void Context::apply_to_mpu() {
@@ -147,44 +154,66 @@ Priority Context::get_priority() const {
   return _priority;
 }
 
-SysResultWith<Message> Context::get_message() {
-  auto arg = reinterpret_cast<Message const *>(_stack->r1);
-  return uload(arg);
+Message Context::get_message() {
+  return _save.sys.m;
 }
 
-void Context::complete_send(SysResult result) {
-  // If the task has set itself up in such a way that the result
-  // cannot be reported without faulting, we don't currently do
-  // anything special to repair this.  (TODO: message to supervisor)
-  IGNORE(ustore(&_stack->r0, uintptr_t(result)));
+void Context::complete_send() {
+  auto d = get_descriptor();
 
-  if (result == SysResult::success && _calling) {
-    auto rk = key(0);
-    nullify_exchanged_keys();
-    auto r = rk.deliver_to(this);
-    ETL_ASSERT(r == SysResult::success);
+  if (d.get_receive_enabled()) {
+    auto source = d.is_call() ? make_reply_key()
+                              : key(d.get_source());
+    source.get()->deliver_to(this);
   }
 }
 
-SysResult Context::block_in_send(Brand brand, List<Sender> & list) {
-  bool const blocking = true;  // TODO: nonblocking sends
+void Context::complete_send(Exception e, uint32_t param) {
+  put_message(0, Message::failure(e, param));
+  nullify_exchanged_keys();
+}
 
-  if (!blocking) return SysResult::would_block;
-
-  _saved_brand = brand;
-  list.insert(&_sender_item);
-  _ctx_item.unlink();
-  return SysResult::success;
+void Context::block_in_send(Brand brand, List<Sender> & list) {
+  if (get_descriptor().get_block()) {
+    _saved_brand = brand;
+    list.insert(&_sender_item);
+    _ctx_item.unlink();
+    // TODO pend context switch
+  } else {
+    // Unprivileged code is unwilling to block for delivery.
+    complete_send(Exception::would_block);
+  }
 }
 
 void Context::complete_blocked_send() {
-  // TODO: report faults in the line below to the supervisor.
-  IGNORE(ustore(&_stack->r0, uintptr_t(SysResult::success)));
   runnable.insert(&_ctx_item);
+  complete_send();
+}
+
+void Context::complete_blocked_send(Exception e, uint32_t param) {
+  runnable.insert(&_ctx_item);
+  complete_send(e, param);
 }
 
 Key Context::get_message_key(unsigned index) {
-  return key(index);
+  if (index == 0) {
+    // Special handling of reply key
+    auto d = get_descriptor();
+    if (d.is_call()) {
+      return make_reply_key();
+    } else {
+      return Key::null();
+    }
+  } else {
+    // Other keys
+    return key(index);
+  }
+}
+
+Key Context::make_reply_key() const {
+  auto maybe_key = object_table[_reply_gate_index].ptr->make_key(0);
+  if (maybe_key) return maybe_key.ref();
+  return Key::null();
 }
 
 
@@ -192,31 +221,64 @@ Key Context::get_message_key(unsigned index) {
  * Implementation of Object
  */
 
-SysResult Context::deliver_from(Brand brand, Sender * sender) {
-  Message m = CHECK(sender->get_message());
-  switch (m.data[0]) {
-    case 0: return read_register(brand, sender, m);
-    case 1: return write_register(brand, sender, m);
-    case 2: return read_key(brand, sender, m);
-    case 3: return write_key(brand, sender, m);
-    case 4: return read_region(brand, sender, m);
-    case 5: return write_region(brand, sender, m);
+void Context::deliver_from(Brand brand, Sender * sender) {
+  Message m = sender->get_message();
+  switch (m.d0.get_selector()) {
+    case 0: 
+      read_register(brand, sender, m);
+      break;
+
+    case 1: 
+      write_register(brand, sender, m);
+      break;
+
+    case 2: 
+      read_key(brand, sender, m);
+      break;
+
+    case 3: 
+      write_key(brand, sender, m);
+      break;
+
+    case 4: 
+      read_region(brand, sender, m);
+      break;
+
+    case 5: 
+      write_region(brand, sender, m);
+      break;
 
     default:
-      return SysResult::bad_message;
+      sender->complete_send(Exception::bad_operation, m.d0.get_selector());
+      break;
   }
 }
 
-SysResult Context::read_register(Brand,
-                                 Sender * sender,
-                                 Message const & arg) {
-  Word value;
-  switch (arg.data[1]) {
+void Context::read_register(Brand,
+                            Sender * sender,
+                            Message const & arg) {
+  ReplySender reply_sender{0};  // TODO priority
+  switch (arg.d1) {
     case 13:
-      value = reinterpret_cast<Word>(_stack);
+      reply_sender.set_message({
+          Descriptor::zero(),
+          reinterpret_cast<Word>(_stack),
+          });
       break;
 
-#define GP_EF(n) case n: value = CHECK(uload(&_stack->r ## n)); break
+#define GP_EF(n) \
+    case n: { \
+      auto r = uload(&_stack->r ## n); \
+      if (r.is_error()) { \
+        reply_sender.set_message(Message::failure(Exception::fault)); \
+      } else { \
+        reply_sender.set_message({ \
+            Descriptor::zero(), \
+            r.ref(), \
+          }); \
+      } \
+      break; \
+    }
     GP_EF(0);
     GP_EF(1);
     GP_EF(2);
@@ -226,7 +288,18 @@ SysResult Context::read_register(Brand,
     GP_EF(15);
 #undef GP_EF
 
-    case 16: value = CHECK(uload(&_stack->psr)); break;
+    case 16: {
+      auto r = uload(&_stack->psr);
+      if (r.is_error()) {
+        reply_sender.set_message(Message::failure(Exception::fault));
+      } else {
+        reply_sender.set_message({
+            Descriptor::zero(),
+            r.ref(),
+          });
+      }
+      break;
+    }
 
     case 4:
     case 5:
@@ -236,33 +309,41 @@ SysResult Context::read_register(Brand,
     case 9:
     case 10:
     case 11:
-      value = _save.raw[arg.data[1] - 4];
+      reply_sender.set_message({Descriptor::zero(), _save.raw[arg.d1 - 4]});
       break;
 
     default:
-      return SysResult::bad_message;
+      reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+      break;
   }
 
   auto reply = sender->get_message_key(0);
   sender->complete_send();
 
-  ReplySender reply_sender{0, {value}};  // TODO priority
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  reply.deliver_from(&reply_sender);
 }
 
-SysResult Context::write_register(Brand,
-                                  Sender * sender,
-                                  Message const & arg) {
-  auto r = arg.data[1];
-  auto v = arg.data[2];
+void Context::write_register(Brand,
+                             Sender * sender,
+                             Message const & arg) {
+  auto r = arg.d1;
+  auto v = arg.d2;
+
+  ReplySender reply_sender{0};  // TODO priority
 
   switch (r) {
     case 13:
       _stack = reinterpret_cast<decltype(_stack)>(v);
       break;
 
-#define GP_EF(n) case n: CHECK(ustore(&_stack->r ## n, v)); break;
+#define GP_EF(n) \
+    case n: { \
+      auto r = ustore(&_stack->r ## n, v); \
+      if (r != SysResult::success) { \
+        reply_sender.set_message(Message::failure(Exception::fault)); \
+      } \
+      break; \
+    }
     GP_EF(0);
     GP_EF(1);
     GP_EF(2);
@@ -272,7 +353,13 @@ SysResult Context::write_register(Brand,
     GP_EF(15);
 #undef GP
 
-    case 16: CHECK(ustore(&_stack->psr, v)); break;
+    case 16: {
+      auto r = ustore(&_stack->psr, v);
+      if (r != SysResult::success) {
+        reply_sender.set_message(Message::failure(Exception::fault));
+      }
+      break;
+    }
 
     case 4:
     case 5:
@@ -286,69 +373,70 @@ SysResult Context::write_register(Brand,
       break;
 
     default:
-      return SysResult::bad_message;
+      reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+      break;
   }
 
   auto reply = sender->get_message_key(0);
   sender->complete_send();
 
-  ReplySender reply_sender{0};  // TODO priority
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  reply.deliver_from(&reply_sender);
 }
 
-SysResult Context::read_key(Brand,
-                            Sender * sender,
-                            Message const & arg) {
-  auto r = arg.data[1];
-  if (r >= config::n_task_keys) return SysResult::bad_message;
-
+void Context::read_key(Brand,
+                       Sender * sender,
+                       Message const & arg) {
+  auto r = arg.d1;
   auto reply = sender->get_message_key(0);
   sender->complete_send();
 
   ReplySender reply_sender{0};  // TODO priority
-  reply_sender.set_key(0, key(r));
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  if (r >= config::n_task_keys) {
+    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+  } else {
+    reply_sender.set_key(1, key(r));
+  }
+  reply.deliver_from(&reply_sender);
 }
 
-SysResult Context::write_key(Brand,
-                             Sender * sender,
-                             Message const & arg) {
-  auto r = arg.data[1];
-  if (r >= config::n_task_keys) return SysResult::bad_message;
+void Context::write_key(Brand,
+                        Sender * sender,
+                        Message const & arg) {
+  auto r = arg.d1;
 
   auto reply = sender->get_message_key(0);
   auto new_key = sender->get_message_key(1);
   sender->complete_send();
 
-  key(r) = new_key;
-
   ReplySender reply_sender{0};  // TODO priority
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  if (r >= config::n_task_keys) {
+    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+  } else {
+    key(r) = new_key;
+  }
+  reply.deliver_from(&reply_sender);
 }
 
-SysResult Context::read_region(Brand,
-                               Sender * sender,
-                               Message const & arg) {
-  auto n = arg.data[1];
+void Context::read_region(Brand,
+                          Sender * sender,
+                          Message const & arg) {
+  auto n = arg.d1;
   auto reply = sender->get_message_key(0);
   sender->complete_send();
 
   ReplySender reply_sender{0};  // TODO priority
   if (n < config::n_task_regions) {
-    reply_sender.set_message({1});
-    reply_sender.set_key(0, _memory_regions[n]);
+    reply_sender.set_key(1, _memory_regions[n]);
+  } else {
+    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   }
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  reply.deliver_from(&reply_sender);
 }
 
-SysResult Context::write_region(Brand,
-                                Sender * sender,
-                                Message const & arg) {
-  auto n = arg.data[1];
+void Context::write_region(Brand,
+                           Sender * sender,
+                           Message const & arg) {
+  auto n = arg.d1;
   auto reply = sender->get_message_key(0);
   auto object_key = sender->get_message_key(1);
   sender->complete_send();
@@ -356,14 +444,14 @@ SysResult Context::write_region(Brand,
   ReplySender reply_sender{0};  // TODO priority
 
   if (n < config::n_task_regions) {
-    reply_sender.set_message({1});
     _memory_regions[n] = object_key;
+  } else {
+    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   }
 
   if (current == this) apply_to_mpu();
 
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  reply.deliver_from(&reply_sender);
 }
 
 }  // namespace k

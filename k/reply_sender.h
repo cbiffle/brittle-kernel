@@ -24,8 +24,12 @@ public:
    */
 
   uint32_t get_priority() const override;
-  SysResultWith<Message> get_message() override;
+  Message get_message() override;
   Key get_message_key(unsigned index) override;
+
+  void complete_send() override;
+  void complete_send(Exception, uint32_t) override;
+  void block_in_send(Brand, List<Sender> &) override;
 
 private:
   Message _m;

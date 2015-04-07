@@ -10,11 +10,11 @@ namespace k {
  * they have been initialized from some other key.  It is also the object
  * to which keys refer after revocation.
  *
- * It does nothing -- it returns bad_key for all operations.
+ * It does nothing -- just generates delivery exceptions.
  */
 class NullObject : public Object {
 public:
-  SysResult deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 };
 
 }  // namespace k

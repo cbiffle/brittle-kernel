@@ -41,35 +41,44 @@ public:
    *
    * If this object can reason about the send right away, it should:
    * - Use sender's member functions to collect information about the message.
-   * - Call sender's complete_send function with a SysResult for the send
-   *   phase.
-   * - If doing a call-style invocation, generate a reply to k0 from the
-   *   message.
+   * - Call the sender's complete_send function to end the send phase.
+   * - If doing a call-style invocation, generate a reply to sender's k0.
    *
    * This object may not be able to accept the message right away, in which
    * case it should ask the sender to block by calling block_in_send.  The
-   * sender may refuse this, ending the process.
+   * sender may or may not agree to do so, but that's between the sender and
+   * the provided list.
    *
    * This object can inspect the sender's message using member functions
    * while the sender is blocked.  Once it decides to unblock the sender and
-   * take action on the message, it should call complete_blocked_send in
-   * place of complete_send and finish the process above.
-   *
-   * The return value from this function indicates the status of the original
-   * send.  If a send is blocked, the status is still 'success'.  A failure
-   * to e.g. access parameters at the addresses that the sender passed would
-   * result in failure.
+   * take action on the message, it should call complete_blocked_send in place
+   * of normal complete_send and finish the process above.
    */
-  virtual SysResult deliver_from(Brand, Sender *) = 0;
+  virtual void deliver_from(Brand, Sender *) = 0;
 
   /*
    * The given Context wants to receive a message from this object.  This
    * operation is typically valid only on gates, but is implemented uniformly
    * on all objects to avoid the need for a cast.
    *
-   * The default implementation returns SysResult::bad_key.
+   * If this object has something to say right now, it should:
+   * - Call the context's complete_receive member function, providing a
+   *   brand and sender.
+   * 
+   * If the object may have something to say later but needs to block the
+   * context, it should:
+   * - Call the context's block_in_receive function.  The context may or may
+   *   not actually block itself, depending on the code controlling it.
+   * - Later, on finding a context on a list, use complete_blocked_receive to
+   *   deliver the message.
+   *
+   * If receiving from this object is not appropriate (the default
+   * implementation), call the context's complete_blocked_receive member
+   * function with an exception.
+   *
+   * The default implementation fails with a bad_operation Exception.
    */
-  virtual SysResult deliver_to(Brand, Context *);
+  virtual void deliver_to(Context *);
 
   /*
    * Checks whether this Object is really an AddressRange.  The default

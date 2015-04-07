@@ -18,8 +18,8 @@ public:
    * Implementation of Object
    */
 
-  SysResult deliver_from(Brand, Sender *) override;
-  SysResult deliver_to(Brand, Context *) override;
+  void deliver_from(Brand, Sender *) override;
+  void deliver_to(Context *) override;
   etl::data::Maybe<Key> make_key(Brand) override;
 
 private:

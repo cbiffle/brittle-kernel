@@ -13,14 +13,21 @@ Mints a key to an object chosen by index with an arbitrary brand.  The key is
 current at return but will be revoked, like any other key, at any future
 generation change.
 
+Objects have an opportunity to veto the provided brand.  This allows some brand validity checks to happen at minting instead of invocation-time.
+
 Arguments:
-- d0: selector
+- d0: descriptor
 - d1: object index in table
 - d2: brand low bits
 - d3: brand high bits
 
 Results:
-- k0: newly minted key
+- d0: success descriptor
+- k1: newly minted key
+
+Exceptions:
+- `k.index_out_of_range` if the index is not within the object table.
+- `k.bad_brand` if the object vetoes the suggested brand.
 
 
 Read Key (1)
@@ -31,9 +38,11 @@ the reverse of Mint Arbitrary Key, and can be used to determine whether two
 keys refer to the same object, or to check the brand of a key.
 
 Arguments:
-- d0: selector
+- d0: descriptor
 - k0: key
 
 Results:
-- d0: table index
-- d1: brand
+- d0: success descriptor
+- d1: table index
+- d2: brand low bits
+- d3: brand high bits

@@ -1,6 +1,7 @@
 #ifndef K_SENDER_H
 #define K_SENDER_H
 
+#include "k/exceptions.h"
 #include "k/sys_result.h"
 #include "k/types.h"
 
@@ -26,16 +27,9 @@ public:
   virtual Priority get_priority() const = 0;
 
   /*
-   * Returns a copy of the sender's current message, or one of the
-   * following error results:
-   *
-   * - fault: the area alleged to contain a message by unprivileged
-   *   code turns out not to be accessible to said code.
-   *
-   * Any failure returned from this function represents a failure
-   * in delivery.
+   * Returns a copy of the sender's current message.
    */
-  virtual SysResultWith<Message> get_message() = 0;
+  virtual Message get_message() = 0;
 
   /*
    * Copies one of the message keys.
@@ -47,56 +41,58 @@ public:
   virtual Key get_message_key(unsigned index);
 
   /*
-   * Finishes a send without blocking, reporting the given delivery
-   * result.  In general, kernel functions can return a SysResult
-   * during delivery and not call this function directly -- wrappers
-   * at the outermost level of the stack will call it if required.
+   * Finishes a send without blocking, indicating success to the sender.
    *
    * This is one of two opportunities for the sender to atomically
    * transition to receive state, if desired; the other is the
    * similar function complete_blocked_send.
-   *
-   * The default implementation does nothing.
    */
-  virtual void complete_send(SysResult = SysResult::success);
+  virtual void complete_send() = 0;
 
   /*
-   * Asks this sender to suspend sending and block on the given list.
-   * The brand originally used to begin the send is passed in here, as
-   * a blocking sender probably needs to save it somewhere.
-   *
-   * Acceptable results:
-   *
-   * - success: the sender has stored the brand and any additional
-   *   information needed for its eventual reply, and has listed itself
-   *   on the given sender list.
-   *
-   * - would_block: the sender refuses to block for message delivery
-   *   and thus delivery should fail.
-   *
-   * The default implementation -- the common one for kernel objects --
-   * refuses to block by returning SysResult::would_block.
-   *
-   * If blocking is accepted, the sender will be freed later by a call
-   * to complete_blocked_send.
+   * Finishes a send without blocking, indicating failure to the sender.  This
+   * means the message was not delivered, not that the message's contents were
+   * rejected.
    */
-  virtual SysResult block_in_send(Brand, List<Sender> &);
+  virtual void complete_send(Exception, uint32_t = 0) = 0;
 
   /*
-   * Finishes the blocking phase of a send begun by block_in_send.
-   * Note that at this point the delivery has succeeded, so -- unlike
-   * with complete_send -- there's no opportunity to indicate an error.
+   * Asks this sender to suspend sending and block on the given list.  The
+   * brand originally used to begin the send is passed in here, as a blocking
+   * sender probably needs to save it somewhere.  (We want the brand to stay
+   * the same even if the sender's keys are asynchronously altered.)
    *
-   * If the sender is doing something call-like, this is its chance
-   * to transition to a receive state.
+   * (TODO this may be excessively paranoid.)
    *
-   * Any error returned here will be exposed to the *recipient* as a
-   * failure in receive.
+   * If the sender agrees to block, it will save the brand and add itself to
+   * the given list, expecting to be freed later either by interruption or a
+   * call to complete_blocked_send.
    *
-   * Senders must implement this if they permit blocking in block_in_send.
-   * The default implementation asserts!
+   * If it is not willing to block, it does nothing, and may record somewhere
+   * that the send was not completed.
+   */
+  virtual void block_in_send(Brand, List<Sender> &) = 0;
+
+  /*
+   * Finishes the blocking phase of a send begun by block_in_send, indicating
+   * that delivery was successful.
+   *
+   * If the sender is doing something call-like, this is its second chance to
+   * transition to a receive state.
+   *
+   * Senders must implement this if they ever add themselves to a sender list
+   * as in block_in send.  The default implementation asserts!
    */
   virtual void complete_blocked_send();
+
+  /*
+   * Finishes the blocking phase of a send begun by block_in_send, recording
+   * the given delivery error.
+   *
+   * Senders must implement this if they ever add themselves to a sender list
+   * as in block_in send.  The default implementation asserts!
+   */
+  virtual void complete_blocked_send(Exception, uint32_t = 0);
 };
 
 }  // namespace k

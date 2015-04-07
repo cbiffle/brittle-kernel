@@ -9,6 +9,7 @@ using Brand      = std::uint64_t;
 using Generation = std::uint32_t;
 using Priority   = std::uint32_t;
 using TableIndex = std::uint32_t;
+using Selector   = std::uint16_t;
 
 }  // namespace k
 

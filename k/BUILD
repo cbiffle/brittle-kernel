@@ -1,9 +1,7 @@
 c_library('k_portable',
   sources = [
     'address_range.cc',
-    'ipc.cc',
     'key.cc',
-    'object.cc',
     'object_table.cc',
     'reply_sender.cc',
     'sender.cc',
@@ -14,6 +12,14 @@ c_library('k_portable',
   local = {
     'cxx_flags': ['-Wno-invalid-offsetof'],
   },
+).extend_when(lambda e: e['arch'] == 'target',
+  sources = [
+    'object.cc',
+  ],
+).extend_when(lambda e: e['arch'] == 'native',
+  sources = [
+    'object_native.cc',
+  ],
 )
 
 c_library('k',

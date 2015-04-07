@@ -1,8 +1,6 @@
 #include "k/address_range.h"
 
 #include "etl/armv7m/mpu.h"
-#include "etl/error/check.h"
-#include "etl/error/ignore.h"
 
 #include "k/ipc.h"
 #include "k/sender.h"
@@ -129,28 +127,31 @@ bool AddressRange::is_address_range() const {
   return true;
 }
 
-SysResult AddressRange::deliver_from(Brand brand, Sender * sender) {
-  Message m = CHECK(sender->get_message());
-  switch (m.data[0]) {
-    case 0: return inspect(brand, sender, m);
+void AddressRange::deliver_from(Brand brand, Sender * sender) {
+  Message m = sender->get_message();
+  switch (m.d0.get_selector()) {
+    case 0: 
+      inspect(brand, sender, m);
+      break;
 
     default:
-      return SysResult::bad_message;  // TODO
+      sender->complete_send(Exception::bad_operation, m.d0.get_selector());
+      break;
   }
 }
 
-SysResult AddressRange::inspect(Brand brand,
-                                Sender * sender,
-                                Message const & m) {
+void AddressRange::inspect(Brand brand,
+                           Sender * sender,
+                           Message const & m) {
   auto reply = sender->get_message_key(0);
   sender->complete_send();
 
   ReplySender reply_sender{0, {
+    Descriptor::zero(),
     uint32_t(brand),
     uint32_t(brand >> 32),
   }};
-  IGNORE(reply.deliver_from(&reply_sender));
-  return SysResult::success;
+  reply.deliver_from(&reply_sender);
 }
 
 }  // namespace k
