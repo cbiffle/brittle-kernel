@@ -124,7 +124,7 @@ private:
   StackRegisters * _stack;
 
   // Area for saving the context's callee-save registers.
-  std::uintptr_t _registers[8];
+  SavedRegisters _save;
 
   // Keys held by the context.
   Key _keys[config::n_task_keys];

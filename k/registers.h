@@ -11,6 +11,13 @@ namespace k {
  */
 using StackRegisters = etl::armv7m::ExceptionFrame;
 
+/*
+ * Machine registers, as saved by the kernel entry routines into kernel space.
+ */
+union SavedRegisters {
+  uint32_t raw[8];
+};
+
 }  // namespace k
 
 #endif  // K_REGISTERS_H

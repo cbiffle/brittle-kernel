@@ -41,7 +41,7 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   // (The fields in question are private, so this can't be at top level.)
   // (Putting it in the ctor hits the ill-defined non-trivial ctor rules.)
   static_assert(
-      K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _registers),
+      K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _save),
       "K_CONTEXT_SAVE_OFFSET is wrong");
 
   // Right, actual implementation now:
@@ -236,7 +236,7 @@ SysResult Context::read_register(Brand,
     case 9:
     case 10:
     case 11:
-      value = _registers[arg.data[1] - 4];
+      value = _save.raw[arg.data[1] - 4];
       break;
 
     default:
@@ -282,7 +282,7 @@ SysResult Context::write_register(Brand,
     case 9:
     case 10:
     case 11:
-      _registers[r - 4] = v;
+      _save.raw[r - 4] = v;
       break;
 
     default:
