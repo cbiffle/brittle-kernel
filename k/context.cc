@@ -268,7 +268,9 @@ void Context::read_register(Brand,
 
 #define GP_EF(n) \
     case n: { \
+      apply_to_mpu(); \
       auto r = uload(&_stack->r ## n); \
+      current->apply_to_mpu(); \
       if (r.is_error()) { \
         reply_sender.set_message(Message::failure(Exception::fault)); \
       } else { \
@@ -289,7 +291,9 @@ void Context::read_register(Brand,
 #undef GP_EF
 
     case 16: {
+      apply_to_mpu();
       auto r = uload(&_stack->psr);
+      current->apply_to_mpu();
       if (r.is_error()) {
         reply_sender.set_message(Message::failure(Exception::fault));
       } else {
