@@ -1,0 +1,191 @@
+ABI Version 2
+=============
+
+Goals:
+- Eliminate separation of message and return type.
+- Eliminate pointers passed into kernel.
+- Still allow for extension in message sizes.
+
+Due to limitations in my contiguous free time I probably won't do them all at
+once.
+
+Techniques in play:
+
+- Move control and status information into first word of message.
+  - Precisely what that information includes is TBD.
+- Consider generalizations of call operation, more like L4's sendrec.
+
+
+Message Control Words
+---------------------
+
+Every message sent and received includes a message control word as its first
+data word.  It contains:
+
+1. The *selector*, which conventionally chooses the type of operation intended
+   by a command message, or a small integer result in a reply.
+
+2. The *error flag,* which conventionally muxes two protocols: the success
+   result protocol and the error result protocol.
+
+In addition, the control word contains information interpreted by the kernel
+specific to each operation:
+
+ - For sends and calls, it contains the key register number of the target key.
+
+ - For all operations, information about under what circumstances the caller is
+   willing to block.
+
+Does it make sense to allow calls without blocking on the reply?  Does the
+kernel care?
+
+
+Outgoing Message
+----------------
+
+An outgoing message consists of `M` data words and `K` keys.  The first data
+word, `d0`, has a special role: it holds information for both the recipient and
+the kernel.
+
+`d0` contents:
+- `d0[15:0]` - message selector.  Conventionally chooses the operation requested
+  by the message.
+
+- `d0[19:16]` - index of key register referencing message target.
+
+- `d0[30:20]` - reserved
+
+- `d0[31]` - error flag.
+
+When the message is delivered to a recipient, bits 30:16 are cleared; that is,
+only the error flag and selector are preserved.
+
+
+Incoming Message
+----------------
+
+An incoming message consists of the fields of an outgoing message, plus two
+brands, each 64 bits in length: the key brand and the gate brand.
+
+The key brand identifies the (type of) key used to send the message.
+
+The gate brand identifies which gate the message was received through.
+
+
+The Error Flag
+--------------
+
+The error flag allows high-level code to implement similar semantics to
+primitive kernel objects.
+
+It is not intended to signal message delivery failures of the sort caused by
+destruction or interruption.
+
+It *is* intended for cases where...
+- A message is sent to a null key.
+- A key passed in the message is of the wrong type.
+- An operation is invalid given the brand.
+- A selector is unknown or invalid.
+- The parameters passed for some data structure access (e.g. updating registers
+  in a Context) are out of range.
+
+etc.
+
+The error flag effectively allows two protocols to be multiplexed over a call's
+reply channel: a result protocol and an error protocol.  It has a dedicated
+location to prevent misinterpreting an error returned from an incorrectly used
+key as result from the expected key type.
+
+All kernel objects will use a conventional error protocol.  Applications may
+choose to use it or not.
+
+
+I intend the error flag to be primarily used when sending replies to call-like
+messages.  However, one could send requests to a server (including calls!) that
+have the error flag set.  The kernel doesn't care.  This might be useful for
+some protocols, but I'm having a hard time imagining why.
+
+
+Which Registers?
+----------------
+
+It's sort of natural to expect messages in r0-r3, since they're the registers
+normally used for arguments.  But those registers are stashed into unprivileged
+memory at `svc`.  Yes, the stashing mechanism has the side effect of verifying
+access permissions... but:
+
+ - Accessing the parameters using explicit unprivileged loads introduces a lot
+   of failure paths to the code, not to mention boilerplate.
+
+ - Accessing them *without* that protection feels loose and potentially
+   dangerous.
+
+How could it be dangerous?
+
+In the case where a task blocks in receive (say) for an arbitrary period of
+time, and during that time its access to its stack memory area is revoked, and
+the memory is repurposed.  We definitely don't want to go depositing a response
+into that memory!
+
+As an alternative: it just so happens that all of the information exchanged in a
+single syscall fits into 8 registers -- and we have 8 registers held in kernel
+space.  We can read and write those with impunity.  (This would break down if we
+switched to messages containing more than four data words.)
+
+If we made unprivileged code park its messages in these registers, they're
+guaranteed to still be in registers when we get control, so we can do something
+useful with them without a memory access.  (Note that r0-r3 are *not* guaranteed
+to be in registers in cases of interrupt preemption or tail-chaining!)
+
+We could just about eliminate unprivileged accesses from the kernel at this
+point.  The exceptions are:
+
+1. If we let people access data through a memory range key, and
+2. The population of the initial task's registers.
+3. Interpretation of `svc` index.
+
+Completely eliminating unprivileged accesses from kernel space, if possible,
+would be spectacular.
+
+
+Proposed Call ABI (4 word messages)
+-----------------------------------
+
+Values are passed in registers, not (just) for performance, but to simplify
+access from the kernel and avoid interpreting application pointers.
+
+On entry:
+- `svc` parameter specifies call-style send.
+- `r4` - `r7`: `d0` - `d3`.
+
+On return, the `N` bit of the `PSR` is set if delivery failed, and `r0` holds
+information as to why.  Otherwise:
+- `r4` - `r7`: `d0` - `d3` of response.
+- `r8` - `r9`: key brand, for consistency.
+- `r10` - `r11`: gate brand, for consistency.
+
+
+Proposed Send ABI (4 word messages)
+-----------------------------------
+
+On entry:
+- `svc` parameter specifies send.
+- `r4` - `r7`: `d0` - `d3`.
+
+On return, the `N` bit of the `PSR` is set if delivery failed.
+
+
+Proposed Receive ABI (4 word messages)
+--------------------------------------
+
+Receives use a control word with the same shape as `d0` in an outgoing message,
+except that only the key index is significant.
+
+On entry:
+- `svc` parameter specifies receive.
+- `r0`: control word
+
+On return, the `N` bit of the `PSR` is set if delivery failed.  Otherwise:
+- `r0` - `r3`: `d0` - `d3` of response.
+- `r4` - `r5`: key brand.
+- `r6` - `r7`: gate brand.

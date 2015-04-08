@@ -1,0 +1,225 @@
+IPC ABI Redux
+=============
+
+Since I'm still laying around in pain, let's keep flogging this same problem.
+
+Was thinking about things last night.  I think the kernel expects people to use
+calls under most circumstances.  It's reasonable to describe the 'send'
+operation as something intended to be used to reply to calls -- at least in
+cases where one doesn't use a call to reply to a call, to do coroutine linkage.
+
+Sends *might* also be valuable for forwarding messages, including calls, but on
+consideration I'm not sure how realistic of a use case this is.  It would make
+sense only for *truly* transparent forwarding, since the forwarder would have no
+opportunity to weigh in on the returned values.
+
+A *reply* operation is a non-blocking send wherein the sender is just going to
+ignore any errors anyway.
+
+A *forward* is a (potentially blocking) send wherein the sender may want to know
+about errors.
+
+
+And again, the reason I'm still thinking about this is the potential for
+protocol confusion between a send with a key and a call.  If e.g. the null
+object delivers its "I am null go away" message through k0 of the received
+message, then we have an opportunity to use it as a message reflector that blows
+errors through some key.
+
+
+Consider KeyKOS.
+----------------
+
+Let's specifically consider KeyKOS's IPC model for a bit.
+
+KeyKOS has three fundamental operations.
+
+- *CALL* generates a single-use reply key.
+- *RETURN* is a combination one-way send and open wait.
+- *FORK* is simply a one-way send.
+
+*CALL* and *RETURN* can be combined to implement thread-migrating IPC.
+
+*FORK* produces new control flows.  (Was renamed *SEND* in EROS but kept
+fundamentally similar.)
+
+All of these operations are valuable.  *FORK* is the costliest and might be
+restricted in some way.
+
+Interesting that KeyKOS doesn't have a separate *RECEIVE* operation.  I suppose
+one could simulate it by *RETURN*-ing on a null key (zero number key)?
+
+
+What's the fault I'm worried about here?
+----------------------------------------
+
+Alice sends Bob a message.  Instead of including her reply key, Alice includes a
+key to Carl.
+
+Bob fills out the response and dutifully sends it to Carl.  The response
+includes a key to Dave.
+
+Bob's response doesn't make sense to Carl, so Carl sends an exception to Dave.
+
+
+This is clearly annoying, but it's not a confused deputy situation -- because
+Bob is acting only with authority granted by Alice, and is thus not setting off
+any process that Alice herself couldn't have started.
+
+So what's the problem?  Is there a problem?
+
+Are priorities a problem?  In a normal client-server relationship, Bob's
+priority will be equal to or greater than Alice's.  So Alice actually has gotten
+Bob to act with some authority she hasn't got: Bob's priority.  This could
+potentially allow her to "cut into line" in Carl's response queue.
+
+Or can it?  Bob's reply will be sent using the *return* semantics, meaning that
+Bob will deliver the message best-effort and only if the recipient is ready.  In
+this case, that would mean that Carl is parked in receive on the gate Alice
+sent.  By definition, nobody else is ahead in line; if anyone were in line, it
+would mean that Carl was not in receive state on that gate, and Bob would not
+deliver the message.
+
+
+What about distinguished reply keys?
+------------------------------------
+
+What if the reply key were delivered in a way that prevented confusion with a
+simple message key?  That is, a delivered message always contains K+1 keys,
+where the +1 is the reply key -- and a *SEND* delivers the null key.
+
+This would prevent the sort of asymmetric forwarding I was considering, where
+replies go directly back to the originator, without some way of forging a reply
+key.  But as I noted above, I'm not sure how realistic of a use case this is.
+
+It would prevent the protocol confusion discussed above by clearly
+distinguishing between a key that is expected to be used as a reply, and a key
+that isn't.
+
+
+The simplest concrete implementation of this would pass key registers 0-3
+directly and fill in either null or a new reply key in key register 4.
+
+(Or k0.  Either way.  The key is that it's distinct.)
+
+If the sender's reply key register is not corrupted by the operation, it makes
+it easier to chain calls -- we don't have to back up the reply key.  I like
+this.
+
+--------------------------------------------------------------------------------
+
+
+Yet Another Proposed ABI
+========================
+
+Operations:
+- *Send.*  Transmits a null reply key.
+- *Receive.*
+- *Send then receive.*  This is potentially useful for reducing context switch
+  overhead in servers.  Could implement this later.
+- *Call.*  Equivalent of send-then-receive except a reply key is delivered.
+
+I'm kind of inclined to describe all of these operations using an OKL4-like two
+phase operation.  The only distinction between send-then-receive and call is
+which key the sender uses to receive after delivery.  We could even always
+distribute a reply key -- if the sender doesn't wait on it it's equivalent to a
+null key.
+
+So I guess things come down to how we encode the distinctions.  Contexts are not
+obliged to hold their own reply key -- indeed, it is impossible to do so.  So a
+context cannot simply name it to enter receive.
+
+If we go with a dedicated reply key register -- say, k0 -- then receiving from
+such a key doesn't make a whole lot of sense, and could be (ab)used to indicate
+the reply key.
+
+The logical control information for such an operation follows:
+- Send bit: is send phase enabled?
+- Send key index.
+  - Ignored if send phase disabled.
+  - Interpreted literally.
+- Send block bit: are we willing to block to accomplish the send phase?
+- Receive bit: is receive phase enabled?
+- Receive key index.
+  - Ignored if receive phase disabled.
+  - A value of zero indicates reply key and causes a reply key to be sent if the
+    receive phase is enabled.
+  - Any other value, or a disabled receive phase, sends a null reply key.
+
+Receives are implicitly blocking.
+
+There's the question, again, about whether sends indicate status.  If a send
+without receive phase happens, it could rewrite its message to indicate basic
+status:
+- E bit clear on success.
+- E bit set and exception message on failure.
+
+How could such a send fail?
+- Non-blocking send had no ready partner.
+- Send was to null key (such failures are likely silent).
+- Blocking send was aborted.
+
+
+Descriptor Format
+-----------------
+
+       28   24   20       16               0
+    +----+----+----+-+-+-+-+----------------+
+    |....| RK | SK |B|R|S|E|    selector    |
+    +----+----+----+-+-+-+-+----------------+
+
+- `RK` is the receive key index.
+  - Unused if `R` bit clear.
+- `SK` is the send key index.
+  - Unused if `S` bit clear.
+- `B` is the block bit.
+  - When set, the send phase can block.
+  - When clear, the send phase will fail rather than blocking.
+- `R` is the receive enable bit.
+  - When set, the receive phase happens.
+- `S` is the send enable bit.
+  - When set, the send phase happens.
+- `E` is the error bit.
+  - Transferred during the send phase.
+  - Ignored if the send phase is disabled.
+- `selector` is the uninterpreted operation selector.
+  - Transferred during the send phase.
+
+The top four bits could be used as a syscall number to distinguish IPC from e.g.
+key manipulation.  Or reserved for future use.  Whichever.
+
+
+Syscall control flow
+--------------------
+
+Consider a call-style invocation from Context to Context where the recipient is
+ready:
+
+- SVC occurs in unprivileged code.
+- `svc_dispatch`
+- Sender: `Context::do_svc`
+- Sender: `Context::do_ipc`
+- Gate: `Gate::deliver_from`
+  - Recipient: `Context::complete_blocked_receive`
+    - Copies message and brand into registers.
+      - When asked for its reply key, sender checks descriptor and mints one.
+    - Moves recipient to `runnable` list.
+    - Pends a context switch.
+  - Sender: `Context::delivery_successful`
+    - Reply gate: `ReplyGate::deliver_to`
+      - Sender: `Context::block_in_receive`
+
+A simpler one: a call-style invocation of a kernel object.
+
+- SVC occurs in unprivileged code.
+- `svc_dispatch`
+- Sender: `Context::do_svc`
+- Sender: `Context::do_ipc`
+- Recipient: `Object::deliver_from`
+  - Does some stuff.
+    - When asked for its reply key, sender checks descriptor and mints one.
+  - Sender: `Context::delivery_successful`
+    - Reply gate: `ReplyGate::deliver_to`
+      - Sender: `Context::block_in_receive`
+  - Reply gate: `ReplyGate::deliver_from` a reply sender
+    - Sender: `Context::complete_blocked_receive`

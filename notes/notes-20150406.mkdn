@@ -1,0 +1,392 @@
+On generalizations to the call mechanism
+========================================
+
+I want to think about this one and put it to bed, if possible.
+
+The gist:
+
+- Collapse the IPC syscalls into a single syscall that has optional send and
+  receive phases.
+- Provide information in the control word about how the phases should work and
+  interact.
+
+This could eliminate the `svc` index decoding and the requisite unprivileged
+load, though given that we do have one other syscall (move cap), it won't do so
+without further effort.
+
+
+Parameters of a Call
+--------------------
+
+A call-style invocation is the most complicated IPC operation, so let's consider
+it first.  To perform the simplest sort of call, we need:
+
+- A selector.
+- One or more error muxing bits, for consistency.
+- A target key index.
+- Flag(s) controlling blocking.
+
+Consider blocking.  Do we need independent flags for the two phases?  What would
+it mean to perform a blocking send followed by a non-blocking receive?  (In
+practice, it would mean that one rarely, if ever, received replies.)
+
+But would designing an encoding that prevented this be more work?
+
+How about a non-blocking send followed by a blocking receive?  That one makes
+more sense: begin serving the request immediately or not at all, and once
+serving begins, wait for a reply.
+
+
+Generalized Sendrec
+-------------------
+
+A fully general send-then-receive operation extends the call parameters to
+include another key index -- the index of the key from which to receive.
+
+This operation would not send a newly minted reply key.  It could be used in
+server message loops to reduce processing time between messages.  It could also
+be used in more complex coroutine-style activations or whatever.
+
+In this case, having independent blocking control over the phases makes sense,
+because the phases really are independent.
+
+(I admit, I wonder how often this operation would get used.   Writing a message
+loop in terms of message exchanges isn't terribly intuitive to me, at least in
+C.  Perhaps Erlang has rotted my brain.)
+
+
+Distinguishing Call from Sendrec
+--------------------------------
+
+A Call, then, is a specialized Sendrec that mints the single valid key to the
+caller's reply gate and substitutes it for k0 of the outgoing message.  It then
+transitions to receive on that key.
+
+This could be encoded as a receive key index of 0 and a separate bit that
+triggers the substitution on activation, before the receive.
+
+
+Control Word Sketch #1
+----------------------
+
+- Selector (16 bits)
+- Error flag (1 bit)
+- Send Phase Enable flag (1 bit)
+- Send Key Index (4 bits)
+- Receive Phase Enable flag (1 bit)
+- Generate Reply Key flag (1 bit)
+- Receive Key Index (4 bits)
+
+- Total: 28 bits.
+
+
+Output From Send
+----------------
+
+If send fails, or the send phase of a complicated sendrec fails, we need to
+inform the sender somehow.  Options:
+
+- Return a message with the error bit set in the control word and some
+  recognizeable and unique pattern in the data and/or selector.
+  - This has the advantage of not needing a separate mechanism, and can be faked
+    by unprivileged code.
+- Dedicate one or more additional bits in the control word to operation status,
+  such that programs could distinguish successful reception of an error message
+  from a failed reception (for example).
+
+The first one has the advantage that delivery failures several hops away can be
+reported back in a reply, though one-way sends only report failures in the first
+hop, and this is difficult to change.
+
+> Aside: changing this would require the ability to force a context to block
+> when it has explicitly asked not to.  This is a little alarming as a concept.
+> We could provide kernel support for this with some sort of 'sticky' gate that
+> traps anyone who sends to it for inspection.  But we'll burn that bridge when
+> we come to it.
+
+Consider the behavior when invoking a null key.  We'd like any message sent to a
+null key to come back as an error.  Revocation can convert any key into a null
+key at any time.  Thus, for correct operation, all protocols must be supersets
+of the null key protocol, lest a null key's responses be misinterpreted.  The
+simplest approach might be to reserve a single error value (perhaps zero) as the
+null key error.
+
+Other objects could simulate this, of course, acting as null keys when e.g. an
+unrecognized brand is employed.  But, as discussed above, only for calls, never
+for sends.  It might be simpler to use a protocol-specific error to signal bad
+brands, unless doing so would yield too much information to the caller.
+
+
+Okay.  Can we define sends such that all this seems reasonable?
+
+Sends are like UDP: it may appear as though you have successfully sent
+something, but this implies no guarantee that its intended recipient has
+received it!  This is true even for non-blocking sends, because messages may
+have to be handled by multiple objects along their path.
+
+As with UDP or IP, the way to fix this is to establish an end-to-end link
+protocol, by having the eventual recipient signal somehow that the message has
+been received.  Calls provide an optimized version of a common pattern for
+reliable delivery, but other patterns are possible.
+
+
+Given that, do we even want to report success/failure for sends?  Is it even
+useful to distinguish interruption of a blocking send?  Perhaps the answer is
+no.
+
+
+Let's go crazy and define send as preserving all registers.
+
+
+Output From Receive
+-------------------
+
+A receive operation may produce:
+- An incoming message (data and brand pair).
+- An indication that the key used cannot be recieved from.
+  - This may also be the null key case.
+- An indication that the task was unblocked before receive occurred.
+  - Either because it was non-blocking and no message was available, or
+  - Because the task was interrupted.
+
+It seems pretty important that a server be able to distinguish revocation of one
+of its gates from a fabrication sent by an untrusted client.  They should elicit
+different responses!
+
+> There is an asymmetric relationship between senders and servers.  Servers can
+> vet their clients based on brand; clients do not get a similar opportunity.
+
+So, it sounds like some bits in the received message control word need to
+indicate cases that cannot be transmitted.  Probably the easiest way to do this
+is to place them in sections of the word that are meaningful to the kernel on
+send but not passed through: key indices, blocking status, etc.
+
+An alternative would be to somehow control whether callers could deliver error
+messages through a given gate.  Server gates would not permit errors; client
+reply gates would (or should!).
+
+Upon consideration, I prefer this.  It provides a defense against untrusted
+client forgery while allowing for testing and simulation apparati to inject
+errors.
+
+But we still have some bits free.  What if we used them to deliver a smaller
+(than a brand) "gate ID" to serve as a message direction indicator?  This would
+only really be useful with gate groups (not yet implemented).  Note that doing
+the gate ID in this way would make it difficult to simulate a gate group.
+
+> Aside: it appears that EROS and Coyotos do not support non-blocking receive.
+> Fascinating.  Perhaps this concept could be removed from this kernel as well.
+
+
+Control Word Sketch #2
+----------------------
+
+Common fields:
+- Selector (16 bits)
+- Error flag (1 bit)
+
+Outgoing only:
+- Send Key Index (4 bits)
+- Receive Key Index (4 bits)
+- Send Phase Enable flag (1 bit)
+- Send Phase Block flag (1 bit)
+- Receive Phase Enable flag (1 bit)
+- Receive Phase Block flag (1 bit)
+- Generate Reply Key flag (1 bit)
+- Total: 30 bits.
+
+Incoming only:
+- Gate ID (8 bits).
+- Total: 25 bits.
+
+
+Initial conclusion
+------------------
+
+The discussion above got a little off track.
+
+Could I do a unified sendrec operation?  Yes.
+
+Is it a good idea?  Unclear.  Moving the information about the desired operation
+into a register eliminates the potentially faulting access.  (Though admittedly
+getting the `svc` index load to fault would require some impressive sleight of
+hand.)
+
+But we could move information into the control word without changing the
+operation semantics significantly.
+
+Imagine that we reserve the low order four bits of `d0` for the syscall number.
+That leaves us with a ridiculous wealth of syscalls for a system like this.
+
+We would then have the following control word shapes for the following syscalls.
+
+Send:
+- Sysnum (4 bits)
+- Selector (16 bits)
+- Error (1 bit)
+- Send Key Index (4 bits)
+- Block (1 bit)
+Total: 26 bits
+
+Call: same as send, then, but with a receive result.
+
+Receive entry:
+- Sysnum (4 bits)
+- Receive Key Index (4 bits)
+- Block (1 bit)
+
+Receive result:
+- Selector (16 bits)
+- Error (1 bit)
+- Gate ID or whatever
+
+
+About Gate IDs
+--------------
+
+The goal is to allow a recipient to distinguish the gate of origin from a set of
+gates.
+
+This could actually be done in the sender brand, y'know, under the assumption
+that most gate protocols don't need a full 64 bits of key brand.  Dedicate a few
+bits of that to direction ID and control the keys you issue, et voila.
+
+Let's nix the gate IDs and gate brands for now.
+
+-----------------------------
+
+Proposed API Revision as of today
+=================================
+
+Let's transfer data only in "safe" registers to avoid faulting.
+
+Let's encode the operation in the control word itself to avoid the svc lookup.
+
+In fact, let's assign names to the registers that are relevant for the kernel
+ABI:
+
+- `r4` = `d0`
+- `r5` = `d1`
+- `r6` = `d2`
+- `r7` = `d3`
+- `r8` = future `d4`
+- `r9` = future `d5`
+- `r10` = `b0` (low 32 bits of brand)
+- `r11` = `b1` (high 32 bits of brand)
+
+(Notice I've made allowances for expansion to six data words if required.)
+
+Message Descriptor
+------------------
+
+(formerly "control word")
+
+A 32-bit word divided into fixed bit fields:
+
+
+    31 28   24   20 18  16                0
+    +----+----+----+--+-+-+----------------+
+    | SN |....| KI |..|B|E|    selector    |
+    +----+----+----+--+-+-+----------------+
+
+Where:
+- `SN` is the sysnum, selecting an operation.
+- `KI` is the key index.
+- `B` is the block flag.
+- `E` is the error flag (uninterpreted).
+- `selector` is uninterpreted by the kernel.
+
+
+Send (SN=1)
+-----------
+
+`KI` names the target key.
+
+If `B` is set, the sender is willing to block to accomplish the initial
+delivery.  If `B` is clear:
+- If the recipient is not ready to receive, the send silently fails.
+- If the recipient is ready, the send succeeds.
+
+The data registers are passed on to the recipient verbatim, with the exception
+that `d0[31:17]` is replaced by other content on the recipient side.  The `E`
+and `selector` bits are passed on to the recipient uninterpreted.
+
+Send leaves all registers undisturbed on return.
+
+
+Receive (SN=2)
+--------------
+
+`KI` names the key from which to receive.  Other fields must be zero.
+
+The context blocks until a message becomes available.  At that time it replaces
+the contents of the data registers and brand registers.  In the delivered
+descriptor,
+- Bits `31:17` are zero.
+- The `E` and `selector` fields are from the sender.
+
+The kernel may generate and return a message itself in case of error.  Such a
+message will have the `E` flag set and the first two data words will indicate
+one of the following exceptions:
+
+- `BadSys` - if the reserved fields of the initial descriptor are not zero.
+- `BadKey` - if the key used cannot originate messages.
+- `Unblocked` - if the context was unblocked before delivery completed.
+
+
+Call (SN=3)
+-----------
+
+A call has the same inputs as a send and the outputs of a receive.  The receive
+is implicitly on the current context's reply gate, to which the context need not
+possess a key.
+
+On entry:
+- `KI` names the target key.
+- `B` acts as it does for Send.
+- Remaining fields are the message to be passed to the recipient.
+
+On return:
+- `E` and `selector` are as sent on the reply gate.
+- `d0[31:17]` are zeroed.
+
+The kernel may generate any of the error messages specified for receive, with
+the additional cases below:
+- `BadKey` may also indicate that the send phase of the invocation was not
+  appropriate (e.g. null key).
+- `Unblocked` may also indicate interruption of the send phase.
+
+
+Exceptions
+==========
+
+Any context may experience kernel-generated messages when its operations fail.
+(In particular, when it attempts a non-blocking operation that cannot succeed.)
+This means the kernel's exception protocol is effectively mandated for all
+exception protocol.
+
+I'm inclined to mirror Coyotos in the details of the exceptions, namely:
+
+- An exceptional response has the `E` bit set in the descriptor.
+- The first two words of the response contain a 64-bit identifier for the
+  exception, derived in some way to make independently defined exceptions
+  unlikely to collide.
+- Remaining words can provide exception details.
+
+
+Wrapping up for the day
+=======================
+
+I've started a tentative refactoring to support these ideas.  One missing
+piece: it seems like the sender needs a way to control whether exceptions are
+reported back.
+
+For example, a message to a context that contains a bad operation is likely to
+elicit an exception response to k0.  If the message is a one-way message
+containing four keys, one of which is in slot k0, this could trigger some
+seriously weird shit.
+
+So we may want another bit in the descriptor indicating whether the sender is
+interested in exceptions at all.
+
+
