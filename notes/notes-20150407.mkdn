@@ -223,3 +223,79 @@ A simpler one: a call-style invocation of a kernel object.
       - Sender: `Context::block_in_receive`
   - Reply gate: `ReplyGate::deliver_from` a reply sender
     - Sender: `Context::complete_blocked_receive`
+
+
+
+--------------------------------------------------------------------------------
+
+Toward Multitasking
+===================
+
+Right now the system is fundamentally single-tasking.  While we can create and
+manipulate any number of Contexts, we currently have no way of actually making
+one run.
+
+We need:
+- A context switch mechanism.
+- Gates.
+- More careful unprivileged memory accesses.
+
+
+The only (!) remaining unprivileged memory access in the kernel are the register
+access operations in `Context`.  They manipulate the exception frame in
+unprivileged stack memory.
+
+We could make these operations correct by using `apply_to_mpu()` more
+aggressively -- in effect swapping out the MPU context.
+
+> Aside: it seems difficult to eliminate these accesses.  Yes, we could transfer
+> the exception frame into kernel space during the kernel entry routine, but the
+> hardware insists on finding these registers in stack memory at interrupt exit
+> -- so we'd have to copy them back into unprivileged space at kernel exit,
+> meaning an unprivileged access.  Better to have the accesses in an infrequent
+> operation like context register manipulation than in a frequent one like
+> kernel entry.
+
+
+I have a prototype Gate implementation written, but it's untested.
+
+
+Context Switching
+-----------------
+
+For context switching we've got two options:
+
+1. Specify that context switching happens between syscalls and use PendSV to do
+   it.  This makes state manipulation in the kernel a little easier, since the
+   contents of 'current' never change.
+
+2. Just switch contexts at carefully chosen points.  This has lower overhead,
+   since the unprivileged state is already saved.
+
+We could combine the two and emulate a PendSV by setting a flag and detecting it
+during the kernel exit sequence.  Though given that the exit sequence is
+different for interrupts vs. syscalls, a unified approach (using PendSV) might
+make sense.
+
+Either way, the mechanism of the context switch is simple:
+
+1. Identify the highest priority task in the runnable list.
+2. Make it `current`.
+
+When timeslices and such become available, the expiration of a timeslice would
+affect this decision.  In a simpler system, a timer tick would result in moving
+the current task to the end of its priority list.
+
+
+Step back.
+
+Context switches can occur in only two situations in this kernel:
+
+1. As a result of an IPC.
+  - Waking a higher-priority (or possibly equal-priority) context.
+  - Blocking the current context so an equal- or lower-priority context runs.
+
+2. As a result of timeslice expiration.
+
+
+
