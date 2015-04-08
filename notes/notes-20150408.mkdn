@@ -1,0 +1,134 @@
+Timeslices
+==========
+
+After consideration last night while not sleeping, I've discovered something:
+
+It's actually pretty difficult to emulate FreeRTOS's preemption behavior using
+well-defined timeslices.  (FreeRTOS's preemption behavior is weird, but it's one
+of the personalities I'm investigating, so it's worth considering.)
+
+
+What FreeRTOS Does
+-------------------
+
+Refresher: FreeRTOS's behavior is as follows.
+
+- Each tick a timer interrupt fires.
+- If a task with equal priority to the current task is ready to run, it gets
+  switched in.
+
+As a result, if a task yields by blocking halfway between timer interrupts, the
+task it yields to will get half a tick.  One cannot reason about the minimum
+non-preempted execution time of a task on FreeRTOS unless it's the highest
+priority task or one uses critical sections.  (Though note that even the highest
+priority task is regularly preempted by interrupts.)
+
+
+What I was thinking of doing
+----------------------------
+
+Well, I was hoping to go "tickless," that is,
+
+- Clock a timer at a relatively high frequency (say, microseconds).
+- When a task is switched in, adjust the timer to fire after its timeslice is
+  exhausted.
+
+This would avoid interrupts unless tasks actually have to be preempted, and
+should reduce preemption because tasks can reason more tightly about how long
+they get the CPU for (+/- one microsecond instead of millisecond).
+
+However, I was also expecting to use the ARMv7-M systick timer for this, and
+it's not terribly well suited.  The vendor-independent standard only supports
+clocking it at the CPU clock rate, and it's a 24-bit timer, meaning its maximum
+period is pretty short:
+
+- At 100MHz: 167ms
+- At 500MHz: 33ms.
+
+
+There's a drawback to my idea, too: this timer wouldn't be useful for
+timekeeping, since it'd tend to creep forward as it's adjusted.  The systick
+timer is really not designed to be adjusted.
+
+
+Alternatives
+------------
+
+Could use a vendor timer with a compare-match facility and move the
+compare-match value around.  This'd allow for precise intervals that don't
+creep, because we never have to do math on the counter value.
+
+Most vendor timers also allow more flexible prescalers.
+
+For example, if I took a 32-bit timer on the STM32F4 series, I could use an
+arbitrary integer prescaler to get 1MHz update rate and 1us granule.  This would
+give a maximum period of just over 1 hour.
+
+Or I could do what FreeRTOS does: a fixed interrupt pattern.
+
+
+Getting the FreeRTOS behavior
+-----------------------------
+
+If I fix the interrupt pattern, so that e.g. a timer interrupt is guaranteed to
+occur every millisecond on the millisecond, and give every task a timeslice of
+one, then I replicate FreeRTOS's (imho broken) behavior if the timer interrupt
+does the following:
+
+- Decrement the remaining time slice.
+- If zero, move task to the back of its priority queue.
+- Select a new runnable task (possibly the same task) and renew its timeslice.
+
+Simply having timeslices available makes this model a little more interesting.
+A timeslice of 2 would give a task 1 - 2 ms of uninterrupted execution at each
+activation, barring wakeup of higher-priority tasks or interrupts.
+
+This approach has a maximum practical frequency limit, though; there's a point
+where the overhead of the timer interrupts becomes unacceptable.  That's the
+appeal of tickless: the ability to set a tight granule without compromising
+execution efficiency.
+
+However, if I...
+- Build a tickless system where
+- Contexts have timeslices that can be changed by the system but not at each
+  activation and
+- A context exhausting its timeslice moves it to the back of its queue and
+  renews the timeslice
+
+then I can't really mirror FreeRTOS's behavior without writing a custom tick
+interrupt to mess with timeslices.  The approach would be
+- Wake up every tick.
+- Identify the task that just got preempted.
+- Force it to the back of its queue.
+
+Weird.  I'm beginning to think that FreeRTOS's behavior is accidental.
+
+
+Okay.  What should we do?
+-------------------------
+
+Initially, let's ignore time-based preemption entirely and focus on IPC-based
+preemption.
+
+
+
+IPC-based preemption
+====================
+
+Considering only IPC, we may need to switch tasks when...
+- The current task messages a higher- or equal-priority task that is blocked in
+  receive.
+
+- The current task blocks in receive or send without a partner waiting.
+
+- Some in-kernel sender, particularly an interrupt, wakes a task from receive.
+
+(Note that interruption may also wake a blocked task and require a context
+switch, but let's deal with that later, since it's not implemented yet.)
+
+The common element to all these: the blocking or unblocking of a `Context`.  All
+such operations pass through a small set of member functions, and this might be
+the right place to take action.
+
+...yup, on review, the blocking-related operations in `Context` seem like a
+comprehensive list of the sites where context switches may occur in IPC.
