@@ -1,5 +1,6 @@
 #include "k/context.h"
 
+#include "etl/armv7m/instructions.h"
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 
@@ -21,6 +22,23 @@ namespace k {
 
 Context * current;
 List<Context> runnable;
+bool switch_pending;
+
+static void do_deferred_switch() {
+  if (!switch_pending) return;
+
+  switch_pending = false;
+
+  while (runnable.is_empty()) {
+    etl::armv7m::wait_for_interrupt();
+  }
+
+  current = runnable.peek()->owner;
+}
+
+static void pend_switch() {
+  switch_pending = true;
+}
 
 
 /*******************************************************************************
@@ -79,6 +97,8 @@ void Context::do_ipc() {
     // Simply return with registers unchanged.
     // (Weirdo.)
   }
+
+  do_deferred_switch();
 }
 
 void Context::do_copy_key() {
@@ -110,24 +130,23 @@ void Context::block_in_receive(List<Context> & list) {
   _ctx_item.unlink();
   list.insert(&_ctx_item);
 
-  // TODO context switch.  In this case a context switch is mandatory, as this
-  // task is no longer runnable.
+  pend_switch();
 }
 
 void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
   complete_receive(brand, sender);
-  // TODO context switch.  The context switch may not occur if the current task
-  // is more important than this one.
+
+  pend_switch();
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
   _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
   complete_receive(e, param);
-  // TODO context switch.  The context switch may not occur if the current task
-  // is more important than this one.
+
+  pend_switch();
 }
 
 void Context::put_message(Brand brand, Message const & m) {
@@ -189,8 +208,8 @@ void Context::block_in_send(Brand brand, List<Sender> & list) {
     _saved_brand = brand;
     list.insert(&_sender_item);
     _ctx_item.unlink();
-    // TODO context switch.  In this case a context switch is mandatory, as this
-    // task is no longer runnable.
+
+    pend_switch();
   } else {
     // Unprivileged code is unwilling to block for delivery.
     complete_send(Exception::would_block);
@@ -200,15 +219,13 @@ void Context::block_in_send(Brand brand, List<Sender> & list) {
 void Context::complete_blocked_send() {
   runnable.insert(&_ctx_item);
   complete_send();
-  // TODO context switch.  The context switch may not occur if the current task
-  // is more important than this one.
+  pend_switch();
 }
 
 void Context::complete_blocked_send(Exception e, uint32_t param) {
   runnable.insert(&_ctx_item);
   complete_send(e, param);
-  // TODO context switch.  The context switch may not occur if the current task
-  // is more important than this one.
+  pend_switch();
 }
 
 Key Context::get_message_key(unsigned index) {

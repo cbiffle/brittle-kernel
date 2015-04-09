@@ -152,7 +152,6 @@ private:
   // Brand from the key that was used in the current send, saved for
   // use later even if the key gets modified.
   Brand _saved_brand;
-  bool _calling;
 
   TableIndex _reply_gate_index;
 
