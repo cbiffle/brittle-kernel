@@ -78,6 +78,18 @@ public:
     ETL_ASSERT(false);
   }
 
+  Item * peek() {
+    for (auto const & r : _roots) {
+      if (r.next != &r) {
+        // Cast safe due to invariant that sublists only contain a single
+        // Itemoid, and it is the root.
+        return static_cast<Item *>(r.next);
+      }
+    }
+
+    ETL_ASSERT(false);
+  }
+
   void insert(Item * it) {
     ETL_ASSERT(it->next == it);
 
