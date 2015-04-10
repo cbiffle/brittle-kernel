@@ -36,7 +36,7 @@ void ReplySender::complete_send(Exception, uint32_t) {
   // Don't care about this either.
 }
 
-void ReplySender::block_in_send(Brand, List<Sender> &) {
+void ReplySender::block_in_send(Brand, List<BlockingSender> &) {
   // No.
 }
 

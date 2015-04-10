@@ -1,0 +1,82 @@
+Interrupts
+==========
+
+Interrupts get reified as kernel objects that send messages.
+
+Do they act as gates, in that we can receive from them directly, or do they act
+like distant tasks, in that they can contact us through a gate?  Leaning toward
+the latter -- the gate would provide for multiplexing interrupts with other
+inputs.
+
+So then a typical (say) driver would wind up with at least one gate and several
+classes of outstanding keys to said gate.  The brands of these keys would
+distinguish the sender and help to disambiguate several protocols.
+
+- One brand would be issued solely to the interrupt sender, and would
+  specifically mark interrupt messages.
+
+- Other brands could be issued to clients and used to serve the driver's native
+  protocol(s).
+
+
+Random thought!
+===============
+
+This occurred to me on the freeway:
+
+I've imagined a need for some kind of asynchronous message-sending proxy
+since... well, probably since Potato, but it's definitely mentioned in my notes
+from 17 March!
+
+But ... I don't think I need one!  Or at least, not a discrete one.
+
+Because it's a Context.
+
+Imagine that a Context can be configured in some way that causes it to go into
+some other state than 'runnable' when it wakes.  (Perhaps such a feature would
+also be useful for trace.)  Using its Context key (and operations not yet
+defined) it could be coerced into sending messages on behalf of another task.
+
+Such a Context, if never activated, would never even need any memory -- just its
+kernel object.
+
+Cost could be further reduced by allowing Contexts to be parameterized on the
+size of their keyring -- since that's the bulk of the space cost as of now.
+
+
+IPC meta-protocol
+=================
+
+Okay, it's time to implement gates and such.  We need to figure out the rest of
+the "meta protocol" governing IPC interaction within the kernel.
+
+The interaction with the Gates is key.
+
+Active sender, passive receiver:
+- Kernel ends up dispatching to `Gate::deliver_from`.
+- Gate identifies a blocked `Context` and calls `complete_blocked_receive`,
+  providing the Sender.
+- Receiver unblocks itself and takes delivery from the sender.
+- Receiver calls `complete_send` indicating success.
+- Sender notices that it's calling and triggers receive.
+
+I guess the key there is to hand the recipient the sender and let it orchestrate
+delivery...
+
+In general I suspect that the Context should orchestrate delivery.  It's the
+non-polymorphic end of the operation.
+
+Active receiver, passive sender:
+- Kernel dispatches to `Gate::deliver_to`.
+- Gate identifies a blocked `Sender` and calls the receiver's
+  `complete_receive` function, passing the sender.
+- The receiver calls `complete_send` to terminate the process.
+
+
+So the `_send` operations are solely for the sender's reference and don't
+transfer any data.
+
+The `_receive` operations on a Context deal solely with messages transferred
+through gates.  Messages to a Context itself are processed directly in
+`deliver_from`.
+

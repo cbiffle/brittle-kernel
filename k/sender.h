@@ -7,9 +7,10 @@
 
 namespace k {
 
-struct Context;  // see: k/context.h
-struct Key;      // see: k/key.h
-struct Message;  // see: k/ipc.h
+struct BlockingSender;  // see: k/blocking_sender.h
+struct Context;         // see: k/context.h
+struct Key;             // see: k/key.h
+struct Message;         // see: k/ipc.h
 template<typename> struct List;  // see: k/list.h
 
 /*
@@ -71,28 +72,7 @@ public:
    * If it is not willing to block, it does nothing, and may record somewhere
    * that the send was not completed.
    */
-  virtual void block_in_send(Brand, List<Sender> &) = 0;
-
-  /*
-   * Finishes the blocking phase of a send begun by block_in_send, indicating
-   * that delivery was successful.
-   *
-   * If the sender is doing something call-like, this is its second chance to
-   * transition to a receive state.
-   *
-   * Senders must implement this if they ever add themselves to a sender list
-   * as in block_in send.  The default implementation asserts!
-   */
-  virtual void complete_blocked_send();
-
-  /*
-   * Finishes the blocking phase of a send begun by block_in_send, recording
-   * the given delivery error.
-   *
-   * Senders must implement this if they ever add themselves to a sender list
-   * as in block_in send.  The default implementation asserts!
-   */
-  virtual void complete_blocked_send(Exception, uint32_t = 0);
+  virtual void block_in_send(Brand, List<BlockingSender> &) = 0;
 };
 
 }  // namespace k

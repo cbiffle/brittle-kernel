@@ -110,12 +110,18 @@ void Context::do_bad_sys() {
   put_message(0, Message::failure(Exception::bad_syscall));
 }
 
-void Context::complete_receive(Brand brand, Sender * sender) {
+void Context::complete_receive(BlockingSender * sender) {
+  complete_receive_core(sender->get_saved_brand(), sender);
+}
+
+void Context::complete_receive_core(Brand brand, Sender * sender) {
   put_message(brand, sender->get_message());
 
   for (unsigned i = 0; i < config::n_message_keys; ++i) {
     key(i) = sender->get_message_key(i);
   }
+
+  sender->complete_send();
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
@@ -136,7 +142,7 @@ void Context::block_in_receive(List<Context> & list) {
 void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
-  complete_receive(brand, sender);
+  complete_receive_core(brand, sender);
 
   pend_switch();
 }
@@ -175,7 +181,7 @@ void Context::apply_to_mpu() {
 
 
 /*******************************************************************************
- * Implementation of Sender
+ * Implementation of Sender and BlockingSender
  */
 
 Priority Context::get_priority() const {
@@ -201,7 +207,7 @@ void Context::complete_send(Exception e, uint32_t param) {
   nullify_exchanged_keys();
 }
 
-void Context::block_in_send(Brand brand, List<Sender> & list) {
+void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
   ETL_ASSERT(this == current);
 
   if (get_descriptor().get_block()) {
@@ -214,6 +220,10 @@ void Context::block_in_send(Brand brand, List<Sender> & list) {
     // Unprivileged code is unwilling to block for delivery.
     complete_send(Exception::would_block);
   }
+}
+
+Brand Context::get_saved_brand() const {
+  return _saved_brand;
 }
 
 void Context::complete_blocked_send() {

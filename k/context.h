@@ -3,6 +3,7 @@
 
 #include "etl/armv7m/mpu.h"
 
+#include "k/blocking_sender.h"
 #include "k/config.h"
 #include "k/key.h"
 #include "k/list.h"
@@ -25,7 +26,7 @@ namespace k {
  * to communicate with the code it describes; that authority would be conferred
  * by a gate key.
  */
-class Context : public Object, public Sender {
+class Context : public Object, public BlockingSender {
 public:
   Context();
 
@@ -52,13 +53,16 @@ public:
 
   /*
    * Context-specific analog to complete_send.  Notifies the Context of a
-   * receive operation that was able to complete without blocking.
+   * receive operation that was able to complete without blocking, giving it a
+   * chance to transfer the message.
    */
-  void complete_receive(Brand, Sender *);
+  void complete_receive(BlockingSender *);
 
   /*
-   * Context-specific analog to complete_send.  Notifies the Context of a
-   * receive operation that was unable to complete due to an exception.
+   * Context-specific analog to complete_send.  This is a convenience function
+   * for cancelling a receive operation without blocking.
+   *
+   * TODO: it is not clear that this pulls its weight.
    */
   void complete_receive(Exception, uint32_t = 0);
 
@@ -80,6 +84,8 @@ public:
   /*
    * Takes a context out of receive state due to an exception.  Analog of
    * Sender::complete_blocked_send.
+   *
+   * TODO: it is not clear that this pulls its weight.
    */
   void complete_blocked_receive(Exception, uint32_t = 0);
 
@@ -117,8 +123,14 @@ public:
   /*
    * Overridden to support real blocking if permitted by task code.
    */
-  void block_in_send(Brand brand, List<Sender> &) override;
+  void block_in_send(Brand brand, List<BlockingSender> &) override;
 
+
+  /*************************************************************
+   * Implementation of BlockingSender.
+   */
+
+  Brand get_saved_brand() const override;
   void complete_blocked_send() override;
   void complete_blocked_send(Exception, uint32_t = 0) override;
 
@@ -145,7 +157,7 @@ private:
   List<Context>::Item _ctx_item;
 
   // List item used to link this context into lists of generic senders.
-  List<Sender>::Item _sender_item;
+  List<BlockingSender>::Item _sender_item;
 
   Priority _priority;
 
@@ -164,6 +176,7 @@ private:
   void do_bad_sys();
 
   Key make_reply_key() const;
+  void complete_receive_core(Brand, Sender *);
 
   // Factors of deliver_from
   void read_register(Brand, Sender *, Message const &);

@@ -29,7 +29,7 @@ public:
 
   void complete_send() override;
   void complete_send(Exception, uint32_t) override;
-  void block_in_send(Brand, List<Sender> &) override;
+  void block_in_send(Brand, List<BlockingSender> &) override;
 
 private:
   Message _m;
