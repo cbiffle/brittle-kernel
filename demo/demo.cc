@@ -22,6 +22,11 @@ static unsigned volatile counter;
 
 void main();
 
+// Some object indices of which we're aware:
+static constexpr unsigned
+  oi_peripheral_region = 4,
+  oi_initial_context = 5;
+
 // Our use of key registers:
 static constexpr unsigned
   k_object_table = 4,
@@ -30,9 +35,12 @@ static constexpr unsigned
 
 void main() {
   // Awkwardly produce a key to the peripheral address space region.
-  object_table::mint_key(k_object_table, 4, 0x1300003740000000ULL, k_periph);
+  object_table::mint_key(k_object_table,
+                         oi_peripheral_region,
+                         0x1300003740000000ULL,
+                         k_periph);
   // Slightly less awkwardly produce our own context key.
-  object_table::mint_key(k_object_table, 5, 0, k_self);
+  object_table::mint_key(k_object_table, oi_initial_context, 0, k_self);
   // Enable access to peripherals, using region 2.
   context::set_region(k_self, 2, k_periph);
 
