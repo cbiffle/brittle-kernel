@@ -132,8 +132,6 @@ void Context::complete_receive(Exception e, uint32_t param) {
 }
 
 void Context::block_in_receive(List<Context> & list) {
-  ETL_ASSERT(this == current);
-
   // TODO should we decide to permit non-blocking recieves... here's the spot.
   _ctx_item.unlink();
   list.insert(&_ctx_item);
