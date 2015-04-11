@@ -203,7 +203,14 @@ void Context::complete_send() {
 }
 
 void Context::complete_send(Exception e, uint32_t param) {
+  // We may have distributed a key to our reply gate earlier in the send phase.
+  if (get_descriptor().is_call()) {
+    // If so, revoke it, since the send has been cancelled.
+    object_table.invalidate(_reply_gate_index);
+  }
+  // Deliver the exception.
   put_message(0, Message::failure(e, param));
+  // Avoid looking like we delivered any pre-existing keys.
   nullify_exchanged_keys();
 }
 
