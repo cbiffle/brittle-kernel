@@ -45,6 +45,8 @@ static void prepare_task() {
   // Provide the context with its initial authority (in the form of a single
   // key to the object table).
   ctx.key(4).fill(1, 0);
+
+  ctx.make_runnable();
 }
 
 __attribute__((noreturn))

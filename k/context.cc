@@ -51,6 +51,7 @@ Context::Context()
     _ctx_item{this},
     _sender_item{this},
     _priority{0},
+    _state{State::stopped},
     _saved_brand{0} {}
 
 void Context::nullify_exchanged_keys(unsigned preserved) {
@@ -136,6 +137,7 @@ void Context::block_in_receive(List<Context> & list) {
   // TODO should we decide to permit non-blocking recieves... here's the spot.
   _ctx_item.unlink();
   list.insert(&_ctx_item);
+  _state = State::receiving;
 
   pend_switch();
 }
@@ -143,6 +145,8 @@ void Context::block_in_receive(List<Context> & list) {
 void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
+  _state = State::runnable;
+
   complete_receive_core(brand, sender);
 
   pend_switch();
@@ -151,6 +155,8 @@ void Context::complete_blocked_receive(Brand brand, Sender * sender) {
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
   _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
+  _state = State::runnable;
+
   complete_receive(e, param);
 
   pend_switch();
@@ -177,6 +183,26 @@ void Context::apply_to_mpu() {
       mpu.write_rasr(0);
       mpu.write_rbar(0);
     }
+  }
+}
+
+void Context::make_runnable() {
+  switch (_state) {
+    case State::sending:
+      complete_blocked_send(Exception::would_block);
+      break;
+
+    case State::receiving:
+      complete_blocked_receive(Exception::would_block);
+      break;
+
+    case State::stopped:
+      runnable.insert(&_ctx_item);
+      _state = State::runnable;
+      break;
+
+    case State::runnable:
+      break;
   }
 }
 
@@ -222,6 +248,7 @@ void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
     _saved_brand = brand;
     list.insert(&_sender_item);
     _ctx_item.unlink();
+    _state = State::sending;
 
     pend_switch();
   } else {
@@ -236,12 +263,16 @@ Brand Context::get_saved_brand() const {
 
 void Context::complete_blocked_send() {
   runnable.insert(&_ctx_item);
+  _state = State::runnable;
+
   complete_send();
   pend_switch();
 }
 
 void Context::complete_blocked_send(Exception e, uint32_t param) {
   runnable.insert(&_ctx_item);
+  _state = State::runnable;
+
   complete_send(e, param);
   pend_switch();
 }

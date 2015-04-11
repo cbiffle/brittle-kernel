@@ -30,6 +30,13 @@ class Context : public Object, public BlockingSender {
 public:
   Context();
 
+  enum class State {
+    stopped = 0,
+    runnable,
+    sending,
+    receiving,
+  };
+
   /*************************************************************
    * Context-specific accessors for use inside the kernel.
    */
@@ -85,9 +92,14 @@ public:
    * Takes a context out of receive state due to an exception.  Analog of
    * Sender::complete_blocked_send.
    *
-   * TODO: it is not clear that this pulls its weight.
+   * This overload exists primarily for unblocking a blocked context.
    */
   void complete_blocked_receive(Exception, uint32_t = 0);
+
+  /*
+   * Switches a Context to runnable state, aborting any IPC in progress.
+   */
+  void make_runnable();
 
 
   /*************************************************************
@@ -160,6 +172,7 @@ private:
   List<BlockingSender>::Item _sender_item;
 
   Priority _priority;
+  State _state;
 
   // Brand from the key that was used in the current send, saved for
   // use later even if the key gets modified.
