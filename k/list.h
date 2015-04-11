@@ -2,6 +2,7 @@
 #define K_LIST_H
 
 #include "etl/assert.h"
+#include "etl/data/maybe.h"
 
 #include "k/config.h"
 
@@ -78,7 +79,7 @@ public:
     ETL_ASSERT(false);
   }
 
-  Item * peek() {
+  etl::data::Maybe<Item *> peek() {
     for (auto const & r : _roots) {
       if (r.next != &r) {
         // Cast safe due to invariant that sublists only contain a single
@@ -87,7 +88,7 @@ public:
       }
     }
 
-    ETL_ASSERT(false);
+    return etl::data::nothing;
   }
 
   void insert(Item * it) {

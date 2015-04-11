@@ -33,7 +33,7 @@ static void do_deferred_switch() {
     etl::armv7m::wait_for_interrupt();
   }
 
-  current = runnable.peek()->owner;
+  current = runnable.peek().ref()->owner;
 }
 
 static void pend_switch() {

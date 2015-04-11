@@ -9,15 +9,26 @@ ReplyGate::ReplyGate()
   : _expected_brand(0) {}
 
 void ReplyGate::deliver_from(Brand brand, Sender * sender) {
+  // Filter out messages bearing the wrong brand.
   if (brand != _expected_brand) {
     sender->complete_send(Exception::bad_operation);
   }
 
+  // Invalidate our object table entry, revoking all extant keys.
   if (++_expected_brand == 0) {
     object_table.invalidate(get_index());
   }
 
-  _receivers.take()->complete_blocked_receive(brand, sender);
+  // This type of gate refuses to block.  Either its owner is waiting to
+  // receive, or you're doing something wrong and your message gets discarded.
+  auto maybe_partner = _receivers.peek();
+  if (maybe_partner) {
+    auto it = maybe_partner.ref();
+    it->unlink();
+    it->owner->complete_blocked_receive(brand, sender);
+  } else {
+    sender->complete_send(Exception::bad_operation);
+  }
 }
 
 void ReplyGate::deliver_to(Context * context) {
