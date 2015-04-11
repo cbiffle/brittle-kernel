@@ -50,6 +50,7 @@ Context::Context()
     _keys{},
     _ctx_item{this},
     _sender_item{this},
+    _priority{0},
     _saved_brand{0} {}
 
 void Context::nullify_exchanged_keys(unsigned preserved) {
