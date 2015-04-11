@@ -200,6 +200,8 @@ private:
 
   void read_region(Brand, Sender *, Message const &);
   void write_region(Brand, Sender *, Message const &);
+
+  void make_runnable(Brand, Sender *, Message const &);
 };
 
 extern Context * current;

@@ -330,6 +330,10 @@ void Context::deliver_from(Brand brand, Sender * sender) {
       write_region(brand, sender, m);
       break;
 
+    case 6:
+      make_runnable(brand, sender, m);
+      break;
+
     default:
       sender->complete_send(Exception::bad_operation, m.d0.get_selector());
       break;
@@ -537,6 +541,17 @@ void Context::write_region(Brand,
 
   if (current == this) apply_to_mpu();
 
+  reply.deliver_from(&reply_sender);
+}
+
+void Context::make_runnable(Brand, Sender * sender, Message const & arg) {
+  auto reply = sender->get_message_key(0);
+  sender->complete_send();
+
+  make_runnable();
+  pend_switch();
+
+  ReplySender reply_sender{0};  // TODO priority
   reply.deliver_from(&reply_sender);
 }
 

@@ -126,3 +126,18 @@ Results:
 
 Exceptions:
 - `k.index_out_of_range`
+
+
+Set Runnable (6)
+----------------
+
+Switches the Context into "runnable" state.  If the Context was already
+runnable (including running) then this has no effect.
+
+If the Context is blocked in an IPC, it will be aborted with an exception.
+
+Arguments:
+- d0: descriptor
+
+Results:
+- d0: success descriptor
