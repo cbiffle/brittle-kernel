@@ -1,5 +1,6 @@
 #include "k/zoo.h"
 
+#include "k/gate.h"
 #include "k/null_object.h"
 #include "k/object_table.h"
 #include "k/reply_gate.h"
@@ -61,9 +62,11 @@ AddressRange peripherals{
   AddressRange::ReadOnly::no,
 };
 
+Gate gate;
+
 void init_zoo() {
   // First, wire up the special objects.
-  auto constexpr special_objects = 5;
+  auto constexpr special_objects = 6;
   object_table[0].ptr = &null;
   null.set_index(0);
 
@@ -78,6 +81,9 @@ void init_zoo() {
 
   object_table[4].ptr = &peripherals;
   peripherals.set_index(4);
+
+  object_table[5].ptr = &gate;
+  gate.set_index(5);
 
   // Then, wire up the contexts.
   static_assert(config::n_objects >= 2*config::n_contexts + special_objects,
