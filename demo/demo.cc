@@ -166,6 +166,7 @@ void main() {
     Descriptor::zero()
       .with_receive_enabled(true)
       .with_source(k_gate)
+      .with_block(true)
   };
   while (true) {
     auto rm = ipc(m);
