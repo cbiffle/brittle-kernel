@@ -3,7 +3,7 @@
 #include "demo/client.h"
 #include "demo/context.h"
 #include "demo/driver.h"
-#include "demo/ipc.h"
+#include "demo/runtime/ipc.h"
 #include "demo/object_table.h"
 
 namespace demo {

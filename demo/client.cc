@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "demo/ipc.h"
+#include "demo/runtime/ipc.h"
 
 namespace demo {
 

@@ -1,5 +1,5 @@
-#ifndef DEMO_IPC_H
-#define DEMO_IPC_H
+#ifndef DEMO_RUNTIME_IPC_H
+#define DEMO_RUNTIME_IPC_H
 
 #include <cstdint>
 
@@ -140,4 +140,4 @@ ReceivedMessage ipc(Message const &);
 
 void copy_key(unsigned to, unsigned from);
 
-#endif  // DEMO_IPC_H
+#endif  // DEMO_RUNTIME_IPC_H

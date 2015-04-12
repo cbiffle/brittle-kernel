@@ -47,7 +47,9 @@ c_library('code',
     'context.cc',
     'demo.cc',
     'driver.cc',
-    'ipc.cc',
     'object_table.cc',
+  ],
+  deps = [
+    '//demo/runtime',
   ],
 )

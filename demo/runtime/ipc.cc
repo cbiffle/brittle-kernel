@@ -1,4 +1,4 @@
-#include "demo/ipc.h"
+#include "demo/runtime/ipc.h"
 
 __attribute__((naked))
 ReceivedMessage ipc(Message const &) {

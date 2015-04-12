@@ -1,6 +1,6 @@
 #include "demo/object_table.h"
 
-#include "demo/ipc.h"
+#include "demo/runtime/ipc.h"
 
 namespace object_table {
 

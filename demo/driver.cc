@@ -6,7 +6,7 @@
 #include "etl/stm32f4xx/rcc.h"
 #include "etl/stm32f4xx/usart.h"
 
-#include "demo/ipc.h"
+#include "demo/runtime/ipc.h"
 
 using etl::stm32f4xx::Gpio;
 using etl::stm32f4xx::gpioa;

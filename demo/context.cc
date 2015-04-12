@@ -1,6 +1,6 @@
 #include "demo/context.h"
 
-#include "demo/ipc.h"
+#include "demo/runtime/ipc.h"
 
 namespace context {
 
