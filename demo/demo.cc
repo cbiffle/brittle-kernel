@@ -1,24 +1,12 @@
 #include <cstdint>
 
+#include "demo/client.h"
+#include "demo/context.h"
+#include "demo/driver.h"
 #include "demo/ipc.h"
 #include "demo/object_table.h"
-#include "demo/context.h"
-
-#include "etl/stm32f4xx/gpio.h"
-#include "etl/stm32f4xx/rcc.h"
-#include "etl/stm32f4xx/usart.h"
-
-using etl::stm32f4xx::Gpio;
-using etl::stm32f4xx::gpioa;
-using etl::stm32f4xx::rcc;
-using etl::stm32f4xx::Usart;
-using etl::stm32f4xx::usart2;
 
 namespace demo {
-
-static constexpr unsigned apb1_hz = 16000000, console_baud = 115200;
-
-static unsigned volatile counter;
 
 void main();
 
@@ -53,30 +41,6 @@ static void collect_keys() {
 
 static void enable_peripheral_access() {
   context::set_region(k_self, 2, k_periph);
-}
-
-uint32_t volatile client_ipc_issue_count;
-uint32_t volatile client_ipc_complete_count;
-uint32_t volatile client_error_count;
-
-static void client_main() {
-  client_ipc_issue_count = 0;
-  client_ipc_complete_count = 0;
-  client_error_count = 0;
-
-  uint8_t value = 0;
-  while (true) {
-    Message m {
-      Descriptor::call(1, 4),
-      value,
-    };
-    ++value;
-    ++client_ipc_issue_count;
-    auto rm = ipc(m);
-    ++client_ipc_complete_count;
-
-    if (rm.m.d0.get_error()) ++client_error_count;
-  }
 }
 
 static uint32_t client_stack[128];
@@ -128,76 +92,21 @@ static void spawn_client() {
   context::make_runnable(k_second);
 }
 
-volatile uint32_t receive_count;
-volatile uint32_t send_count;
-
 void main() {
-  receive_count = 0;
-  send_count = 0;
-
+  // Derive our authority from the kernel's representation.
   collect_keys();
+  // Fire up the client.
   spawn_client();
 
-  // Now, become a UART driver.
+  // Now, become a UART driver.  Grant access to the APB.
   enable_peripheral_access();
-
-  // Enable clocking to the UART.
-  rcc.write_apb1enr(rcc.read_apb1enr()
-      .with_bit(17, true));
-  // Enable clock to GPIOA.
-  rcc.write_ahb1enr(rcc.read_ahb1enr()
-      .with_bit(0, true));
-
-  // Configure USART2.
-  usart2.write_cr1(Usart::cr1_value_t()
-      .with_ue(true));
-  usart2.write_brr(apb1_hz / console_baud);
-  usart2.write_cr2(usart2.read_cr2()
-      .with_stop(Usart::cr2_value_t::stop_t::two));
-  usart2.write_cr1(usart2.read_cr1()
-      .with_te(true)
-      .with_re(true));
-
-  // Configure GPIOs.
-  gpioa.set_mode(Gpio::p2 | Gpio::p3, Gpio::Mode::alternate);
-  gpioa.set_alternate_function(Gpio::p2 | Gpio::p3, 7);
-
-  Message m {
-    Descriptor::zero()
-      .with_receive_enabled(true)
-      .with_source(k_gate)
-      .with_block(true)
-  };
-  while (true) {
-    auto rm = ipc(m);
-    ++receive_count;
-
-    if (rm.m.d0.get_error()) {
-      // Don't bother replying.
-      m.d0 = m.d0.with_send_enabled(false);
-      continue;
-    }
-
-    switch (rm.m.d0.get_selector()) {
-      case 1:  // Send!
-        ++send_count;
-        while (usart2.read_sr().get_txe() == false);
-        usart2.write_dr(rm.m.d1 & 0xFF);
-
-        m.d0 = m.d0.with_send_enabled(true)
-                   .with_target(0)
-                   .with_error(false);
-        m.d1 = m.d2 = m.d3 = 0;
-        break;
-
-      default:  // Crap!
-        m.d0 = m.d0.with_send_enabled(true)
-                   .with_target(0)
-                   .with_error(true);
-        // Technically not a valid exception spec (TODO)
-        m.d1 = m.d2 = m.d3 = 0;
-    }
+  // Arrange keys in the way the driver expects and discard extra authority.
+  copy_key(4, k_gate);
+  for (unsigned i = 5; i < 16; ++i) {
+    copy_key(i, 0);
   }
+
+  driver_main();
 }
 
 }  // namespace demo

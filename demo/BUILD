@@ -43,8 +43,10 @@ c_binary('demo',
 
 c_library('code',
   sources = [
+    'client.cc',
     'context.cc',
     'demo.cc',
+    'driver.cc',
     'ipc.cc',
     'object_table.cc',
   ],
