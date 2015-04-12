@@ -1,4 +1,4 @@
-#include "demo/object_table.h"
+#include "demo/k/object_table.h"
 
 #include "demo/runtime/ipc.h"
 

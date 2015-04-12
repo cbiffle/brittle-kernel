@@ -44,12 +44,11 @@ c_binary('demo',
 c_library('code',
   sources = [
     'client.cc',
-    'context.cc',
     'demo.cc',
     'driver.cc',
-    'object_table.cc',
   ],
   deps = [
+    '//demo/k',
     '//demo/runtime',
   ],
 )

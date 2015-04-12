@@ -1,10 +1,10 @@
 #include <cstdint>
 
 #include "demo/client.h"
-#include "demo/context.h"
 #include "demo/driver.h"
+#include "demo/k/context.h"
+#include "demo/k/object_table.h"
 #include "demo/runtime/ipc.h"
-#include "demo/object_table.h"
 
 namespace demo {
 
