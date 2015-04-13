@@ -1,7 +1,7 @@
 #include <cstdint>
 
-#include "demo/client.h"
-#include "demo/driver.h"
+#include "demo/client/client.h"
+#include "demo/driver/driver.h"
 #include "demo/k/context.h"
 #include "demo/k/object_table.h"
 #include "demo/runtime/ipc.h"
