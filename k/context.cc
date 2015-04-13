@@ -357,13 +357,13 @@ void Context::read_register(Brand,
       apply_to_mpu(); \
       auto r = uload(&_stack->r ## n); \
       current->apply_to_mpu(); \
-      if (r.is_error()) { \
-        reply_sender.set_message(Message::failure(Exception::fault)); \
-      } else { \
+      if (r) { \
         reply_sender.set_message({ \
             Descriptor::zero(), \
             r.ref(), \
           }); \
+      } else { \
+        reply_sender.set_message(Message::failure(Exception::fault)); \
       } \
       break; \
     }
@@ -380,13 +380,13 @@ void Context::read_register(Brand,
       apply_to_mpu();
       auto r = uload(&_stack->psr);
       current->apply_to_mpu();
-      if (r.is_error()) {
-        reply_sender.set_message(Message::failure(Exception::fault));
-      } else {
+      if (r) {
         reply_sender.set_message({
             Descriptor::zero(),
             r.ref(),
           });
+      } else {
+        reply_sender.set_message(Message::failure(Exception::fault));
       }
       break;
     }
@@ -428,8 +428,7 @@ void Context::write_register(Brand,
 
 #define GP_EF(n) \
     case n: { \
-      auto r = ustore(&_stack->r ## n, v); \
-      if (r != SysResult::success) { \
+      if (!ustore(&_stack->r ## n, v)) { \
         reply_sender.set_message(Message::failure(Exception::fault)); \
       } \
       break; \
@@ -444,8 +443,7 @@ void Context::write_register(Brand,
 #undef GP
 
     case 16: {
-      auto r = ustore(&_stack->psr, v);
-      if (r != SysResult::success) {
+      if (!ustore(&_stack->psr, v)) {
         reply_sender.set_message(Message::failure(Exception::fault));
       }
       break;

@@ -5,8 +5,6 @@
 #include "common/exceptions.h"
 #include "common/message.h"
 
-#include "k/sys_result.h"
-
 namespace k {
 
 struct BlockingSender;  // see: k/blocking_sender.h

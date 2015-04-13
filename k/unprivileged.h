@@ -11,8 +11,7 @@
 #include <stdint.h>
 
 #include "etl/armv7m/types.h"
-
-#include "k/sys_result.h"
+#include "etl/data/maybe.h"
 
 namespace k {
 
@@ -24,9 +23,9 @@ extern uintptr_t mm_fault_recovery_handler;
  * return SysResult::fault.
  */
 __attribute__((warn_unused_result))
-SysResultWith<etl::armv7m::Word> uload(etl::armv7m::Word const *);
+etl::data::Maybe<etl::armv7m::Word> uload(etl::armv7m::Word const *);
 __attribute__((warn_unused_result))
-SysResultWith<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
+etl::data::Maybe<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
 
 /*
  * The ustore family of functions write to the given pointer if the task
@@ -34,12 +33,12 @@ SysResultWith<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
  * return SysResult::success.  Otherwise, they return SysResult::fault.
  */
 __attribute__((warn_unused_result))
-SysResult ustore(etl::armv7m::Word *, etl::armv7m::Word);
+bool ustore(etl::armv7m::Word *, etl::armv7m::Word);
 __attribute__((warn_unused_result))
-SysResult ustore(etl::armv7m::Byte *, etl::armv7m::Byte);
+bool ustore(etl::armv7m::Byte *, etl::armv7m::Byte);
 
 __attribute__((warn_unused_result))
-SysResult ustore(etl::armv7m::DoubleWord *, etl::armv7m::DoubleWord);
+bool ustore(etl::armv7m::DoubleWord *, etl::armv7m::DoubleWord);
 
 }  // namespace k
 

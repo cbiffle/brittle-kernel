@@ -1,5 +1,7 @@
 #include "k/reply_sender.h"
 
+#include "etl/assert.h"
+
 namespace k {
 
 ReplySender::ReplySender(uint32_t priority)

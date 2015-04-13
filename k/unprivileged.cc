@@ -5,6 +5,7 @@
 using etl::armv7m::Byte;
 using etl::armv7m::DoubleWord;
 using etl::armv7m::Word;
+using etl::data::Maybe;
 
 namespace k {
 
@@ -18,20 +19,20 @@ bool uload_impl(Byte const *, Byte * out);
 bool uload_impl(Word const *, Word * out);
 
 template <typename T>
-SysResultWith<T> uload_common(T const * p) {
+Maybe<T> uload_common(T const * p) {
   T result;
   if (uload_impl(p, &result)) {
-    return {etl::error::left, SysResult::fault};
+    return etl::data::nothing;
   } else {
-    return {etl::error::right, result};
+    return result;
   }
 }
 
-SysResultWith<Word> uload(Word const * p) {
+Maybe<Word> uload(Word const * p) {
   return uload_common(p);
 }
 
-SysResultWith<Byte> uload(Byte const * p) {
+Maybe<Byte> uload(Byte const * p) {
   return uload_common(p);
 }
 
@@ -43,25 +44,25 @@ bool ustore_impl(Byte *, Byte);
 bool ustore_impl(Word *, Word);
 
 template <typename T>
-SysResult ustore_common(T * addr, T value) {
+bool ustore_common(T * addr, T value) {
   if (ustore_impl(addr, value)) {
-    return SysResult::fault;
+    return false;
   } else {
-    return SysResult::success;
+    return true;
   }
 }
 
-SysResult ustore(Word * addr, Word value) {
+bool ustore(Word * addr, Word value) {
   return ustore_common(addr, value);
 }
 
-SysResult ustore(Byte * addr, Byte value) {
+bool ustore(Byte * addr, Byte value) {
   return ustore_common(addr, value);
 }
 
-SysResult ustore(DoubleWord * addr, DoubleWord value) {
-  CHECK(ustore(reinterpret_cast<Word *>(addr), Word(value)));
-  return ustore(reinterpret_cast<Word *>(addr) + 1, Word(value >> 32));
+bool ustore(DoubleWord * addr, DoubleWord value) {
+  return ustore(reinterpret_cast<Word *>(addr), Word(value))
+      && ustore(reinterpret_cast<Word *>(addr) + 1, Word(value >> 32));
 }
 
 }  // namespace k

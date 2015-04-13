@@ -6,7 +6,6 @@
 #include "common/message.h"
 
 #include "k/sender.h"
-#include "k/sys_result.h"
 
 namespace k {
 

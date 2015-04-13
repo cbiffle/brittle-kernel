@@ -9,7 +9,6 @@
 #include "common/message.h"
 
 #include "k/key.h"
-#include "k/sys_result.h"
 
 namespace k {
 
