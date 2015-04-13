@@ -19,10 +19,10 @@
 namespace sim {
 
 static void print_message(Message const & m) {
-  fprintf(stderr, "- data[0] = %lu\n", m.data[0]);
-  fprintf(stderr, "- data[1] = %lu\n", m.data[1]);
-  fprintf(stderr, "- data[2] = %lu\n", m.data[2]);
-  fprintf(stderr, "- data[3] = %lu\n", m.data[3]);
+  fprintf(stderr, "- data[0] = %u\n", m.data[0]);
+  fprintf(stderr, "- data[1] = %u\n", m.data[1]);
+  fprintf(stderr, "- data[2] = %u\n", m.data[2]);
+  fprintf(stderr, "- data[3] = %u\n", m.data[3]);
 }
 
 static void print_keys(MessageKeyNames const & k) {
@@ -64,25 +64,25 @@ static void print_req(OpenReceiveRequest const & r, Task & task) {
 
 static void print_req(CopyCapRequest const & r, Task & task) {
   fprintf(stderr, "- COPY CAP\n");
-  fprintf(stderr, "- from   = %lu ('%s')\n",
+  fprintf(stderr, "- from   = %u ('%s')\n",
       r.from_index,
       task.get_key(r.from_index).c_str());
-  fprintf(stderr, "- to     = %lu\n", r.to_index);
+  fprintf(stderr, "- to     = %u\n", r.to_index);
 }
 
 static void print_req(NullCapRequest const & r, Task & task) {
   fprintf(stderr, "- NULL CAP\n");
-  fprintf(stderr, "- index  = %lu\n", r.index);
+  fprintf(stderr, "- index  = %u\n", r.index);
 }
 
 static void print_req(MaskPortRequest const & r, Task & task) {
   fprintf(stderr, "- MASK PORT\n");
-  fprintf(stderr, "- index  = %lu\n", r.index);
+  fprintf(stderr, "- index  = %u\n", r.index);
 }
 
 static void print_req(UnmaskPortRequest const & r, Task & task) {
   fprintf(stderr, "- UNMASK PORT\n");
-  fprintf(stderr, "- index  = %lu\n", r.index);
+  fprintf(stderr, "- index  = %u\n", r.index);
 }
 
 static void print_incoming(RequestType rt, Task & task) {
