@@ -3,8 +3,8 @@
 
 #include "etl/armv7m/exception_frame.h"
 
-#include "k/ipc.h"
-#include "k/types.h"
+#include "common/abi_types.h"
+#include "common/message.h"
 
 namespace k {
 

@@ -1,14 +1,9 @@
-#ifndef K_IPC_H
-#define K_IPC_H
+#ifndef COMMON_DESCRIPTOR_H
+#define COMMON_DESCRIPTOR_H
 
-#include <stdint.h>
+#include <cstdint>
 
-#include "k/config.h"
-#include "k/exceptions.h"
-#include "k/sys_result.h"
-#include "k/types.h"
-
-namespace k {
+#include "abi_types.h"
 
 class Descriptor {
 public:
@@ -94,39 +89,21 @@ public:
     return get_receive_enabled() && get_source() == 0;
   }
 
+
+  static constexpr Descriptor call(Selector s, unsigned k) {
+    return Descriptor::zero()
+      .with_sysnum(0)
+      .with_selector(s)
+      .with_send_enabled(true)
+      .with_target(k)
+      .with_receive_enabled(true)
+      .with_source(0)
+      .with_block(true);
+  }
+
 private:
   constexpr inline Descriptor(uint32_t bits) : _bits(bits) {}
   uint32_t _bits;
 };
 
-struct Message {
-  Descriptor d0;
-  uint32_t d1;
-  uint32_t d2;
-  uint32_t d3;
-
-  constexpr Message(Descriptor d0_ = Descriptor::zero(),
-                    uint32_t d1_ = 0,
-                    uint32_t d2_ = 0,
-                    uint32_t d3_ = 0)
-    : d0{d0_}, d1{d1_}, d2{d2_}, d3{d3_} {}
-
-  static constexpr Message failure(Exception e,
-                                   uint32_t d3 = 0) {
-    return {
-      Descriptor::zero().with_error(true),
-      uint32_t(e),
-      uint32_t(uint64_t(e) >> 32),
-      d3,
-    };
-  }
-};
-
-struct ReceivedMessage {
-  Message m;
-  Brand brand;
-};
-
-}  // namespace k
-
-#endif  // K_IPC_H
+#endif  // COMMON_DESCRIPTOR_H

@@ -5,14 +5,15 @@
 
 #include "etl/data/maybe.h"
 
+#include "common/abi_types.h"
+#include "common/message.h"
+
 #include "k/key.h"
 #include "k/sys_result.h"
-#include "k/types.h"
 
 namespace k {
 
 struct Context;  // see: k/context.h
-struct Message;  // see: k/ipc.h
 struct Sender;   // see: k/sender.h
 
 class Object {

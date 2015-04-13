@@ -2,7 +2,9 @@
 
 #include "etl/armv7m/mpu.h"
 
-#include "k/ipc.h"
+#include "common/message.h"
+#include "common/descriptor.h"
+
 #include "k/sender.h"
 #include "k/region.h"
 #include "k/reply_sender.h"

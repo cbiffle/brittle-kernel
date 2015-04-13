@@ -1,16 +1,17 @@
 #ifndef K_SENDER_H
 #define K_SENDER_H
 
-#include "k/exceptions.h"
+#include "common/abi_types.h"
+#include "common/exceptions.h"
+#include "common/message.h"
+
 #include "k/sys_result.h"
-#include "k/types.h"
 
 namespace k {
 
 struct BlockingSender;  // see: k/blocking_sender.h
 struct Context;         // see: k/context.h
 struct Key;             // see: k/key.h
-struct Message;         // see: k/ipc.h
 template<typename> struct List;  // see: k/list.h
 
 /*

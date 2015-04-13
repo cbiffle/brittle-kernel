@@ -1,9 +1,10 @@
 #ifndef K_REPLY_GATE_H
 #define K_REPLY_GATE_H
 
+#include "common/abi_types.h"
+
 #include "k/object.h"
 #include "k/list.h"
-#include "k/types.h"
 
 namespace k {
 

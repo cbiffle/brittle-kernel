@@ -1,9 +1,7 @@
-#ifndef K_EXCEPTIONS_H
-#define K_EXCEPTIONS_H
+#ifndef COMMON_EXCEPTIONS_H
+#define COMMON_EXCEPTIONS_H
 
 #include <cstdint>
-
-namespace k {
 
 /*
  * Types of exceptions known to the kernel.
@@ -20,6 +18,4 @@ enum class Exception : uint64_t {
   bad_brand = 0x71decab8530ce0eb,
 };
 
-}  // namespace k
-
-#endif  // K_EXCEPTIONS_H
+#endif  // COMMON_EXCEPTIONS_H

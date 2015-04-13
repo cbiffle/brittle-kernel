@@ -1,8 +1,9 @@
 #include "k/object_table.h"
 
+#include "common/exceptions.h"
+#include "common/message.h"
+
 #include "k/context.h"
-#include "k/exceptions.h"
-#include "k/ipc.h"
 #include "k/reply_sender.h"
 #include "k/unprivileged.h"
 

@@ -3,6 +3,8 @@
 
 #include "etl/armv7m/mpu.h"
 
+#include "common/abi_types.h"
+
 #include "k/blocking_sender.h"
 #include "k/config.h"
 #include "k/key.h"
@@ -11,7 +13,6 @@
 #include "k/region.h"
 #include "k/registers.h"
 #include "k/sender.h"
-#include "k/types.h"
 
 namespace k {
 

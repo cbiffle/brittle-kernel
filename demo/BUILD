@@ -1,5 +1,5 @@
 c_binary('kernel',
-  environment = 'stm32f407',
+  environment = 'stm32f407_kernel',
   deps = [
     '//k',
     '//etl/armv7m:exception_table',
@@ -21,7 +21,7 @@ c_binary('kernel',
 )
 
 c_binary('demo',
-  environment = 'stm32f407',
+  environment = 'stm32f407_app',
   deps = [
     ':code',
     '//etl/stm32f4xx',

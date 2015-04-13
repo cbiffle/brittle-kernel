@@ -1,7 +1,9 @@
 #ifndef K_REPLY_SENDER_H
 #define K_REPLY_SENDER_H
 
-#include "k/ipc.h"
+#include "common/message.h"
+
+#include "k/config.h"
 #include "k/key.h"
 #include "k/sender.h"
 

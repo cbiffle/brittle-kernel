@@ -5,7 +5,6 @@
 #include "etl/armv7m/registers.h"
 
 #include "k/context.h"
-#include "k/ipc.h"
 #include "k/registers.h"
 #include "k/sys_result.h"
 #include "k/unprivileged.h"

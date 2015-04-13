@@ -1,8 +1,7 @@
 #ifndef K_KEY_H
 #define K_KEY_H
 
-#include "k/sys_result.h"
-#include "k/types.h"
+#include "common/abi_types.h"
 
 namespace k {
 

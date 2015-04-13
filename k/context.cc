@@ -4,9 +4,11 @@
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 
+#include "common/message.h"
+#include "common/descriptor.h"
+
 #include "k/address_range.h"
 #include "k/context_layout.h"
-#include "k/ipc.h"
 #include "k/object_table.h"
 #include "k/registers.h"
 #include "k/reply_sender.h"
