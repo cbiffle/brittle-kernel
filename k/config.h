@@ -6,7 +6,7 @@ namespace config {
 
 static constexpr unsigned
   n_contexts = 3,
-  n_objects = 12,
+  n_objects = 14,
   n_task_keys = 16,
   n_task_regions = 6,
   n_message_data = 4,

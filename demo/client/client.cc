@@ -15,18 +15,18 @@ void client_main() {
   client_ipc_complete_count = 0;
   client_error_count = 0;
 
-  uint8_t value = 0;
   while (true) {
-    Message m {
-      Descriptor::call(1, 4),
-      value,
-    };
-    ++value;
-    ++client_ipc_issue_count;
-    auto rm = ipc(m);
-    ++client_ipc_complete_count;
+    for (uint8_t value = ' '; value < 127; ++value) {
+      Message m {
+        Descriptor::call(1, 4),
+        value,
+      };
+      ++client_ipc_issue_count;
+      auto rm = ipc(m);
+      ++client_ipc_complete_count;
 
-    if (rm.m.d0.get_error()) ++client_error_count;
+      if (rm.m.d0.get_error()) ++client_error_count;
+    }
   }
 }
 

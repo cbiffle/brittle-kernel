@@ -1,10 +1,12 @@
 #include <cstdint>
 
 #include "etl/assert.h"
+#include "etl/armv7m/instructions.h"
 
 #include "demo/client/client.h"
 #include "demo/driver/driver.h"
 #include "demo/k/context.h"
+#include "demo/k/interrupt.h"
 #include "demo/k/object_table.h"
 #include "demo/runtime/ipc.h"
 
@@ -16,9 +18,11 @@ void main();
 static constexpr unsigned
   oi_peripheral_region = 4,
   oi_gate = 5,
-  oi_initial_context = 6,
-  oi_second_context = 7,
-  oi_idle_context = 8;
+  oi_irq_gate = 6,
+  oi_irq = 7,
+  oi_initial_context = 8,
+  oi_second_context = 9,
+  oi_idle_context = 10;
 
 // Our use of key registers:
 static constexpr unsigned
@@ -27,7 +31,9 @@ static constexpr unsigned
   k_self = 6,
   k_second = 7,
   k_idle = 8,
-  k_gate = 9;
+  k_gate = 9,
+  k_irq_gate = 10,
+  k_irq = 11;
 
 static void collect_keys() {
   // Awkwardly produce a key to the peripheral address space region.
@@ -40,8 +46,14 @@ static void collect_keys() {
   // Get a key to the other contexts.
   object_table::mint_key(k_object_table, oi_second_context, 0, k_second);
   object_table::mint_key(k_object_table, oi_idle_context, 0, k_idle);
-  // aaaand the IPC gate.
+  // ...the IRQ sender
+  object_table::mint_key(k_object_table, oi_irq, 0, k_irq);
+  // ...aaaand the IPC gates.
   object_table::mint_key(k_object_table, oi_gate, 0, k_gate);
+  object_table::mint_key(k_object_table, oi_irq_gate, 0, k_irq_gate);
+
+  // Wire the IRQ sender to fire at the IRQ gate.
+  interrupt::set_target(k_irq, k_irq_gate);
 }
 
 static void enable_peripheral_access() {
@@ -52,7 +64,7 @@ static uint32_t idle_stack[128];
 
 static void idle_main() {
   while (true) {
-    ETL_ASSERT(false);
+    etl::armv7m::wait_for_interrupt();
   }
 }
 
@@ -162,9 +174,12 @@ void main() {
 
   // Now, become a UART driver.  Grant access to the APB.
   enable_peripheral_access();
+
   // Arrange keys in the way the driver expects and discard extra authority.
   copy_key(4, k_gate);
-  for (unsigned i = 5; i < 16; ++i) {
+  copy_key(5, k_irq_gate);
+  copy_key(6, k_irq);
+  for (unsigned i = 7; i < 16; ++i) {
     copy_key(i, 0);
   }
 

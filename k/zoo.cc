@@ -1,6 +1,10 @@
 #include "k/zoo.h"
 
+#include "etl/stm32f4xx/interrupts.h"
+#include "etl/stm32f4xx/interrupt_table.h"
+
 #include "k/gate.h"
+#include "k/interrupt.h"
 #include "k/null_object.h"
 #include "k/object_table.h"
 #include "k/reply_gate.h"
@@ -62,11 +66,14 @@ AddressRange peripherals{
   AddressRange::ReadOnly::no,
 };
 
-Gate gate;
+Gate client_gate;
+Gate irq_gate;
+
+Interrupt irq{unsigned(etl::stm32f4xx::Interrupt::usart2)};
 
 void init_zoo() {
   // First, wire up the special objects.
-  auto constexpr special_objects = 6;
+  auto constexpr special_objects = 8;
   object_table[0].ptr = &null;
   null.set_index(0);
 
@@ -82,8 +89,14 @@ void init_zoo() {
   object_table[4].ptr = &peripherals;
   peripherals.set_index(4);
 
-  object_table[5].ptr = &gate;
-  gate.set_index(5);
+  object_table[5].ptr = &client_gate;
+  client_gate.set_index(5);
+
+  object_table[6].ptr = &irq_gate;
+  irq_gate.set_index(6);
+
+  object_table[7].ptr = &irq;
+  irq.set_index(7);
 
   // Then, wire up the contexts.
   static_assert(config::n_objects >= 2*config::n_contexts + special_objects,
@@ -101,3 +114,7 @@ void init_zoo() {
 }
 
 }  // namespace k
+
+void etl_stm32f4xx_usart2_handler() {
+  k::irq.trigger();
+}
