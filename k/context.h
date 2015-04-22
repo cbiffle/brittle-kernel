@@ -208,9 +208,6 @@ private:
   void write_priority(Brand, Sender *, Message const &);
 };
 
-extern Context * current;
-extern List<Context> runnable;
-
 }  // namespace k
 
 #endif  // K_CONTEXT_H

@@ -8,6 +8,7 @@
 #include "k/null_object.h"
 #include "k/object_table.h"
 #include "k/registers.h"
+#include "k/scheduler.h"
 #include "k/zoo.h"
 
 static void setup_mpu() {

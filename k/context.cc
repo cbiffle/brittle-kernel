@@ -1,6 +1,5 @@
 #include "k/context.h"
 
-#include "etl/armv7m/instructions.h"
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 
@@ -12,36 +11,12 @@
 #include "k/object_table.h"
 #include "k/registers.h"
 #include "k/reply_sender.h"
+#include "k/scheduler.h"
 #include "k/unprivileged.h"
 
 using etl::armv7m::Word;
 
 namespace k {
-
-/*******************************************************************************
- * Global objects
- */
-
-Context * current;
-List<Context> runnable;
-bool switch_pending;
-
-static void do_deferred_switch() {
-  if (!switch_pending) return;
-
-  switch_pending = false;
-
-  while (runnable.is_empty()) {
-    etl::armv7m::wait_for_interrupt();
-  }
-
-  current = runnable.peek().ref()->owner;
-}
-
-static void pend_switch() {
-  switch_pending = true;
-}
-
 
 /*******************************************************************************
  * Context-specific stuff

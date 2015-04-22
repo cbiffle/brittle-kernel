@@ -6,6 +6,7 @@
 
 #include "k/context.h"
 #include "k/registers.h"
+#include "k/scheduler.h"
 #include "k/unprivileged.h"
 
 namespace k {
