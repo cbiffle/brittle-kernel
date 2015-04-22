@@ -46,6 +46,7 @@ c_library('code',
     'demo.cc',
   ],
   deps = [
+    '//etl:assert_loop',
     '//demo/client',
     '//demo/driver',
     '//demo/k',
