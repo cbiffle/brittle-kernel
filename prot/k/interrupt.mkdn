@@ -1,0 +1,31 @@
+Interrupt Protocol
+==================
+
+An "interrupt" object represents a hardware interrupt, manages its enabled
+status, and generates messages when the interrupt occurs.
+
+
+Set Target (1)
+--------------
+
+Loads a new target key for this interrupt.  When the interrupt fires it will be converted into a message to the target key.
+
+Arguments:
+- d0: descriptor
+- k1: target
+
+Results:
+- d0: success descriptor
+
+
+Enable (2)
+----------
+
+Enables the interrupt, acknowledging any outstanding interrupt.
+
+Arguments:
+- d0: descriptor
+- d1: clear pending (1) or leave as-is (0).
+
+Results:
+- d0: success descriptor
