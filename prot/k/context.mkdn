@@ -141,3 +141,35 @@ Arguments:
 
 Results:
 - d0: success descriptor
+
+
+Read Priority (7)
+-----------------
+
+Gets the current priority of the context.
+
+Arguments:
+- d0: descriptor
+
+Results:
+- d0: success descriptor
+- d1: priority
+
+Bugs:
+- Priorities ought to be capabilities.
+
+
+Write Priority (8)
+------------------
+
+Alters the current priority of the context.
+
+Arguments:
+- d0: descriptor
+- d1: priority
+
+Results:
+- d0: success descriptor
+
+Bugs:
+- Priorities ought to be capabilities.

@@ -334,6 +334,14 @@ void Context::deliver_from(Brand brand, Sender * sender) {
       make_runnable(brand, sender, m);
       break;
 
+    case 7:
+      read_priority(brand, sender, m);
+      break;
+
+    case 8:
+      write_priority(brand, sender, m);
+      break;
+
     default:
       sender->complete_send(Exception::bad_operation, m.d0.get_selector());
       break;
@@ -550,6 +558,39 @@ void Context::make_runnable(Brand, Sender * sender, Message const & arg) {
   pend_switch();
 
   ReplySender reply_sender{0};  // TODO priority
+  reply.deliver_from(&reply_sender);
+}
+
+void Context::read_priority(Brand,
+                            Sender * sender,
+                            Message const & arg) {
+  auto reply = sender->get_message_key(0);
+  sender->complete_send();
+
+  ReplySender reply_sender{0};  // TODO priority
+  reply_sender.set_message({Descriptor::zero(), _priority});
+  reply.deliver_from(&reply_sender);
+}
+
+void Context::write_priority(Brand,
+                             Sender * sender,
+                             Message const & arg) {
+  auto priority = arg.d1;
+
+  auto reply = sender->get_message_key(0);
+  sender->complete_send();
+
+  ReplySender reply_sender{0};  // TODO priority
+
+  if (priority < config::n_priorities) {
+    _priority = priority;
+  
+    if (_ctx_item.is_linked()) _ctx_item.reinsert();
+    if (_sender_item.is_linked()) _sender_item.reinsert();
+  } else {
+    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+  }
+
   reply.deliver_from(&reply_sender);
 }
 

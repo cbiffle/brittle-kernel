@@ -26,14 +26,28 @@ public:
 
   struct Item : Itemoid {
     T * owner;
+    List * container;
 
-    Item(T * o) : owner{o} {}
+    Item(T * o) : owner{o}, container{nullptr} {}
 
     void unlink() {
+      this->container = nullptr;
+
       this->next->prev = this->prev;
       this->prev->next = this->next;
 
       this->next = this->prev = this;
+    }
+
+    void reinsert() {
+      auto c = this->container;
+      ETL_ASSERT(c);
+      unlink();
+      c->insert(this);
+    }
+
+    bool is_linked() const {
+      return this->container;
     }
   };
 
@@ -99,6 +113,7 @@ public:
 
     it->prev = _roots[p].prev;
     it->next = &_roots[p];
+    it->container = this;
 
     _roots[p].prev = _roots[p].prev->next = it;
   }

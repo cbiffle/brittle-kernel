@@ -203,6 +203,9 @@ private:
   void write_region(Brand, Sender *, Message const &);
 
   void make_runnable(Brand, Sender *, Message const &);
+
+  void read_priority(Brand, Sender *, Message const &);
+  void write_priority(Brand, Sender *, Message const &);
 };
 
 extern Context * current;

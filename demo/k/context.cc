@@ -56,4 +56,13 @@ bool make_runnable(unsigned k) {
   return rm.m.d0.get_error() == false;
 }
 
+bool set_priority(unsigned k, unsigned priority) {
+  auto rm = ipc({
+      Descriptor::call(8, k),
+      priority,
+    });
+
+  return rm.m.d0.get_error() == false;
+}
+
 }  // namespace context

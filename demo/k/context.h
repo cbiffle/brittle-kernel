@@ -14,6 +14,8 @@ bool set_key(unsigned k, unsigned key_index, unsigned key);
 
 bool make_runnable(unsigned k);
 
+bool set_priority(unsigned k, unsigned priority);
+
 }  // namespace context
 
 #endif  // DEMO_CONTEXT_H
