@@ -22,11 +22,11 @@ void do_deferred_switch() {
 
   switch_pending = false;
 
-  while (runnable.is_empty()) {
-    etl::armv7m::wait_for_interrupt();
-  }
+  // TODO: we ought to turn on strict Maybe checking in the kernel.
+  auto head = runnable.peek();
+  ETL_ASSERT(head);
 
-  current = runnable.peek().ref()->owner;
+  current = head.ref()->owner;
 }
 
 }  // namespace k
