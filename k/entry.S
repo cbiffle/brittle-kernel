@@ -28,6 +28,11 @@
 etl_armv7m_sv_call_handler:
     kernel_entry _ZN1k12svc_dispatchEPv
 
+.globl etl_armv7m_pend_sv_handler
+.thumb_func
+etl_armv7m_pend_sv_handler:
+    kernel_entry _ZN1k22switch_after_interruptEPv
+
 .globl etl_armv7m_mem_manage_fault_handler
 .thumb_func
 etl_armv7m_mem_manage_fault_handler:

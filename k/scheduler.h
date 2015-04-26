@@ -12,6 +12,9 @@ extern List<Context> runnable;
 
 void pend_switch();
 void do_deferred_switch();
+void do_deferred_switch_from_irq();
+
+void * switch_after_interrupt(void *);
 
 }  // namespace k
 
