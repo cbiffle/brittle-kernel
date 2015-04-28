@@ -31,21 +31,16 @@ public:
   /*
    * Implementation of Sender
    */
-  Priority get_priority() const override;
-  Message get_message() override;
-  Key get_message_key(unsigned) override;
-
-  void complete_send() override;
-  void complete_send(Exception, uint32_t = 0) override;
-
+  void on_delivery_accepted(Message &, Keys &) override;
+  void on_delivery_failed(Exception, uint32_t = 0) override;
   void block_in_send(Brand, List<BlockingSender> &) override;
 
   /*
    * Implementation of BlockingSender
    */
-  Brand get_saved_brand() const override;
-  void complete_blocked_send() override;
-  void complete_blocked_send(Exception, uint32_t = 0) override;
+  Priority get_priority() const override;
+  void on_blocked_delivery_accepted(Message &, Brand &, Keys &) override;
+  void on_blocked_delivery_failed(Exception, uint32_t = 0) override;
 
 private:
   Brand _saved_brand;
@@ -54,8 +49,8 @@ private:
   Priority _priority;
   unsigned _irq;
 
-  void do_set_target(Brand, Sender *, Message const &);
-  void do_enable(Brand, Sender *, Message const &);
+  void do_set_target(Brand, Message const &, Keys &);
+  void do_enable(Brand, Message const &, Keys &);
 };
 
 }  // namespace k

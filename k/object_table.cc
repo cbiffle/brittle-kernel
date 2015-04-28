@@ -16,32 +16,31 @@ void ObjectTable::invalidate(TableIndex index) {
 }
 
 void ObjectTable::deliver_from(Brand brand, Sender * sender) {
-  Message m = sender->get_message();
+  Message m;
+  Keys k;
+  sender->on_delivery_accepted(m, k);
   switch (m.d0.get_selector()) {
     case 0:
-      mint_key(brand, sender, m);
+      do_mint_key(brand, m, k);
       break;
 
     case 1: 
-      read_key(brand, sender, m);
+      do_read_key(brand, m, k);
       break;
     
     default:
-      sender->complete_send(Exception::bad_operation, m.d0.get_selector());
+      do_badop(m, k);
       break;
   }
 }
 
-void ObjectTable::mint_key(Brand,
-                           Sender * sender,
-                           Message const & args) {
+void ObjectTable::do_mint_key(Brand,
+                              Message const & args,
+                              Keys & keys) {
   auto index = args.d1;
   auto brand = args.d2 | (Brand(args.d3) << 32);
-  auto reply = sender->get_message_key(0);
 
-  sender->complete_send();
-
-  ReplySender reply_sender{0};  // TODO: systematic reply priorities?
+  ReplySender reply_sender;
 
   if (index >= config::n_objects) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
@@ -57,28 +56,24 @@ void ObjectTable::mint_key(Brand,
     }
   }
 
-  reply.deliver_from(&reply_sender);
+  keys.keys[0].deliver_from(&reply_sender);
 }
 
-void ObjectTable::read_key(Brand,
-                           Sender * sender,
-                           Message const & args) {
-  auto k = sender->get_message_key(1);
+void ObjectTable::do_read_key(Brand,
+                              Message const & args,
+                              Keys & keys) {
+  auto & k = keys.keys[1];
   auto index = k.get_index();
   auto brand = k.get_brand();
 
-  auto reply = sender->get_message_key(0);
-
-  sender->complete_send();
-
   // TODO: systematic reply priorities?
-  ReplySender reply_sender{0, {
+  ReplySender reply_sender{{
     Descriptor::zero(),
     index,
     uint32_t(brand),
     uint32_t(brand >> 32),
   }};
-  reply.deliver_from(&reply_sender);
+  keys.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

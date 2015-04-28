@@ -4,9 +4,11 @@
 #include "etl/data/range_ptr.h"
 
 #include "k/object.h"
-#include "k/region.h"
 
 namespace k {
+
+struct Keys;  // see: k/keys.h
+struct Region;  // see: k/region.h
 
 /*
  * An AddressRange describes a range of addresses and responds to the memory
@@ -49,7 +51,7 @@ private:
   bool _xn;
   ReadOnly _read_only;
 
-  void inspect(Brand, Sender *, Message const &);
+  void do_inspect(Brand, Message const &, Keys &);
 };
 
 }  // namespace k

@@ -23,78 +23,63 @@ void Interrupt::trigger() {
 }
 
 void Interrupt::deliver_from(Brand brand, Sender * sender) {
-  Message m = sender->get_message();
+  Message m;
+  Keys k;
+  sender->on_delivery_accepted(m, k);
   switch (m.d0.get_selector()) {
     case 1:
-      do_set_target(brand, sender, m);
+      do_set_target(brand, m, k);
       break;
 
     case 2:
-      do_enable(brand, sender, m);
+      do_enable(brand, m, k);
       break;
 
     default:
-      // TODO: this seems wrong; should be sent through reply key.
-      sender->complete_send(Exception::bad_operation, m.d0.get_selector());
+      do_badop(m, k);
       break;
   }
 }
 
-void Interrupt::do_set_target(Brand brand, Sender * sender, Message const & m) {
-  auto reply = sender->get_message_key(0);
-  auto target = sender->get_message_key(1);
-  sender->complete_send();
+void Interrupt::do_set_target(Brand, Message const &, Keys & k) {
+  auto & reply = k.keys[0];
+  auto & target = k.keys[1];
 
   _target = target;
 
-  ReplySender reply_sender{0};  // TODO
+  ReplySender reply_sender;
   reply.deliver_from(&reply_sender);
 }
 
-void Interrupt::do_enable(Brand brand, Sender * sender, Message const & m) {
-  auto reply = sender->get_message_key(0);
+void Interrupt::do_enable(Brand, Message const & m, Keys & k) {
   bool clear_pending = m.d1 != 0;
-  sender->complete_send();
 
   if (clear_pending) nvic.clear_pending_irq(_irq);
   nvic.enable_irq(_irq);
 
-  ReplySender reply_sender{0};  // TODO
-  reply.deliver_from(&reply_sender);
+  ReplySender reply_sender;
+  k.keys[0].deliver_from(&reply_sender);
 }
 
 Priority Interrupt::get_priority() const {
   return _priority;
 }
 
-Message Interrupt::get_message() {
-  return {
+void Interrupt::on_delivery_accepted(Message & m, Keys & k) {
+  m = {
     Descriptor::zero().with_selector(1),
     _irq,
   };
-}
-
-Key Interrupt::get_message_key(unsigned index) {
-  if (index == 0) {
-    // Pass a key that can be used to re-enable interrupts as the "reply key."
-    return {make_key(0).ref()};
-  } else {
-    return Key::null();
+  k.keys[0] = make_key(0).ref();
+  for (unsigned ki = 0; ki < config::n_message_keys; ++ki) {
+    k.keys[ki] = Key::null();
   }
 }
 
-Brand Interrupt::get_saved_brand() const {
-  return _saved_brand;
-}
-
-void Interrupt::complete_send() {
-  // We've successfully delivered to a task without blocking.  Our interrupt is
-  // still disabled.  Now we wait for the task to "reply" and re-enable us.
-}
-
-void Interrupt::complete_send(Exception, uint32_t) {
+void Interrupt::on_delivery_failed(Exception, uint32_t) {
   // Our attempt to deliver has failed.  This is an indication of a
-  // configuration error.
+  // configuration error.  Do nothing for now.
+  // TODO: should this be able to raise some sort of alert?
 }
 
 void Interrupt::block_in_send(Brand brand, List<BlockingSender> & list) {
@@ -102,12 +87,12 @@ void Interrupt::block_in_send(Brand brand, List<BlockingSender> & list) {
   list.insert(&_sender_item);
 }
 
-void Interrupt::complete_blocked_send() {
-  // We were blocked, but now we're not.  Merely being unblocked isn't enough
-  // to re-enable the interrupt; so no action is needed here.
+void Interrupt::on_blocked_delivery_accepted(Message & m, Brand & b, Keys & k) {
+  b = _saved_brand;
+  on_delivery_accepted(m, k);
 }
 
-void Interrupt::complete_blocked_send(Exception, uint32_t) {
+void Interrupt::on_blocked_delivery_failed(Exception, uint32_t) {
   // We appear to have been interrupted while blocked.
 }
 

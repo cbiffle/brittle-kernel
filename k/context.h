@@ -108,30 +108,15 @@ public:
    */
 
   /*
-   * Overridden to return this context's priority.
-   */
-  Priority get_priority() const override;
-
-  /*
-   * Overridden to load the message out of saved registers.
-   */
-  Message get_message() override;
-
-  /*
-   * Overridden to copy keys from context key registers.
-   */
-  Key get_message_key(unsigned index) override;
-
-  /*
    * Overridden to indicate success and switch the context into reply state,
    * when relevant.
    */
-  void complete_send() override;
+  void on_delivery_accepted(Message &, Keys &) override;
 
   /*
    * Overridden to record the exception and abort any remaining phase.
    */
-  void complete_send(Exception, uint32_t = 0) override;
+  void on_delivery_failed(Exception, uint32_t = 0) override;
 
   /*
    * Overridden to support real blocking if permitted by task code.
@@ -143,9 +128,11 @@ public:
    * Implementation of BlockingSender.
    */
 
-  Brand get_saved_brand() const override;
-  void complete_blocked_send() override;
-  void complete_blocked_send(Exception, uint32_t = 0) override;
+  Priority get_priority() const override;
+  void on_blocked_delivery_accepted(Message &,
+                                    Brand &,
+                                    Keys &) override;
+  void on_blocked_delivery_failed(Exception, uint32_t = 0) override;
 
 
   /*************************************************************
@@ -184,28 +171,28 @@ private:
   Key _memory_regions[config::n_task_regions];
 
   Descriptor get_descriptor() const;
+  Keys & get_message_keys();
 
   void do_ipc();
   void do_copy_key();
   void do_bad_sys();
 
   Key make_reply_key() const;
-  void complete_receive_core(Brand, Sender *);
 
   // Factors of deliver_from
-  void read_register(Brand, Sender *, Message const &);
-  void write_register(Brand, Sender *, Message const &);
+  void do_read_register(Brand, Message const &, Keys &);
+  void do_write_register(Brand, Message const &, Keys &);
 
-  void read_key(Brand, Sender *, Message const &);
-  void write_key(Brand, Sender *, Message const &);
+  void do_read_key(Brand, Message const &, Keys &);
+  void do_write_key(Brand, Message const &, Keys &);
 
-  void read_region(Brand, Sender *, Message const &);
-  void write_region(Brand, Sender *, Message const &);
+  void do_read_region(Brand, Message const &, Keys &);
+  void do_write_region(Brand, Message const &, Keys &);
 
-  void make_runnable(Brand, Sender *, Message const &);
+  void do_make_runnable(Brand, Message const &, Keys &);
 
-  void read_priority(Brand, Sender *, Message const &);
-  void write_priority(Brand, Sender *, Message const &);
+  void do_read_priority(Brand, Message const &, Keys &);
+  void do_write_priority(Brand, Message const &, Keys &);
 };
 
 }  // namespace k

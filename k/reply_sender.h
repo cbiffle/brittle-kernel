@@ -3,8 +3,8 @@
 
 #include "common/message.h"
 
-#include "k/config.h"
 #include "k/key.h"
+#include "k/keys.h"
 #include "k/sender.h"
 
 namespace k {
@@ -15,8 +15,8 @@ public:
    * ReplySender specifics
    */
 
-  explicit ReplySender(uint32_t priority);
-  explicit ReplySender(uint32_t priority, Message const &);
+  ReplySender();
+  explicit ReplySender(Message const &);
 
   void set_message(Message const & m) { _m = m; }
   void set_key(unsigned index, Key const &);
@@ -25,18 +25,13 @@ public:
    * Implementation of Sender
    */
 
-  uint32_t get_priority() const override;
-  Message get_message() override;
-  Key get_message_key(unsigned index) override;
-
-  void complete_send() override;
-  void complete_send(Exception, uint32_t) override;
+  void on_delivery_accepted(Message &, Keys &) override;
+  void on_delivery_failed(Exception, uint32_t = 0) override;
   void block_in_send(Brand, List<BlockingSender> &) override;
 
 private:
   Message _m;
-  Key _keys[config::n_message_keys];
-  uint32_t _priority;
+  Keys _keys;
 };
 
 }  // namespace k

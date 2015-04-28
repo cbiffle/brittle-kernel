@@ -2,6 +2,7 @@
 
 #include "k/address_range.h"
 #include "k/object_table.h"
+#include "k/region.h"
 
 using etl::armv7m::Mpu;
 

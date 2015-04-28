@@ -2,6 +2,8 @@
 
 #include "k/context.h"
 #include "k/key.h"
+#include "k/keys.h"
+#include "k/reply_sender.h"
 
 namespace k {
 
@@ -17,6 +19,12 @@ void Object::deliver_to(Context * ctx) {
 
 bool Object::is_address_range() const {
   return false;
+}
+
+void Object::do_badop(Message const & m, Keys & k) {
+  ReplySender reply{Message::failure(Exception::bad_operation,
+                                     m.d0.get_selector())};
+  k.keys[0].deliver_from(&reply);
 }
 
 }  // namespace k

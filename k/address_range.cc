@@ -130,30 +130,30 @@ bool AddressRange::is_address_range() const {
 }
 
 void AddressRange::deliver_from(Brand brand, Sender * sender) {
-  Message m = sender->get_message();
+  Message m;
+  Keys k;
+  sender->on_delivery_accepted(m, k);
+
   switch (m.d0.get_selector()) {
     case 0: 
-      inspect(brand, sender, m);
+      do_inspect(brand, m, k);
       break;
 
     default:
-      sender->complete_send(Exception::bad_operation, m.d0.get_selector());
+      do_badop(m, k);
       break;
   }
 }
 
-void AddressRange::inspect(Brand brand,
-                           Sender * sender,
-                           Message const & m) {
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
-
-  ReplySender reply_sender{0, {
+void AddressRange::do_inspect(Brand brand,
+                              Message const & m,
+                              Keys & k) {
+  ReplySender reply_sender{{
     Descriptor::zero(),
     uint32_t(brand),
     uint32_t(brand >> 32),
   }};
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

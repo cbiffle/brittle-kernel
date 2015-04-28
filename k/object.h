@@ -8,11 +8,12 @@
 #include "common/abi_types.h"
 #include "common/message.h"
 
-#include "k/key.h"
+#include "k/key.h"  // TODO: not necessary?
 
 namespace k {
 
 struct Context;  // see: k/context.h
+struct Keys;     // see: k/keys.h
 struct Sender;   // see: k/sender.h
 
 class Object {
@@ -88,6 +89,11 @@ public:
 
 protected:
   Object();
+
+  /*
+   * Common implementation for refusing a bad selector.
+   */
+  void do_badop(Message const &, Keys &);
 
 private:
   TableIndex _index;

@@ -4,38 +4,26 @@
 
 namespace k {
 
-ReplySender::ReplySender(uint32_t priority)
+ReplySender::ReplySender()
   : _m{},
-    _keys{},
-    _priority{priority} {}
+    _keys{{}} {}
 
-ReplySender::ReplySender(uint32_t priority, Message const & m)
+ReplySender::ReplySender(Message const & m)
   : _m{m},
-    _keys{},
-    _priority{priority} {}
+    _keys{{}} {}
 
 void ReplySender::set_key(unsigned index, Key const & k) {
   ETL_ASSERT(index < config::n_message_keys);
-  _keys[index] = k;
+  _keys.keys[index] = k;
 }
 
-uint32_t ReplySender::get_priority() const { return _priority; }
-
-Message ReplySender::get_message() {
-  return _m;
+void ReplySender::on_delivery_accepted(Message & m, Keys & keys) {
+  m = _m;
+  keys = _keys;
 }
 
-Key ReplySender::get_message_key(unsigned index) {
-  ETL_ASSERT(index < config::n_message_keys);
-  return _keys[index];
-}
-
-void ReplySender::complete_send() {
+void ReplySender::on_delivery_failed(Exception, uint32_t) {
   // Don't care.
-}
-
-void ReplySender::complete_send(Exception, uint32_t) {
-  // Don't care about this either.
 }
 
 void ReplySender::block_in_send(Brand, List<BlockingSender> &) {

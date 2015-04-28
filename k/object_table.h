@@ -42,8 +42,8 @@ public:
 private:
   Entry _objects[config::n_objects];
 
-  void mint_key(Brand, Sender *, Message const &);
-  void read_key(Brand, Sender *, Message const &);
+  void do_mint_key(Brand, Message const &, Keys &);
+  void do_read_key(Brand, Message const &, Keys &);
 };
 
 extern ObjectTable object_table;

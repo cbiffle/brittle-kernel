@@ -1,0 +1,71 @@
+Context-to-Context call path
+============================
+
+When partner is ready:
+
+    Context::do_ipc
+    Gate::deliver_from (V)
+    Context::complete_blocked_receive
+    Context::complete_receive_core
+    Context::get_message (V)
+    Context::get_message_key (V)
+    Context::get_message_key (V)
+    Context::get_message_key (V)
+    Context::get_message_key (V)
+    Context::complete_send (V)
+    pend_switch
+    do_deferred_switch
+
+Proposed alteration:
+
+    Context::do_ipc
+    Gate::deliver_from (V)
+    Context::complete_blocked_receive
+    Context::complete_receive_core
+    Context::deliver_into (V)       <------- new
+    pend_switch
+    do_deferred_switch
+
+Note that, by default, calls to virtual functions from *inside* a class are
+assumed to be potential extension points and left virtual.  However, I'm pleased
+to report that GCC devirtualizes calls to `final` functions, or self-calls from
+within `final` classes.  It's not an automatic huge win -- it reduces 64 static
+virtual callsites to 59 -- but it does allow for some interesting optimizations,
+like inlining `Context::get_priority` within `List<Context>::insert`.
+
+So, I feel like kernel objects ought to be `final` wherever possible, just to
+keep from having to think about that again.
+
+Anyway.  About that delivery primitive.
+
+Anyone receiving a message needs to provide some RAM to store it in.  In the
+case of a Context, the message can land directly into the task register save
+area.  In the case of a kernel object, it can accept the message on the stack
+for inspection.
+
+After writing the docs, it seems like the following names make sense:
+- `on_delivery_accepted` and `on_blocked_delivery_accepted` take the place of
+  `complete_send` and `complete_blocked_send`.
+
+- `on_delivery_failed` and `on_blocked_delivery_failed` replace the Exception
+  overloads.
+
+Also note that
+
+- `get_priority` can move down to BlockingSender.
+- `get_message` and `get_message_key` are no longer important.
+
+
+Initial Performance
+-------------------
+
+Rough CPU cycles required to send five bytes over serial at 115.2k, before and
+after the protocol changes:
+
+              5c        c       faster?
+    Before  29624.96  5924.99
+    After   26051.84  5210.37     12%
+
+That's a start.
+
+

@@ -9,52 +9,32 @@ namespace k {
 
 struct BlockingSender;  // see: k/blocking_sender.h
 struct Context;         // see: k/context.h
-struct Key;             // see: k/key.h
+struct Keys;            // see: k/keys.h
 template<typename> struct List;  // see: k/list.h
 
 /*
  * Interface implemented by objects that can send messages.  Note that a
  * Sender is not necessarily an Object -- the kernel occasionally creates
- * ephemeral senders to transmit reply messages.
+ * ephemeral senders to transmit reply messages (see ReplySender).
  */
 class Sender {
 public:
   /*
-   * Returns the priority associated with this sender's current message.
-   * This is used to determine the order in which pending messages are
-   * processed.
-   */
-  virtual Priority get_priority() const = 0;
-
-  /*
-   * Returns a copy of the sender's current message.
-   */
-  virtual Message get_message() = 0;
-
-  /*
-   * Copies one of the message keys.
+   * Indicates that an object has accepted delivery of this sender's message.
+   * The sender should deposit the message and keys into the provided
+   * locations.
    *
-   * Precondition: the index is less than config::n_message_keys.
-   *
-   * The default implementation delivers null keys.
+   * This ends the non-blocking send protocol.  If the sender needs to
+   * atomically transition to receive state, it should do so here.
    */
-  virtual Key get_message_key(unsigned index);
+  virtual void on_delivery_accepted(Message &, Keys &) = 0;
 
   /*
-   * Finishes a send without blocking, indicating success to the sender.
+   * Indicates that delivery of the sender's current message has failed.
    *
-   * This is one of two opportunities for the sender to atomically
-   * transition to receive state, if desired; the other is the
-   * similar function complete_blocked_send.
+   * This ends the non-blocking send protocol.
    */
-  virtual void complete_send() = 0;
-
-  /*
-   * Finishes a send without blocking, indicating failure to the sender.  This
-   * means the message was not delivered, not that the message's contents were
-   * rejected.
-   */
-  virtual void complete_send(Exception, uint32_t = 0) = 0;
+  virtual void on_delivery_failed(Exception, uint32_t = 0) = 0;
 
   /*
    * Asks this sender to suspend sending and block on the given list.  The
@@ -65,11 +45,14 @@ public:
    * (TODO this may be excessively paranoid.)
    *
    * If the sender agrees to block, it will save the brand and add itself to
-   * the given list, expecting to be freed later either by interruption or a
-   * call to complete_blocked_send.
+   * the given list, thus revealing its true identity as a BlockingSender.  It
+   * then expects to be resumed later by a call to BlockingSender's functions
+   * on_blocked_delivery_*.
    *
-   * If it is not willing to block, it does nothing, and may record somewhere
-   * that the send was not completed.
+   * If it is not willing to block, it does nothing, and possibly delivers an
+   * exception to the controlling context.
+   *
+   * This ends the non-blocking send protocol.
    */
   virtual void block_in_send(Brand, List<BlockingSender> &) = 0;
 };

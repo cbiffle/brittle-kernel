@@ -25,6 +25,8 @@ public:
    */
   static Key null();
 
+  Key() = default;
+
   /*
    * Fills a key in-place with the given object table index and
    * brand.  After this returns the key will be current.

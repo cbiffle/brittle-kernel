@@ -11,11 +11,15 @@ ReplyGate::ReplyGate()
 void ReplyGate::deliver_from(Brand brand, Sender * sender) {
   // Filter out messages bearing the wrong brand.
   if (brand != _expected_brand) {
-    sender->complete_send(Exception::bad_operation);
+    // Fail like a null object.
+    // TODO: should null objects fail in this way?
+    sender->on_delivery_failed(Exception::bad_operation);
+    return;
   }
 
   // Invalidate our object table entry, revoking all extant keys.
   if (++_expected_brand == 0) {
+    // Also rev the generation to extend the counter's period.
     object_table.invalidate(get_index());
   }
 
@@ -27,7 +31,7 @@ void ReplyGate::deliver_from(Brand brand, Sender * sender) {
     it->unlink();
     it->owner->complete_blocked_receive(brand, sender);
   } else {
-    sender->complete_send(Exception::bad_operation);
+    sender->on_delivery_failed(Exception::bad_operation);
   }
 }
 

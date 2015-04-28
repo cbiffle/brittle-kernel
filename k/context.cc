@@ -48,6 +48,10 @@ Descriptor Context::get_descriptor() const {
   return _save.sys.m.d0;
 }
 
+Keys & Context::get_message_keys() {
+  return *reinterpret_cast<Keys *>(_keys);
+}
+
 void Context::do_syscall() {
   switch (get_descriptor().get_sysnum()) {
     case 0:  // IPC
@@ -90,21 +94,15 @@ void Context::do_bad_sys() {
 }
 
 void Context::complete_receive(BlockingSender * sender) {
-  complete_receive_core(sender->get_saved_brand(), sender);
-}
-
-void Context::complete_receive_core(Brand brand, Sender * sender) {
-  put_message(brand, sender->get_message());
-
-  for (unsigned i = 0; i < config::n_message_keys; ++i) {
-    key(i) = sender->get_message_key(i);
-  }
-
-  sender->complete_send();
+  sender->on_blocked_delivery_accepted(_save.sys.m,
+                                       _save.sys.b,
+                                       get_message_keys());
+  _save.sys.m.d0 = _save.sys.m.d0.sanitized();
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
-  put_message(0, Message::failure(e, param));
+  _save.sys.m = Message::failure(e, param);
+  _save.sys.b = 0;
   nullify_exchanged_keys();
 }
 
@@ -122,7 +120,9 @@ void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
 
-  complete_receive_core(brand, sender);
+  sender->on_delivery_accepted(_save.sys.m, get_message_keys());
+  _save.sys.m.d0 = _save.sys.m.d0.sanitized();
+  _save.sys.b = brand;
 
   pend_switch();
 }
@@ -164,7 +164,7 @@ void Context::apply_to_mpu() {
 void Context::make_runnable() {
   switch (_state) {
     case State::sending:
-      complete_blocked_send(Exception::would_block);
+      on_blocked_delivery_failed(Exception::would_block);
       break;
 
     case State::receiving:
@@ -190,12 +190,15 @@ Priority Context::get_priority() const {
   return _priority;
 }
 
-Message Context::get_message() {
-  return _save.sys.m;
-}
-
-void Context::complete_send() {
+void Context::on_delivery_accepted(Message & m, Keys & k) {
   auto d = get_descriptor();
+
+  m = _save.sys.m;
+
+  k.keys[0] = d.is_call() ? make_reply_key() : Key::null();
+  for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
+    k.keys[ki] = key(ki);
+  }
 
   if (d.get_receive_enabled()) {
     auto source = d.is_call() ? make_reply_key()
@@ -204,14 +207,10 @@ void Context::complete_send() {
   }
 }
 
-void Context::complete_send(Exception e, uint32_t param) {
-  // We may have distributed a key to our reply gate earlier in the send phase.
-  if (get_descriptor().is_call()) {
-    // If so, revoke it, since the send has been cancelled.
-    object_table.invalidate(_reply_gate_index);
-  }
+void Context::on_delivery_failed(Exception e, uint32_t param) {
   // Deliver the exception.
-  put_message(0, Message::failure(e, param));
+  _save.sys.m = Message::failure(e, param);
+  _save.sys.b = 0;
   // Avoid looking like we delivered any pre-existing keys.
   nullify_exchanged_keys();
 }
@@ -228,43 +227,25 @@ void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
     pend_switch();
   } else {
     // Unprivileged code is unwilling to block for delivery.
-    complete_send(Exception::would_block);
+    on_delivery_failed(Exception::would_block);
   }
 }
 
-Brand Context::get_saved_brand() const {
-  return _saved_brand;
-}
-
-void Context::complete_blocked_send() {
+void Context::on_blocked_delivery_accepted(Message & m, Brand & b, Keys & k) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
 
-  complete_send();
+  b = _saved_brand;
+  on_delivery_accepted(m, k);
   pend_switch();
 }
 
-void Context::complete_blocked_send(Exception e, uint32_t param) {
+void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
 
-  complete_send(e, param);
+  on_delivery_failed(e, param);
   pend_switch();
-}
-
-Key Context::get_message_key(unsigned index) {
-  if (index == 0) {
-    // Special handling of reply key
-    auto d = get_descriptor();
-    if (d.is_call()) {
-      return make_reply_key();
-    } else {
-      return Key::null();
-    }
-  } else {
-    // Other keys
-    return key(index);
-  }
 }
 
 Key Context::make_reply_key() const {
@@ -279,54 +260,56 @@ Key Context::make_reply_key() const {
  */
 
 void Context::deliver_from(Brand brand, Sender * sender) {
-  Message m = sender->get_message();
+  Message m;
+  Keys k;
+  sender->on_delivery_accepted(m, k);
   switch (m.d0.get_selector()) {
     case 0: 
-      read_register(brand, sender, m);
+      do_read_register(brand, m, k);
       break;
 
     case 1: 
-      write_register(brand, sender, m);
+      do_write_register(brand, m, k);
       break;
 
     case 2: 
-      read_key(brand, sender, m);
+      do_read_key(brand, m, k);
       break;
 
     case 3: 
-      write_key(brand, sender, m);
+      do_write_key(brand, m, k);
       break;
 
     case 4: 
-      read_region(brand, sender, m);
+      do_read_region(brand, m, k);
       break;
 
     case 5: 
-      write_region(brand, sender, m);
+      do_write_region(brand, m, k);
       break;
 
     case 6:
-      make_runnable(brand, sender, m);
+      do_make_runnable(brand, m, k);
       break;
 
     case 7:
-      read_priority(brand, sender, m);
+      do_read_priority(brand, m, k);
       break;
 
     case 8:
-      write_priority(brand, sender, m);
+      do_write_priority(brand, m, k);
       break;
 
     default:
-      sender->complete_send(Exception::bad_operation, m.d0.get_selector());
+      do_badop(m, k);
       break;
   }
 }
 
-void Context::read_register(Brand,
-                            Sender * sender,
-                            Message const & arg) {
-  ReplySender reply_sender{0};  // TODO priority
+void Context::do_read_register(Brand,
+                               Message const & arg,
+                               Keys & k) {
+  ReplySender reply_sender;
   switch (arg.d1) {
     case 13:
       reply_sender.set_message({
@@ -390,19 +373,16 @@ void Context::read_register(Brand,
       break;
   }
 
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
-
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
-void Context::write_register(Brand,
-                             Sender * sender,
-                             Message const & arg) {
+void Context::do_write_register(Brand,
+                                Message const & arg,
+                                Keys & k) {
   auto r = arg.d1;
   auto v = arg.d2;
 
-  ReplySender reply_sender{0};  // TODO priority
+  ReplySender reply_sender;
 
   switch (r) {
     case 13:
@@ -448,38 +428,32 @@ void Context::write_register(Brand,
       break;
   }
 
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
-
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
-void Context::read_key(Brand,
-                       Sender * sender,
-                       Message const & arg) {
+void Context::do_read_key(Brand,
+                          Message const & arg,
+                          Keys & k) {
   auto r = arg.d1;
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
 
-  ReplySender reply_sender{0};  // TODO priority
+  ReplySender reply_sender;
   if (r >= config::n_task_keys) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   } else {
     reply_sender.set_key(1, key(r));
   }
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
-void Context::write_key(Brand,
-                        Sender * sender,
-                        Message const & arg) {
+void Context::do_write_key(Brand,
+                           Message const & arg,
+                           Keys & k) {
   auto r = arg.d1;
 
-  auto reply = sender->get_message_key(0);
-  auto new_key = sender->get_message_key(1);
-  sender->complete_send();
+  auto & reply = k.keys[0];
+  auto & new_key = k.keys[1];
 
-  ReplySender reply_sender{0};  // TODO priority
+  ReplySender reply_sender;
   if (r >= config::n_task_keys) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   } else {
@@ -488,31 +462,28 @@ void Context::write_key(Brand,
   reply.deliver_from(&reply_sender);
 }
 
-void Context::read_region(Brand,
-                          Sender * sender,
-                          Message const & arg) {
+void Context::do_read_region(Brand,
+                             Message const & arg,
+                             Keys & k) {
   auto n = arg.d1;
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
 
-  ReplySender reply_sender{0};  // TODO priority
+  ReplySender reply_sender;
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _memory_regions[n]);
   } else {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   }
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
-void Context::write_region(Brand,
-                           Sender * sender,
-                           Message const & arg) {
+void Context::do_write_region(Brand,
+                              Message const & arg,
+                              Keys & k) {
   auto n = arg.d1;
-  auto reply = sender->get_message_key(0);
-  auto object_key = sender->get_message_key(1);
-  sender->complete_send();
+  auto & reply = k.keys[0];
+  auto & object_key = k.keys[1];
 
-  ReplySender reply_sender{0};  // TODO priority
+  ReplySender reply_sender;
 
   if (n < config::n_task_regions) {
     _memory_regions[n] = object_key;
@@ -525,37 +496,24 @@ void Context::write_region(Brand,
   reply.deliver_from(&reply_sender);
 }
 
-void Context::make_runnable(Brand, Sender * sender, Message const & arg) {
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
-
+void Context::do_make_runnable(Brand, Message const & arg, Keys & k) {
   make_runnable();
   pend_switch();
 
-  ReplySender reply_sender{0};  // TODO priority
-  reply.deliver_from(&reply_sender);
+  ReplySender reply_sender;
+  k.keys[0].deliver_from(&reply_sender);
 }
 
-void Context::read_priority(Brand,
-                            Sender * sender,
-                            Message const & arg) {
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
-
-  ReplySender reply_sender{0};  // TODO priority
+void Context::do_read_priority(Brand, Message const & arg, Keys & k) {
+  ReplySender reply_sender;
   reply_sender.set_message({Descriptor::zero(), _priority});
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
-void Context::write_priority(Brand,
-                             Sender * sender,
-                             Message const & arg) {
+void Context::do_write_priority(Brand, Message const & arg, Keys & k) {
   auto priority = arg.d1;
 
-  auto reply = sender->get_message_key(0);
-  sender->complete_send();
-
-  ReplySender reply_sender{0};  // TODO priority
+  ReplySender reply_sender;
 
   if (priority < config::n_priorities) {
     _priority = priority;
@@ -566,7 +524,7 @@ void Context::write_priority(Brand,
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   }
 
-  reply.deliver_from(&reply_sender);
+  k.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

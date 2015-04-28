@@ -4,7 +4,6 @@ c_library('k_portable',
     'key.cc',
     'object_table.cc',
     'reply_sender.cc',
-    'sender.cc',
   ],
   deps = [
     '//etl:assert_loop'
