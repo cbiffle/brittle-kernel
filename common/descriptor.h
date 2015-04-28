@@ -1,6 +1,8 @@
 #ifndef COMMON_DESCRIPTOR_H
 #define COMMON_DESCRIPTOR_H
 
+#include "etl/attribute_macros.h"
+
 #include <cstdint>
 
 #include "abi_types.h"
@@ -39,6 +41,7 @@ public:
     return {(_bits & ~(1 << 18)) | (uint32_t(e) << 18)};
   }
 
+  ETL_INLINE
   constexpr bool get_receive_enabled() const {
     return _bits & (1 << 18);
   }
@@ -63,6 +66,7 @@ public:
     return {(_bits & ~(0xF << 24)) | ((s & 0xF) << 24)};
   }
 
+  ETL_INLINE
   constexpr unsigned get_source() const {
     return (_bits >> 24) & 0xF;
   }
@@ -76,6 +80,7 @@ public:
   }
 
 
+  ETL_INLINE
   constexpr Descriptor sanitized() const {
     return zero().with_selector(get_selector())
                  .with_error(get_error());
@@ -85,6 +90,7 @@ public:
     return _bits;
   }
 
+  ETL_INLINE
   constexpr bool is_call() const {
     return get_receive_enabled() && get_source() == 0;
   }
