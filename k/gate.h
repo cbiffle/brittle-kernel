@@ -21,7 +21,7 @@ struct BlockingSender;  // see: k/blocking_sender.h
  *   to it.
  * - Otherwise, the sender is blocked until a receive happens.
  */
-class Gate : public Object {
+class Gate final : public Object {
 public:
   void deliver_from(Brand, Sender *) override;
   void deliver_to(Context *) override;

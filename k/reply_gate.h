@@ -11,7 +11,7 @@ namespace k {
 struct Context;  // see: k/context.h
 struct Sender;  // see: k/sender.h
 
-class ReplyGate : public Object {
+class ReplyGate final : public Object {
 public:
   ReplyGate();
 

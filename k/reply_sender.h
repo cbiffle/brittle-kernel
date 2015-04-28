@@ -9,7 +9,7 @@
 
 namespace k {
 
-class ReplySender : public Sender {
+class ReplySender final : public Sender {
 public:
   /*
    * ReplySender specifics

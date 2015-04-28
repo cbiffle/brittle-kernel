@@ -7,7 +7,7 @@
 
 namespace k {
 
-class Interrupt : public Object, public BlockingSender {
+class Interrupt final : public Object, public BlockingSender {
 public:
   explicit Interrupt(unsigned irq);
 

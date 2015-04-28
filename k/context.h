@@ -27,7 +27,7 @@ namespace k {
  * to communicate with the code it describes; that authority would be conferred
  * by a gate key.
  */
-class Context : public Object, public BlockingSender {
+class Context final : public Object, public BlockingSender {
 public:
   Context();
 

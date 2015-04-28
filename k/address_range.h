@@ -13,7 +13,7 @@ namespace k {
  * region protocol.  Keys to the AddressRange specify the properties of any
  * memory region contained within its range.
  */
-class AddressRange : public Object {
+class AddressRange final : public Object {
 public:
   enum class ReadOnly {
     no,

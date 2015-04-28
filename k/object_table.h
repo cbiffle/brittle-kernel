@@ -15,7 +15,7 @@ namespace k {
  *
  * The ObjectTable is itself an Object, and is accessible to the system.
  */
-class ObjectTable : public Object {
+class ObjectTable final : public Object {
 public:
   struct Entry {
     // Distinguishes successive occupants of this entry.  Must match the

@@ -12,7 +12,7 @@ namespace k {
  *
  * It does nothing -- just generates delivery exceptions.
  */
-class NullObject : public Object {
+class NullObject final : public Object {
 public:
   void deliver_from(Brand, Sender *) override;
 };
