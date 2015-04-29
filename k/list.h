@@ -2,9 +2,9 @@
 #define K_LIST_H
 
 #include "etl/assert.h"
-#include "etl/data/maybe.h"
 
 #include "k/config.h"
+#include "k/maybe.h"
 
 namespace k {
 
@@ -93,7 +93,7 @@ public:
     ETL_ASSERT(false);
   }
 
-  etl::data::Maybe<Item *> peek() {
+  Maybe<Item *> peek() {
     for (auto const & r : _roots) {
       if (r.next != &r) {
         // Cast safe due to invariant that sublists only contain a single
@@ -102,7 +102,7 @@ public:
       }
     }
 
-    return etl::data::nothing;
+    return nothing;
   }
 
   void insert(Item * it) {

@@ -3,12 +3,11 @@
 
 #include <stdint.h>
 
-#include "etl/data/maybe.h"
-
 #include "common/abi_types.h"
 #include "common/message.h"
 
 #include "k/key.h"  // TODO: not necessary?
+#include "k/maybe.h"
 
 namespace k {
 
@@ -34,7 +33,7 @@ public:
    * acceptable for this object.  The default implementation accepts all
    * brands.  Subclasses can implement this to be more selective.
    */
-  virtual etl::data::Maybe<Key> make_key(Brand);
+  virtual Maybe<Key> make_key(Brand);
 
   /*
    * Delivers a message from 'sender' to this object, through a key bearing

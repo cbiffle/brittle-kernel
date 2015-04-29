@@ -5,7 +5,6 @@
 using etl::armv7m::Byte;
 using etl::armv7m::DoubleWord;
 using etl::armv7m::Word;
-using etl::data::Maybe;
 
 namespace k {
 
@@ -22,7 +21,7 @@ template <typename T>
 Maybe<T> uload_common(T const * p) {
   T result;
   if (uload_impl(p, &result)) {
-    return etl::data::nothing;
+    return nothing;
   } else {
     return result;
   }

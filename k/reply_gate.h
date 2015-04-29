@@ -21,7 +21,7 @@ public:
 
   void deliver_from(Brand, Sender *) override;
   void deliver_to(Context *) override;
-  etl::data::Maybe<Key> make_key(Brand) override;
+  Maybe<Key> make_key(Brand) override;
 
 private:
   List<Context> _receivers;

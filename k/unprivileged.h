@@ -11,7 +11,8 @@
 #include <stdint.h>
 
 #include "etl/armv7m/types.h"
-#include "etl/data/maybe.h"
+
+#include "k/maybe.h"
 
 namespace k {
 
@@ -23,9 +24,9 @@ extern uintptr_t mm_fault_recovery_handler;
  * return SysResult::fault.
  */
 __attribute__((warn_unused_result))
-etl::data::Maybe<etl::armv7m::Word> uload(etl::armv7m::Word const *);
+Maybe<etl::armv7m::Word> uload(etl::armv7m::Word const *);
 __attribute__((warn_unused_result))
-etl::data::Maybe<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
+Maybe<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
 
 /*
  * The ustore family of functions write to the given pointer if the task

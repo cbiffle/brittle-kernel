@@ -13,6 +13,8 @@ static constexpr unsigned
   n_message_keys = 4,
   n_priorities = 2;
 
+static constexpr bool checks = true;
+
 }  // namespace config
 }  // namespace k
 

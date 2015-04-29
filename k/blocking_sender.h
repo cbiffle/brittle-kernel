@@ -1,8 +1,6 @@
 #ifndef K_BLOCKING_SENDER_H
 #define K_BLOCKING_SENDER_H
 
-#include "etl/data/range_ptr.h"
-
 #include "common/abi_types.h"
 #include "common/exceptions.h"
 #include "common/message.h"

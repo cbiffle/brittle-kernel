@@ -10,9 +10,6 @@
 #include "k/reply_sender.h"
 
 using etl::armv7m::Mpu;
-using etl::data::Maybe;
-using etl::data::nothing;
-using etl::data::RangePtr;
 
 namespace k {
 
