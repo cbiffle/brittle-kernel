@@ -1,5 +1,6 @@
 #include "k/context.h"
 
+#include "etl/array_count.h"
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 
@@ -255,53 +256,32 @@ Key Context::make_reply_key() const {
 
 
 /*******************************************************************************
- * Implementation of Object
+ * Implementation of Context protocol.
  */
+
+using IpcImpl = void (Context::*)(Brand, Message const &, Keys &);
 
 void Context::deliver_from(Brand brand, Sender * sender) {
   Message m;
   Keys k;
   sender->on_delivery_accepted(m, k);
-  switch (m.d0.get_selector()) {
-    case 0: 
-      do_read_register(brand, m, k);
-      break;
 
-    case 1: 
-      do_write_register(brand, m, k);
-      break;
-
-    case 2: 
-      do_read_key(brand, m, k);
-      break;
-
-    case 3: 
-      do_write_key(brand, m, k);
-      break;
-
-    case 4: 
-      do_read_region(brand, m, k);
-      break;
-
-    case 5: 
-      do_write_region(brand, m, k);
-      break;
-
-    case 6:
-      do_make_runnable(brand, m, k);
-      break;
-
-    case 7:
-      do_read_priority(brand, m, k);
-      break;
-
-    case 8:
-      do_write_priority(brand, m, k);
-      break;
-
-    default:
-      do_badop(m, k);
-      break;
+  static constexpr IpcImpl dispatch[] {
+    &Context::do_read_register,
+    &Context::do_write_register,
+    &Context::do_read_key,
+    &Context::do_write_key,
+    &Context::do_read_region,
+    &Context::do_write_region,
+    &Context::do_make_runnable,
+    &Context::do_read_priority,
+    &Context::do_write_priority,
+  };
+  if (m.d0.get_selector() < etl::array_count(dispatch)) {
+    auto fn = dispatch[m.d0.get_selector()];
+    (this->*fn)(brand, m, k);
+  } else {
+    do_badop(m, k);
   }
 }
 
