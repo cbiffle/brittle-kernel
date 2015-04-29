@@ -26,9 +26,12 @@ void do_deferred_switch() {
 
   switch_pending = false;
 
-  // TODO: we ought to turn on strict Maybe checking in the kernel.
   auto head = runnable.peek();
-  ETL_ASSERT(head);
+
+  if (config::checks == false) {
+    // We still want to check this!
+    ETL_ASSERT(head);
+  }
 
   current = head.ref()->owner;
 }
