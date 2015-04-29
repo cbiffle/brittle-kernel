@@ -201,8 +201,8 @@ void Context::on_delivery_accepted(Message & m, Keys & k) {
   }
 
   if (d.get_receive_enabled()) {
-    auto source = d.is_call() ? make_reply_key()
-                              : key(d.get_source());
+    auto & source = d.is_call() ? k.keys[0]
+                                : key(d.get_source());
     source.get()->deliver_to(this);
   }
 }
