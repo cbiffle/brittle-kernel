@@ -9,13 +9,10 @@ namespace k {
 
 Key Key::filled(TableIndex index, Brand brand) {
   Key k;
-  k.fill(index, brand);
-  return k;
-}
 
-Key Key::null() {
-  Key k;
-  k.nullify();
+  k._brand = brand;
+  k._generation = object_table[index].generation;
+  k._index = index;
   return k;
 }
 
@@ -33,21 +30,8 @@ void Key::lazy_revoke() {
 
   auto const & te = object_table[_index];
   if (_generation != te.generation || te.ptr == nullptr) {
-    nullify();
+    *this = null();
   }
-}
-
-void Key::fill(TableIndex index, Brand brand) {
-  auto const & e = object_table[index];
-  _brand = brand;
-  _generation = e.generation;
-  _index = index;
-}
-
-void Key::nullify() {
-  _brand = 0;
-  _generation = object_table[0].generation;
-  _index = 0;
 }
 
 }  // namespace k

@@ -40,7 +40,7 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
 
   // Right, actual implementation now:
   for (unsigned i = preserved; i < config::n_message_keys; ++i) {
-    _keys[i].nullify();
+    _keys[i] = Key::null();
   }
 }
 

@@ -23,20 +23,7 @@ public:
   /*
    * Static factory function for producing a null key.
    */
-  static Key null();
-
-  Key() = default;
-
-  /*
-   * Fills a key in-place with the given object table index and
-   * brand.  After this returns the key will be current.
-   */
-  void fill(TableIndex index, Brand brand);
-
-  /*
-   * Replaces the contents of a key with the null key.
-   */
-  void nullify();
+  static constexpr Key null() { return {}; }
 
   /*
    * Gets the object table index for the object referenced by this
