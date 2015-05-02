@@ -128,7 +128,6 @@ void Context::complete_blocked_receive(Brand brand, Sender * sender) {
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
-  _ctx_item.unlink();  // from the receiver list
   runnable.insert(&_ctx_item);
   _state = State::runnable;
 
