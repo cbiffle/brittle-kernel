@@ -69,31 +69,35 @@ public:
   }
 
   /*
-   * Unlinks the highest priority item from the list and returns its
-   * owner.
+   * If the list is non-empty, unlinks and returns the highest priority item.
    *
-   * Precondition: list is not empty.
-   *
-   * TODO: merging this with the empty check and returning a Maybe would
-   * improve performance.
+   * If the list is empty, returns nothing.
    *
    * Time: linear in n_priorities.
    */
-  T * take() {
+  Maybe<T *> take() {
     for (auto const & r : _roots) {
       if (r.next != &r) {
         // Cast safe due to invariant that sublists only contain a single
         // Itemoid, and it is the root.
-        auto it = static_cast<Item *>(r.next);
-        it->unlink();
-        return it->owner;
+        auto item = static_cast<Item *>(r.next);
+        item->unlink();
+        return {item->owner};
       }
     }
 
-    ETL_ASSERT(false);
+    return nothing;
   }
 
-  Maybe<Item *> peek() {
+  /*
+   * If the list is non-empty, returns (but does not unlink!) the highest
+   * priority item.
+   *
+   * If the list is empty, returns nothing.
+   *
+   * Time: linear in n_priorities.
+   */
+  Maybe<Item *> peek() const {
     for (auto const & r : _roots) {
       if (r.next != &r) {
         // Cast safe due to invariant that sublists only contain a single

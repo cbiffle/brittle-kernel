@@ -5,18 +5,18 @@
 namespace k {
 
 void Gate::deliver_from(Brand brand, Sender * sender) {
-  if (_receivers.is_empty()) {
-    sender->block_in_send(brand, _senders);
+  if (auto partner = _receivers.take()) {
+    partner.ref()->complete_blocked_receive(brand, sender);
   } else {
-    _receivers.take()->complete_blocked_receive(brand, sender);
+    sender->block_in_send(brand, _senders);
   }
 }
 
 void Gate::deliver_to(Context * receiver) {
-  if (_senders.is_empty()) {
-    receiver->block_in_receive(_receivers);
+  if (auto partner = _senders.take()) {
+    receiver->complete_receive(partner.ref());
   } else {
-    receiver->complete_receive(_senders.take());
+    receiver->block_in_receive(_receivers);
   }
 }
 
