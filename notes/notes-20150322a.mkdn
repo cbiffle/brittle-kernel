@@ -1,0 +1,98 @@
+A Trap?
+=======
+
+I spent some time last night considering how much functionality should be in
+the kernel vs. system tasks.  I'm beginning to fear this is a trap that will
+hamper my progress.
+
+As long as the task-level API/ABI are well-defined, the degree of functionality
+placed in the kernel vs. a task can be adjusted over time.  This is not a
+fundamental design decision for my purposes, and can thus be postponed or
+reevaluated.
+
+As a counter-example to the fully minimal kernel, consider a kernel that
+provides primitive implementations of the following concepts:
+
+- A kernel service for e.g. key minting and grant derivation.
+- Short message passing.
+- Keys.
+  - Brands.
+  - Keyrings.
+- Tasks.
+  - Task reply keys.
+  - Ports.
+- Memory grants.
+- Interrupts.
+- Asynchronous messages.
+
+(Justification for the last: asynchronous messages must be able to be members
+of wait queues and cannot be implemented in terms of purely synchronous
+primitives.  Though they might be doable using tasks and some sort of
+interruption semantics for cancellation.)
+
+Whereas concepts like those listed below would be implemented by some system
+task or other:
+
+- Data queues.
+  - A task manages one (or more!) raw memory queue, copying items in and out
+    on demand.
+- Message queues.
+  - A task collects incoming messages, buffers them in its RAM and a keyring,
+    and coordinates with an asynchronous message object to send them out.
+- Mutexes.
+  - This will require cooperation from a privileged system task to mess with
+    priorities and such.
+
+
+Powers of the System Task
+=========================
+
+The system task(s) need(s) to have certain powers.
+
+
+Producing Memory Grants
+-----------------------
+
+Assume that the kernel initially hands the system a grant describing all of
+memory.  The system needs to derive new grants from within this space.
+
+One option would be giving the system task the power to make arbitrary grants.
+
+Another option would be defining a way, given a grant, to produce a sub-grant.
+
+The latter is tricky in cases where a grant may be revoked, like the transient
+grants I've been imagining producing at calls.  Revoking a grant would need to
+revoke all sub-grants, and an efficient algorithm for this is not apparent to
+me right now.
+
+Though I fear similar problems are going to arise anyway if we allow tasks to
+map grants into their address spaces.
+
+
+Task Manipulation
+-----------------
+
+Tasks have to get created and filled in somehow.  I feel like this ought to
+rest with the system rather than the kernel.
+
+So the system task needs to figure out what needs to be started and then start
+it.  Starting it would include
+- Selecting a kernel-side task context from (say) a fixed set.
+- Loading it with initial register contents, authority, and a memory map.
+- Assigning it a priority and timeslice.
+
+Basically all of those things ought to be mutable to the system later.  If the
+system wants to revoke a key or add a memory map, that's fine.
+
+All these operations might best be described by a key to the (kernel-side) task.
+The initial system task would thus need to either be given keys to all contexts,
+or have a way of deriving them.
+
+
+Interrupts
+----------
+
+It's not clear that the system needs any special interrupt powers, though it
+might have the ability to globally mask/restore interrupts.
+
+
