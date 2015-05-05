@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include "etl/attribute_macros.h"
+
 #include "abi_types.h"
 #include "descriptor.h"
 #include "exceptions.h"
@@ -27,6 +29,11 @@ struct Message {
       std::uint32_t(std::uint64_t(e) >> 32),
       d3,
     };
+  }
+
+  ETL_INLINE
+  constexpr Message sanitized() const {
+    return {d0.sanitized(), d1, d2, d3};
   }
 };
 

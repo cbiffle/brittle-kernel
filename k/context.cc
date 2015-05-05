@@ -98,7 +98,6 @@ void Context::complete_receive(BlockingSender * sender) {
   sender->on_blocked_delivery_accepted(_save.sys.m,
                                        _save.sys.b,
                                        get_message_keys());
-  _save.sys.m.d0 = _save.sys.m.d0.sanitized();
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
@@ -121,7 +120,6 @@ void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   _state = State::runnable;
 
   sender->on_delivery_accepted(_save.sys.m, get_message_keys());
-  _save.sys.m.d0 = _save.sys.m.d0.sanitized();
   _save.sys.b = brand;
 
   pend_switch();
@@ -137,8 +135,7 @@ void Context::complete_blocked_receive(Exception e, uint32_t param) {
 }
 
 void Context::put_message(Brand brand, Message const & m) {
-  _save.sys.m = m;
-  _save.sys.m.d0 = _save.sys.m.d0.sanitized();
+  _save.sys.m = m.sanitized();
   _save.sys.b = brand;
 }
 
@@ -192,7 +189,7 @@ Priority Context::get_priority() const {
 void Context::on_delivery_accepted(Message & m, Keys & k) {
   auto d = get_descriptor();
 
-  m = _save.sys.m;
+  m = _save.sys.m.sanitized();
 
   k.keys[0] = d.is_call() ? make_reply_key() : Key::null();
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
