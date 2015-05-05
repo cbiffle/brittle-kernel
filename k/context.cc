@@ -118,20 +118,20 @@ void Context::block_in_receive(List<Context> & list) {
 void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
-
-  sender->on_delivery_accepted(_save.sys.m, get_message_keys());
   _save.sys.b = brand;
 
   pend_switch();
+
+  sender->on_delivery_accepted(_save.sys.m, get_message_keys());
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
 
-  complete_receive(e, param);
-
   pend_switch();
+
+  complete_receive(e, param);
 }
 
 void Context::put_message(Brand brand, Message const & m) {
@@ -232,16 +232,16 @@ void Context::on_blocked_delivery_accepted(Message & m, Brand & b, Keys & k) {
   _state = State::runnable;
 
   b = _saved_brand;
-  on_delivery_accepted(m, k);
   pend_switch();
+  on_delivery_accepted(m, k);
 }
 
 void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
+  pend_switch();
 
   on_delivery_failed(e, param);
-  pend_switch();
 }
 
 Key Context::make_reply_key() const {
