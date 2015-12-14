@@ -1,0 +1,57 @@
+Missing Pieces
+==============
+
+Keyrings
+--------
+
+Right now, the only place we can store more than one key is in a Context.  We'll
+want to be able to do more interesting things than this.  To implement System
+tasks of any significant functionality, such tasks will need to be able to
+manage keys on behalf of clients.
+
+So we need a way of dedicating memory to storing keys.
+
+KeyKOS/EROS use a fixed-size key holding object, but given our static memory
+model, it seems like we could support variable-sized ones.
+
+
+Sense Keys
+----------
+
+Another useful idea from KeyKOS parallels C++'s notion of "transitive const."
+
+Imagine you hold a read-only key to some object.  You ask it to deliver a key to
+some sub-part of itself.  The sub-part key should (often) also be read-only.
+
+KeyKOS appears to have had a fundamental "weaken" operation that would take any
+key and reduce its access level.  I'm not convinced that this is a truly general
+operation, nor that access levels in the general case can be totally ordered in
+the way that it implies.
+
+But the *idea* is good.  My main question is, how does one do this for "fake"
+objects implemented using gates?  Particularly ones with complicated access
+implemented using custom brand definitions?  It seems like it would have to turn
+into a message to the gate, so that the code behind it can make the alterations.
+
+I think the short answer, at least in EROS, is that sensory keys just don't work
+for objects implemented as processes.
+
+
+Muxes
+-----
+
+I discussed muxes at some length yesterday, but they still belong on this list.
+
+
+
+Canned Services
+===============
+
+I keep running into features that sound useful but "don't belong in the kernel."
+If these features really are useful, it implies that people are going to want to
+*use* them, and it'd be a real shame for everyone to have to reimplement them.
+
+So I think there's a need for a sort of "canned service" that can be plugged
+into applications with minimal dependencies/assumptions.
+
+

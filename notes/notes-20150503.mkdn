@@ -1,0 +1,70 @@
+Kinds of Keys
+=============
+
+Right now, keys are kind of a free-for-all.  If you have a key to a Gate, you
+can send and receive through that Gate.
+
+This is obviously wrong, because it allows a server's clients to impersonate the
+server to other clients.  It's just a shortcut I took in the prototype.
+
+But how should it actually work?
+
+Eros and friends use a complicated key encoding that can, among other things,
+represent separate permission bits for gates.  I've so far avoided doing this
+sort of thing, because it's awfully special case, and that means more code and
+more code paths.
+
+I vaguely remember having represented gates in some previous kernel -- Potato,
+perhaps? -- using bonded pairs of objects.  A key to one member of the pair
+grants no authority to the other half.  It's sort of like pipe descriptors in
+Unix.
+
+- Pro: pretty simple, doesn't require a separate mechanism, no additional
+  dispatch costs.
+- Con: more freaking objects to declare.
+
+Another option would be to hijack some of the Brand bits.  Because Brands are so
+freakishly wide in this system, we could probably declare uses for (say) 32 of
+the bits in a Gate key, and leave the other 32 available for application
+purposes.
+
+This is probably the most general solution, because we may have a need for more
+than two kinds of keys, even to a Gate.  In particular, there are...
+
+Keys that make more keys
+------------------------
+
+Imagine you're a server task, and you want to hand out branded keys to a Gate to
+your clients.  You need to cheaply manufacture such keys.  Right now, you'd need
+to either
+- Hold a key to the object table (dangerous), or
+- Invoke the service of a system intermediary which holds a key to the object
+  table.
+
+An alternative is to define an additional permission for Gate keys: namely, the
+ability to derive new keys to the same Gate with different Brands.  In this case
+you'd ask the Gate itself for a new key.
+
+The down side, of course, is that this would enlarge the privileged code base.
+Now we have another permission that Gates must check, and another operation they
+must implement.
+
+Because it isn't immediately obvious that this is primitive behavior that ought
+to live in the kernel, I'm inclined to leave it to some system task.
+
+Which raises the question: do read/write permissions on Gates, as discussed
+above, belong in the kernel either?
+
+Permissions outside the kernel
+------------------------------
+
+Basically: a Gate key works as it does today, and lets people do stupid things.
+The System would be responsible for holding the true Gate keys and providing
+intermediary keys with filtering.
+
+Oddly, I'm uncomfortable with this in a way that I wasn't with the case above!
+I think it's largely that this System task would become a middleman for
+basically *every* IPC, and would have to manage very large numbers of keys.
+
+
+

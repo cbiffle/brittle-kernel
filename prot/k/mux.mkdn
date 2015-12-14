@@ -1,0 +1,49 @@
+Mux Protocol
+============
+
+Muxes provide a way for a single Context servicing a Gate to appear as many
+separate objects.  While you can mostly achieve this with careful use of brands,
+muxes have the advantage that each constituent port can be individually masked
+and unmasked, effecting flow control on some or all clients.
+
+
+Mask Port (1)
+-------------
+
+Masks a port.  Messages currently pending on that port, or messages delivered
+from here on, will not be subject to "receive" operations on the Mux until the
+port is unmasked, regardless of priority.
+
+The messages themselves are unaffected by masking.
+
+If the port is already masked, this is a no-op.
+
+Arguments:
+- d0: selector
+- d1: port index
+
+Returns:
+- d0: success descriptor
+
+Exceptions:
+- `index_out_of_range` if the port index isn't valid for this mux.
+
+
+Unmask Port (2)
+---------------
+
+Unmasks a port.  Any messages pending on that port, or messages delivered after
+unmasking, will be candidates for "receive" operations on the Mux until it is
+again masked.
+
+If the port is already unmasked, this is a no-op.
+
+Arguments:
+- d0: selector
+- d1: port index
+
+Returns:
+- d0: success descriptor
+
+Exceptions:
+- `index_out_of_range` if the port index isn't valid for this mux.

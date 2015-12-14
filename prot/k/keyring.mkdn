@@ -1,0 +1,41 @@
+Keyring Protocol
+================
+
+Keyrings are kernel objects that store keys, similar to the key registers of a
+Context, but more general.
+
+
+Read Key (1)
+------------
+
+Reads one of the keys stored in the keyring.
+
+Arguments:
+- d0: descriptor
+- d1: index
+
+Results:
+- d0: success descriptor
+- k1: key
+
+Exceptions:
+- `index_out_of_range` if the index is not valid for this keyring.
+
+
+Write Key (2)
+-------------
+
+Writes a key into one of the slots in the keyring.
+
+Arguments:
+- d0: descriptor
+- d1: index
+- k1: key
+
+Results:
+- d0: success descriptor
+
+Exceptions:
+- `index_out_of_range` if the index is not valid for this keyring.
+
+

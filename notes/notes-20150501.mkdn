@@ -1,0 +1,119 @@
+First Phase Retrospective
+=========================
+
+As I head into summer vacation, able to think about things like this in more
+than short bursts, I think it's worth reviewing where the system is and how the
+original design principles feel after a little bit of exploration.
+
+
+On Codenames
+------------
+
+In keeping with my codename scheme, the project has thus far been living in a
+directory called 'brittle' -- a fittingly disparaging name for what began as a
+thought experiment in highly reliable systems.
+
+I think it's time to upgrade the codename.  I'm leaning toward calling the
+kernel "Austerity," because:
+
+1. It gives one a pretty clear idea of what level of service it provides.
+2. "Spartan" is already used (sometimes) to refer to HelenOS's kernel.
+3. I find the pun on INTEGRITY amusing.
+4. I consider national austerity policies to be a failed experiment, but that's
+   another retrospective.  Maybe if the kernel works I'll call it Keynes.
+
+So, Austerity is the kernel for now.  The mock operating system I'm building on
+top of it -- the one that actually makes the kernel slightly useful?  Well, I'm
+referring to the custom one as 'Affordance,' since that's exactly what it is: a
+user interface layer for systems programmers.  The Austerity/Affordance system
+is one use for the kernel; my oft-discussed Austerity/FreeRTOS port is another.
+
+
+How about them primitives?
+--------------------------
+
+I've actually wound up needing fewer primitives than I expected.  Each one, I
+feel, has a justified place in the system.
+
+Let's consider the kernel objects:
+
+- *Context.*  Represents the machine state, with some added registers for
+  managing capabilities, and some added "machine priority" information to
+  support multiprogramming.  Contexts hew *very* closely to the ARMv7M machine
+  model and abstract basically nothing about the machine.  A key aspect:
+  Contexts virtualize the MPU, making it appear as if each virtual processor has
+  a separate MPU configuration.
+
+- *Address Range.*  Reifies the address-space areas manipulated by the MPU.
+  The address range object, as it currently exists, is actually one of the key
+  discoveries that distinguishes Austerity from my earlier kernels, such as
+  Potato and Disaster; it ensures that the keys representing memory regions are
+  real value types that don't require kernel allocation.  (A review of Potato's
+  L4-style sigma0 allocator will show that Austerity's approach is much simpler,
+  but also harder to use from an application.  Thus the need for an Affordance.)
+
+- *Interrupt.*  Represents, yes, interrupts.  This is important for two reasons.
+  First, it ensures that code can respond to interrupts without being
+  privileged, something the hardware doesn't (really) permit.  (It actually
+  tries, but the mechanism appears broken.)  Second, it harmonizes the priority
+  space between Context's "machine priorities" and interrupt priorities.
+  Interrupt priorities can thus be set *lower* than task priorities if desired,
+  ending the possibility for an out-of-control ISR taking out the system.
+
+- *Gate.*  And messaging in general.  This is analogous to the hardware's
+  supervisor call mechanism, only the "handler" runs unprivileged, and there are
+  an unlimited number of potential calls and handlers.  Like the hardware, the
+  Austerity messaging primitive transfers only a few registers; software must
+  build anything more complex on top of this.
+
+- *Null.*  The referend of revoked keys.  Its existence is basically mandated by
+  the object-capability system.  Other systems have simulated a null object by
+  using a bit pattern in the capability; I actually feel like explicitly
+  allocating a null object is cleaner.
+
+Two kernel objects are slightly suspect, but I haven't figured out how to
+replace them:
+
+- *Reply gate.*  This is a specialization of Gate that exists, honestly, mostly
+  for practical reasons.  It doesn't have an inherent need to exist, and it's
+  possible that its key feature -- atomic revocation of keys on invocation --
+  could be extended to all Gates as an optional feature.
+
+- *Object table.*  This is the weakest one, in my current thinking.  Its
+  rationale remains the original one I noted on 22 March: it's the only way I
+  can think of to support true constant-time key revocation without the risk of
+  dangling pointers.  It's a bottleneck in the kernel, both in terms of access
+  and in limiting the maximum number of live objects.  However, exposing it as
+  an accessible object to the system has proven really powerful.
+
+
+Missing Muxes
+-------------
+
+The missing primitive looms large: the *gate group* or *mux.*  It replaces the
+notion of open receive, and allows servers (particularly) to allow for bounded
+nondeterminism in what they may receive, while retaining individual flow control
+over possible sources of messages.  The flow control part is the key.  It's
+roughly analogous to masking interrupts.
+
+Note that *some* of the mux functionality could be replaced by allowing receive
+operations to take a priority floor.  Incoming messages with lower priority
+would be ignored.  Since receive processes messages in descending order of
+priority and inspects at most one message, we can do this cheaply -- if it's
+desirable.
+
+However, this may take the "masking interrupts" analogy too far.  The original
+motivating use case for the mux idea (notes from 26 March) was server tasks
+running several independent or mostly-independent state machines -- such as the
+transmit and receive sides of a UART.  If they can be masked and unmasked
+independently, they can't very well be handled with priorities alone!
+
+
+Performance
+-----------
+
+I've discussed performance a little bit in recent notes, so I won't belabor it
+here.  In short, the performance is worse than I'd hoped but better than I'd
+feared.  Considering that the implementation is largely unoptimized and doesn't
+contain any logical fast-paths -- much less hand-coded fast-paths -- I'm pretty
+comfortable with how it performs.  For now.
