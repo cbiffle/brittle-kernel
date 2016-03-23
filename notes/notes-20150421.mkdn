@@ -1,0 +1,59 @@
+Interrupt Demo
+==============
+
+What do I need to do to exercise these ideas?
+
+- Continue to do an output-only UART driver.
+- Provision driver with two gates.
+  - First gate takes send requests, as in the current demo.
+  - Second gate takes interrupt send-complete notifications.
+- Driver alternates between the gates.
+
+I can do this without gate groups or anything else.
+
+I also currently don't need an idle task, because Contexts that attempt to
+switch but find no available partner idle themselves.  (I say "currently"
+because that adds complexity to the kernel and might change.)
+
+
+
+Status
+------
+
+Okay, notes to future self.
+
+If the kernel is to be non-preemptible -- and I think that's good -- then the
+kernel cannot contain the idle loop.  We need an unprivileged idle task.
+
+If interrupts can trigger a context switch, they need to use a kernel entry
+sequence similar to that used by `svc` -- either directly or via `pendsv`.
+Otherwise, changes to the `current` variable don't take effect until the next
+IPC, which is never in the case of the idle task.
+
+Tasks interrupted in this way remain runnable.  We'll save their remaining
+state into the context save area, but since they're on the runnable list and
+marked runnable, the kernel won't try to stuff a message into those registers,
+which would be bad.
+
+I'm inclined to use PendSV for this rather than altering the entry/exit sequence
+of every interrupt handler, but I don't have a really good reason why.
+
+I would *rather* not use PendSV for every context switch.  If we need to switch
+during svc, e.g. for IPC, PendSV would just entail additional entry/exit
+sequences and thus latency.  No, this is only really necessary for interrupts.
+
+And it's kind of nice for interrupts, since many interrupts can share a single
+PendSV invocation.  Not that that's terribly likely, mind, but it's possible.
+
+But this complicates things.  The "pend switch" operation needs to do one thing
+when called during an IPC, and another when called during an interrupt.
+
+- During an IPC it sets a global that is processed on the IPC exit path.
+- During an interrupt, it would need to pend PendSV in the NVIC.
+
+Hmmmm.  Right now, the deferred switch handling is done in the IPC syscall exit
+path specifically.  It inspects the pended state and performs an immediate
+switch if necessary.
+
+So the interrupt exit path could inspect the same state and transfer it to the
+NVIC.

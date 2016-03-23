@@ -1,0 +1,25 @@
+Image Builder Thoughts
+======================
+
+We need a way to take several separately-compiled programs and merge them into
+a single image.  Physically combining them into a single file is not necessary
+right now, since GDB will let us load them separately, but we need some way of
+defining the programs' extents so that they do not overlap.
+
+Fixed partitioning is obviously one approach, basically writing a custom linker
+script for each program.
+
+But I'm inclined to roll a little tool, closer to elfweaver from OKL4.  The tool
+might be subsumed by the system builder for systems running atop this kernel, so
+it should provide a machine-accessible interface.
+
+
+Program Information
+-------------------
+
+For garden-variety C programs, we really just need to know
+- Amount of ROM space.
+- Amount of data space.
+- Amount of text space.
+
+

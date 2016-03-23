@@ -1,0 +1,17 @@
+Revisiting This Funny OS
+========================
+
+This project feels more like discovering a system than designing one.
+
+What began in my imagination as a microkernel OS now looks a lot more like a
+hypervisor.  (Arguably the two differ primarily in their choice of abstraction.)
+
+In hypervisor terms, it's a paravirtualized environment; the machine is not
+faithfully emulated, and software running atop the kernel needs to interact with
+kernel services.
+
+But like many microkernels (and all of my favorites), it makes the principled
+choice to provide high-performance messaging as a core operation.
+
+
+

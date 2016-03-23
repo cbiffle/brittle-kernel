@@ -1,0 +1,32 @@
+Kernel Configuration and the Zoo
+================================
+
+Right now, the kernel is configured by some headers and CC files inside itself.
+This isn't sustainable.  I'd like to switch to some sort of config file.
+
+Here's a sketch of describing the current demo configuration and zoo using TOML.
+
+    [global]
+    n_task_keys = 16
+    n_task_regions = 6
+    n_priorities = 2
+    n_contexts = 3
+
+    [address_range.init_rom]
+    begin = "_app_rom_start"
+    end = "_app_rom_end"
+    executable = true
+    read_only = "priv"
+
+    [address_range.init_ram]
+    begin = "_app_ram_start"
+    end = "_app_ram_end"
+    executable = true
+
+    [address_range.peripherals]
+    begin = 0x40000000
+    end = 0x60000000
+    executable = false
+    
+
+

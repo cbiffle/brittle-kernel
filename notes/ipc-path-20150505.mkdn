@@ -1,0 +1,22 @@
+
+What's the actual sequence of invocations for a Context-Gate-Context IPC?
+
+First, when the partner is ready:
+
+    Context(1)::do_ipc
+    Key::deliver_from
+    Gate::deliver_from  [V]
+    Context(2)::complete_blocked_receive                      6
+    Context(1)::on_delivery_accepted    [V]                   6
+    -- bits below this line only relevant for calls --
+    ReplyGate::deliver_to   [V]
+    Context::block_in_receive
+
+Second, when the partner is not ready:
+
+    Context(1)::do_ipc
+    Key::deliver_from
+    Gate::deliver_from  [V]
+    Context(1)::block_in_send   [V]
+
+Context-ReplyGate-Context is very similar.

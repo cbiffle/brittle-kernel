@@ -1,0 +1,3 @@
+digraph task_states {
+  Dead;
+}

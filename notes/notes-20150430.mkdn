@@ -1,0 +1,24 @@
+Performance Update
+==================
+
+A variety of little improvements have reduced the round-trip time for invoking
+Context's `write_key` operation to around 90us, or 1440 cycles.  That's a 23%
+reduction from yesterday, and something like 33% from where the prototype sat
+when I went on vacation.
+
+It's still slow.  We should be able to get under 200 cycles.  However, the
+current implementation is also completely unoptimized.  L4's famously low IPC
+cycle counts are the product of hand-optimized "fast path" IPC circuits.
+
+There's at least one part of our implementation that's going to be slower than
+L4, and that's the prioritized partner lookup process.  We accept this slowness
+in exchange for predictable execution speed.
+
+Our fast path would be the case of a message originating in unprivileged code,
+hitting a gate where a partner is waiting.
+
+Which is, of course, not tested at all by the current microbenchmark -- which is
+focused on invocations of primitive objects.
+
+
+

@@ -53,5 +53,3 @@ If these features really are useful, it implies that people are going to want to
 
 So I think there's a need for a sort of "canned service" that can be plugged
 into applications with minimal dependencies/assumptions.
-
-

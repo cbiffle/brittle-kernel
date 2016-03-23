@@ -1,0 +1,76 @@
+Syscall ABI - First Version
+===========================
+
+Syscalls are performed using the `svc` instruction.  The instruction's 8-bit
+immediate field selects the syscall type.  Arguments are passed and values
+returned as detailed below.
+
+Variable length portions are in RAM because I may want to adjust the length
+later.
+
+
+Send (0)
+--------
+
+Arguments:
+- r0: message target index.
+- r1: address of message to send.
+- r1[1] - r1[4]: data words of message to send.
+- k0 - k3: keys to send.
+
+Results:
+- r0: sysresult.
+
+
+Open Receive (1)
+----------------
+
+Arguments:
+- r0: address of output frame.
+
+Results:
+- r0: sysresult;
+- frame[0]: port direction.
+- frame[1]: brand.
+- frame[2] - frame[5]: data words of received message.
+- k0 - k3: received keys.
+
+
+Call (2)
+--------
+
+Arguments:
+- r0: message target index.
+- r1: address of message to send.
+- r1[1] - r1[4]: data words of message to send.
+- r2: address of output frame.
+- k0 - k3: keys to send.
+
+
+Results:
+- r0: sysresult;
+- frame[0]: port direction.
+- frame[1]: brand.
+- frame[2] - frame[5]: data words of received message.
+- k0 - k3: received keys.
+
+
+Move Cap (3)
+------------
+
+Arguments:
+- r0: from index
+- r1: to index
+
+Results:
+- r0: sysresult
+
+
+Mask Port (4), Unmask Port (5)
+------------------------------
+
+Arguments:
+- r0: port index
+
+Results:
+- r0: sysresult

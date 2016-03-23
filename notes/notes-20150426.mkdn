@@ -1,0 +1,67 @@
+Status
+======
+
+Basically all the initial primitives, save the "gate group" or "mux", are
+sketched.  Interrupts can be delivered as messages, though there are some clunky
+bits around that.  Speed leaves something to be desired -- I'm measuring about
+5.6kc per byte sent in the serial demo, which includes
+
+- 5 syscalls.
+- 1 interrupt.
+- 3 events resulting in context switches.
+
+That's with both the kernel and the demo at `Os`, incidentally.  The bulk of the
+time is being spent in-kernel.  I'm pleased to note that actual kernel
+entry/exit sequences contribute negligible time -- it really is the kernel doing
+work.
+
+And the kernel is doing more work than I'd like.
+
+From some hand traces of the execution, I note a couple of things:
+
+1. Lots of calls.  *Lots* of calls.
+2. A surprisingly large number of these calls are virtual.
+
+The virtual calls are actually a bit of a problem: they'll get worse as I raise
+the clock frequency, for kernel vtables live in ROM, making every virtual call a
+ROM access with (basically) random locality.  Given the unified Flash cache on
+the STM32F4 parts, this is going to increase pressure on code in cache, which
+might compound things.
+
+To address the invisible C programmer who lives in my subconscious: the problem
+here is not virtual calls.  The virtual interfaces in the kernel are critical
+for concisely and correctly implementing kernel object polymorphism, which is
+key (no pun intended) to this design.  The problem is the *number of them.*
+
+> Statically I count 64 likely virtual callsites in the binary; some of those
+> doubtless appear in loops.
+
+Consider the case of a Context taking delivery of a message from anything else.
+Within `complete_blocked_receive` -- the common case for call-style IPC -- we've
+got...
+
+- A likely redundant `unlink` of the `_ctx_item`.
+- A non-virtual insertion into the `runnable` list (hard to avoid).
+- A call through to `complete_receive_core`.
+  - A *virtual* call to `sender->get_message()`.
+  - No less than four *virtual* calls to `sender->get_message_key(x)`.
+  - A *virtual* call to `sender->complete_send()`.
+
+There's probably no need to give the sender three separate override points in
+this algorithm.  There's only one type of object that can block in receive in
+this kernel -- the Context -- and so we could add an operation on Sender to
+do all the delivery steps with a single virtual call.
+
+Though a similar path could be used during send, as well, even to non-Context
+objects.  Consider a pretty typical kernel message implementation, like
+`Interrupt::do_set_target`.  It...
+
+- Makes two *virtual* calls to `sender->get_message_key`.
+- Makes a *virtual* call to `sender->complete_send`.
+
+Perhaps we should just have a `deliver` operation that
+- Takes references to some mutable keys and a message.
+- Fills them in.
+- Has the effect of `complete_send`.
+
+

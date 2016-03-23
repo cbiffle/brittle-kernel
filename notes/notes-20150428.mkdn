@@ -1,0 +1,50 @@
+Performance Notes
+=================
+
+I'm instrumenting various types of operations to gauge their relative cost.
+
+
+    Message to null object      20.2u   323.2 c
+
+    Non-blocking recv from gate w/o partner avail
+                                24.16u  386.56 c
+
+    Poking a key into another context
+                                117u    1872c
+
+    Copying a key               4us     64c
+
+
+A more detailed call trace:
+
+    sv_call_handler                   125.3us
+     Context::do_ipc                  122  us
+      Context::deliver_from           110.7us
+       Context::on_delivery_accepted   33.62us
+       Context::do_write_key           62.1 us
+        ReplyGate::deliver_from        15.62us
+         Context::comp._bl._rec.       10   us
+
+
+In `do_write_key`... execution time actually appears to be constrained by
+`memset` of all things, in the `ReplySender` constructor!
+
+It's spending 44.66us in memset.
+
+To be fair, I'm using the Most Naive Memset implementation.  Let's see how it
+does with a better one....
+
+    sv_call_handler                   105.7us     -15%
+     Context::do_ipc                  102.5us     -15%
+      Context::deliver_from            91.3us     -17%
+       Context::on_delivery_accepted   33.50us    ~
+       Context::do_write_key           44.48us    -28%
+        ReplyGate::deliver_from        15.34us    ~
+         Context::comp._bl._rec.        9.86us    ~
+
+Now it's spending 17.40us, a 61% reduction.
+
+252 ns / byte at 16 bytes, 145 ns / byte at 64 bytes.  That's about 2.3 c/b.
+Acceptable as a starting place.
+
+

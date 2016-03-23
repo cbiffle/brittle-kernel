@@ -1,0 +1,59 @@
+
+Interrupts!
+===========
+
+Okay.  There's a kernel-side object called an *interrupt sender* that's
+responsible for converting an explicitly bounded hardware interrupt invocation
+into a potentially unbounded blocking wait.
+
+Strictly speaking, a sender can serve multiple vectors, but it will mean that
+only one of them can be usefully pending at a time -- with the side effect that
+some may be lost if one blocks too long.
+
+Regardless, the sender issues its target an interrupt acknowledge capability.
+The target can use this to complete the interrupt action and (optionally)
+re-enable the interrupt.  This capability must be limited to the specific
+interrupt source in question, even if the sender can service multiple
+interrupts.
+
+Actually, the more I think about it, the more this capability needs to function
+like a reply key.  It's possible that the target of a sender may change over
+time, and you don't want a previous target to be able to mess with the new one's
+state.
+
+
+Interrupt Path
+--------------
+
+Hardware loads a single address into the PC, so to do something to an object we
+need an intermediate thunk.
+
+The thunk is responsible for:
+- Finding the right interrupt sender.
+- Getting its address into r0.
+- Calling through to the `trigger` member function.
+
+We could have a thunk per vector, or a generic thunk that uses the current
+exception number from the PSR to dispatch.  Costs each way?
+
+- A thunk with a hardcoded sender address (i.e. thunk per vector) will probably
+  cost 12 bytes, ish.
+  - Cost at zero vectors: zero bytes.
+  - Cost at 81 vectors: 972 bytes, plus senders.
+
+- A generic thunk would cost about the same, but would require a table of some
+  sort for dispatching, at a probably cost-per-vector of 4 bytes.
+  - Cost at zero vectors: 336 bytes.
+  - Cost at 81 vectors: 336 bytes, plus senders.
+
+Crossover point on the STM32F4 with its 81 potential interrupt sources is at 28
+vectors in use; below that we save by dedicating thunks, above that, the table
+is less net usage.
+
+More specifically, crossover on a machine with `v` vectors in use is at
+
+    v / 3 + 1
+
+
+
+

@@ -1,0 +1,55 @@
+Context States
+==============
+
+I think I should move to explicit Context states, mostly for clarity (which
+leads to correctness).  What states do I need?
+
+- Dead.  This is the initial state.
+- Runnable.
+- Running, if distinct from Runnable.
+- Sending.
+- Receiving.
+- Sending Fault.
+- Faulted (message has been delivered, waiting for instructions).
+
+Seperately, as noted yesterday, I may need some sort of flag that prevents a
+Context from going Runnable when it exits IPC states.  Though we could use fault
+states for this.  If the Context has no memory from which to fetch instructions,
+it will fault on return-to-unprivileged and block in Sending Fault.  At this
+point it could be inspected and repurposed.
+
+We could do this less invasively by introducing a sort of "trace" flag, which
+would generate a fault whenever the kernel attempted to return to a Context's
+code.  A supervisor could decide what to do.  (We could coopt the hardware's
+debug unit to assist with this.)
+
+
+State Mutators
+--------------
+
+- Set Runnable.
+  - No parameters.
+  - If Sending or Receiving, the operation is aborted, and the Context's state
+    is altered to indicate exception.
+  - If Sending Fault, ... I suppose we could try to resume.
+  - If Faulted, of course, this does what it says.
+
+- Force IPC.
+  - Simulates an IPC controlled by a descriptor.
+  - Parameters should be poked into Context registers before initiating.
+  - Either a send phase, receive phase, or both will work.
+  - Initially moves into either Sending or Receiving state, unless the
+    descriptor is a no-op.
+  - Once the whole thing is done, the Context will attempt to go Runnable.
+    - See above for discussion on preventing this.
+
+- Force Fault.
+  - Introduces an asynchronous fault into a Context.
+  - Any IPC in progress is aborted.
+  - Context moves to Sending Fault state.
+  - Fault may have been configured in advance, or may be passed here.
+    - TBD based on size of fault info.
+
+- Kill.
+  - Aborts any outstanding IPC, but otherwise leaves state untouched.
+  - Switches Context into Dead state.
