@@ -1,0 +1,195 @@
+And here we are a year later.  These are my notes on revisiting this system.
+
+
+Basically everything is accessed by messaging.  The sole exception is the
+manipulation of the current context's "key registers," which are used to name
+(and thus message) objects.
+
+The system drifted closer and closer to a virtualization scheme during
+development.  The base machine is extended with a notion of objects that can be
+named by keys and messaged; there are some built-in objects and a provision to
+add new types by software.  Otherwise, the hardware is pretty directly
+represented.
+
+I want to review the set of primitive objects and see if I can find a more
+minimal set, or a more direct mapping to the hardware.
+
+Principles
+----------
+
+I don't have an official list, and I can't guarantee that these are uniformly
+followed, but here's as much as I can remember / derive.
+
+**The System is Trusted but Unprivileged.**  The expectation is that, on top of
+the messaging kernel, there's some set of tasks that form the "system."  These
+tasks are reponsible for implementing some sort of OS API for non-system code.
+The system tasks are, collectively, trusted, because they are responsible for
+maintenance of untrusted code and have basically unlimited power.  However, they
+run in the processor's unprivileged mode, because...
+
+**The Kernel Defends Itself From The System.**  System tasks are given nearly
+complete power over the operation of the processor, but we use abstractions to
+filter their access to the kernel itself, as well as any processor features that
+could compromise the kernel.  This means, among other things, that:
+- System code does not run in interrupt context.  Interrupts are handled as
+  messages.
+- System code does not get direct access to the MPU, since that's how we
+  preserve kernel isolation.
+- System code does not get direct access to the NVIC registers, because it would
+  allow the system to redirect interrupt vectors to its own code.
+
+**Kernel Objects Are Allocated Statically.**  The expectation is that the set of
+kernel objects, and their wiring, is a property of the shape of the system, not
+the application.  As such, they are created statically.  The system is free to
+e.g. multiplex kernel objects to create the appearance of unlimited Contexts for
+user tasks.  In my sketch of a FreeRTOS-based system layer, all application
+tasks were to be represented by a *single* Context.
+
+
+Interesting Missing Things
+--------------------------
+
+The kernel does little in the way of key revocation.
+
+There is no native notion of time, nor timeouts.  Systems can implement this if
+desired.
+
+The kernel has no idle loop.
+
+
+Objects
+-------
+
+The system appears to implement the following types of primitive objects:
+
+- Gates, which are the IPC rendezvous method for implementing objects via
+  software.
+- Contexts, which are the abstraction over processor state and thus the model
+  for tasks and processes.
+- Null, the object referenced by uninitialized key slots and revoked keys.
+- AddressRange, the abstraction for MPU control regions.
+- ReplyGate, a special Gate used to accept a single reply message and then
+  revoke itself, as in a call-style IPC.
+- Interrupt, which sends through a Gate to announce hardware interrupts.
+- ObjectTable, the master list of objects, which provides total power to trusted
+  code to mint new keys or revoke existing ones.
+
+Each Context carries a copy of the machine state, as well as extensions in the
+form of
+- key registers, and
+- memory regions.
+
+Both these extensions hold keys.  The key registers are program-visible and can
+be messaged or passed around.  The memory regions, if loaded with keys to
+AddressRange objects, are applied to the MPU when the Context is activated.
+
+The key to a Context gives control over the Context.  It is not how one messages
+the software *inside* a Context.  It's how one performs supervisory and
+maintenance accesses, such as changing or inspecting register values or
+replacing the MPU configuration.
+
+
+Gates are currently bidirectional rendezvous points, which is probably bad.
+i.e. currently, any gate key can be used to receive messages to the gate as well
+as send.  This would allow clients of a trusted service to intercept messages.
+I could likely fix this by assigning some fixed interpretation to some of the
+brand bits.
+
+
+AddressRanges exist as objects, instead of literals written into the MPU, to try
+to keep buggy trusted system tasks from messing with kernel state.
+AddressRanges validate their keys and refuse any attempt to mint keys that would
+describe regions outside their domain.  I think this is probably necessary,
+assuming I want to maintain the principle that the kernel defends itself from
+the system.
+
+
+Oh, ReplyGate.  So single-purpose.  So intimately wedded to the Context.  I
+decided it was unwise to use Context keys for reply, for the reasons above
+(they're used for maintenance).  It still feels a little odd to have a
+specialized object for this, though.  Perhaps extensions to Gate could make it
+do the job?
+
+The key property of a ReplyGate is that it's efficiently revoked every time it
+receives a message.  It repurposes the brand bits for this, extended by the
+generation bits in the object table.
+
+
+Open Questions: Gate Groups
+---------------------------
+
+I sketched out a primitive called a "mux" or "gate group," which would allow a
+receive to take the highest priority message across a collection of gates.  This
+is first discussed in my notes from 2015-03-26, where I decided to eliminate the
+open receive state.
+
+I never finished implementing it.
+
+The basic idea was:
+
+- Gates can be attached to a gate group.
+
+- Receiving from the gate group takes the highest priority message from any
+  attached gate.  If no such message is available, the receiver blocks on a wait
+  list in the group object.
+
+- The gate group object exposes a protocol for attaching/detaching gates and
+  masking/unmasking them for receive.
+
+- Messages received through a particular gate in a group are altered in some way
+  to indicate which gate they arrived through.  My leading candidate for this is
+  to replace e.g. the top N bits of the brand, so keys issued to grouped gates
+  would have less effective brand space.
+
+Open questions:
+
+- Are the gates attached to a group special, or can any gate be used?
+  - Gates attached to a group need at least one additional field: the index of
+    the group.
+
+- Can a gate join and leave a group during its life?
+  - If it can't, we could potentially merge all the sending waitlists into a
+    central list in the group, which would make receive cheaper.
+  - But that'd make things less flexible.
+
+
+Open Questions: Faults
+----------------------
+
+I had planned that a fault in an application task would be converted into a
+message to another task, its *supervisor.*
+
+The faulted task would be halted until the supervisor took corrective action.
+
+- Does this need to be a separate state from a normal message send?
+
+- Instead of a reply key, would the message include the context key for
+  maintenance?  If not, what identifying information can we transfer to help the
+  supervisor figure out who faulted?
+  - Could likely allow a system-defined "task ID" and convey it in the brand.
+  - Can't use the whole brand, though, because part of it may be needed to
+    distinguish a grouped gate.
+
+Note that one fault, a memory management fault in the kernel, is already
+supported.  The unprivileged access macros use it to catch failures.  Since the
+ABI changes, these macros aren't actually used (!).
+
+
+Open Questions: Keyrings
+------------------------
+
+The system may need to keep large numbers of keys around.  (Or, for that matter,
+applications might.)  But every task gets the same number of key registers
+(currently: 16).
+
+One could create a bunch of Contexts that are never set runnable, and use their
+key registers as auxiliary storage, but it's kind of wasteful, since Contexts
+include other stuff: wait lists, stack save areas, etc.
+
+So perhaps we need a "keyring" object that simply holds keys, and responds to a
+protocol for manipulating them.
+
+At that point, would it make sense to break Context's key storage out into a
+keyring?  Maaaaaybe.  Hm.  Seems like more complexity.
+
+

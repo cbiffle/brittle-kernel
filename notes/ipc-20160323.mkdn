@@ -1,0 +1,82 @@
+Notes on the IPC operation
+==========================
+
+As it stands today, at least.
+
+A context triggers an IPC using a supervisor call instruction.  It provides four
+register arguments:
+
+1. An IPC descriptor word, and
+2. Three words of uninterpreted data.
+
+The IPC descriptor word tells the kernel what to do with the data words.
+
+The kernel returns four similar words to indicate the result.
+
+In addition to the data words, a set of keys (currently: 4) are carried with
+each message.
+
+
+Non-IPC operations on key registers use the same ABI, distinguished by the
+'sysnum' field of the descriptor.
+
+
+Descriptor Contents
+-------------------
+
+- Selector (16 bits): uninterpreted by the kernel, intended as a "message
+  identifier" in an application protocol.
+
+- Error (1 bit): Set after IPC by the kernel to indicate a low level failure,
+  such as the use of an invalid key.
+
+- Send Phase Enable (1 bit): indicates that this RPC involves a message send.
+
+- Receive Phase Enable (1 bit): indicates that this RPC involves a message
+  receive.
+
+- Block (1 bit): we're willing to block on the send phase.
+
+- Target (4 bits): key register index for the destination of the send phase.
+
+- Source (4 bits): key register index for the origin of the receive phase.
+
+- Sysnum (4 bits): syscall number.
+
+Notes:
+
+- A send+receive with source key 0 is currently interpreted as a call.
+
+- The receive phase appears to always block.  There's a TODO in
+  `Context::block_in_receive` about this.
+
+- Errors are mostly indicated on delivery failure or surprise unblocking before
+  receive is complete.  I included the error bit so that user message protocols
+  didn't have to account for these cases, but currently I can't send an error
+  via IPC, meaning this aspect of the IPC protocol is not proxyable.  This bears
+  more thought.
+
+- Sysnum 0 is "IPC", Sysnum 1 is "copy key."  In the latter case the 'source'
+  and 'target' key indices are the important ones.
+
+
+ABI
+---
+
+Currently, the descriptor and the three data words are transferred to the kernel
+in registers `r4` through `r7`.
+
+Originally, I used `r0` through `r3` (i.e. the normal ARM calling convention),
+but these registers are automatically saved by the hardware *onto user stack.*
+Whereas the rest of user registers are saved, by the kernel, into kernel space.
+The IPC path was the only part of the kernel that needed to make accesses into
+user space, which had the potential for faulting, etc.  So, I switched to using
+the registers that I knew were held safely.
+
+The message keys on 'send' are taken from the first N (currently 4) key
+registers, with the exception of key register 0, which is always sent as either
+a reply key (for calls) or a null key (otherwise).
+
+On receive, received keys are deposited into the same registers.
+
+
