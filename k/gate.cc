@@ -4,7 +4,7 @@
 
 namespace k {
 
-void Gate::deliver_from(Brand brand, Sender * sender) {
+void Gate::deliver_from(Brand const & brand, Sender * sender) {
   if (auto partner = _receivers.take()) {
     partner.ref()->complete_blocked_receive(brand, sender);
   } else {

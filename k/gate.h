@@ -23,7 +23,7 @@ struct BlockingSender;  // see: k/blocking_sender.h
  */
 class Gate final : public Object {
 public:
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;
 
 private:

@@ -87,7 +87,7 @@ public:
    * Takes a context out of receive state due to reception of a message from
    * the provided sender.  Analog of Sender::complete_blocked_send.
    */
-  void complete_blocked_receive(Brand, Sender *);
+  void complete_blocked_receive(Brand const &, Sender *);
 
   /*
    * Takes a context out of receive state due to an exception.  Analog of
@@ -121,7 +121,7 @@ public:
   /*
    * Overridden to support real blocking if permitted by task code.
    */
-  void block_in_send(Brand brand, List<BlockingSender> &) override;
+  void block_in_send(Brand const &, List<BlockingSender> &) override;
 
 
   /*************************************************************
@@ -139,7 +139,7 @@ public:
    * Implementation of Object.
    */
 
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
 private:
   // Address of the top of the context's current stack.  When the task
@@ -180,19 +180,19 @@ private:
   Key make_reply_key() const;
 
   // Factors of deliver_from
-  void do_read_register(Brand, Message const &, Keys &);
-  void do_write_register(Brand, Message const &, Keys &);
+  void do_read_register(Brand const &, Message const &, Keys &);
+  void do_write_register(Brand const &, Message const &, Keys &);
 
-  void do_read_key(Brand, Message const &, Keys &);
-  void do_write_key(Brand, Message const &, Keys &);
+  void do_read_key(Brand const &, Message const &, Keys &);
+  void do_write_key(Brand const &, Message const &, Keys &);
 
-  void do_read_region(Brand, Message const &, Keys &);
-  void do_write_region(Brand, Message const &, Keys &);
+  void do_read_region(Brand const &, Message const &, Keys &);
+  void do_write_region(Brand const &, Message const &, Keys &);
 
-  void do_make_runnable(Brand, Message const &, Keys &);
+  void do_make_runnable(Brand const &, Message const &, Keys &);
 
-  void do_read_priority(Brand, Message const &, Keys &);
-  void do_write_priority(Brand, Message const &, Keys &);
+  void do_read_priority(Brand const &, Message const &, Keys &);
+  void do_write_priority(Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k

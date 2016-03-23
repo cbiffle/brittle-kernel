@@ -39,7 +39,7 @@ public:
    */
   Maybe<Key> make_key(Brand) override;
 
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
   /*
    * Overridden to insist that this is, in fact, an AddressRange.
@@ -51,7 +51,7 @@ private:
   bool _xn;
   ReadOnly _read_only;
 
-  void do_inspect(Brand, Message const &, Keys &);
+  void do_inspect(Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k

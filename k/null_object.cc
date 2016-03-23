@@ -4,7 +4,7 @@
 
 namespace k {
 
-void NullObject::deliver_from(Brand, Sender * sender) {
+void NullObject::deliver_from(Brand const &, Sender * sender) {
   // TODO: should a null object refuse delivery like this?
   sender->on_delivery_failed(Exception::bad_operation);
 }

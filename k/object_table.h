@@ -37,13 +37,13 @@ public:
    */
   void invalidate(TableIndex index);
 
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
 private:
   Entry _objects[config::n_objects];
 
-  void do_mint_key(Brand, Message const &, Keys &);
-  void do_read_key(Brand, Message const &, Keys &);
+  void do_mint_key(Brand const &, Message const &, Keys &);
+  void do_read_key(Brand const &, Message const &, Keys &);
 };
 
 extern ObjectTable object_table;

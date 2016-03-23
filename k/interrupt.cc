@@ -22,7 +22,7 @@ void Interrupt::trigger() {
   do_deferred_switch_from_irq();
 }
 
-void Interrupt::deliver_from(Brand brand, Sender * sender) {
+void Interrupt::deliver_from(Brand const & brand, Sender * sender) {
   Message m;
   Keys k;
   sender->on_delivery_accepted(m, k);
@@ -41,7 +41,7 @@ void Interrupt::deliver_from(Brand brand, Sender * sender) {
   }
 }
 
-void Interrupt::do_set_target(Brand, Message const &, Keys & k) {
+void Interrupt::do_set_target(Brand const &, Message const &, Keys & k) {
   auto & reply = k.keys[0];
   auto & target = k.keys[1];
 
@@ -51,7 +51,7 @@ void Interrupt::do_set_target(Brand, Message const &, Keys & k) {
   reply.deliver_from(&reply_sender);
 }
 
-void Interrupt::do_enable(Brand, Message const & m, Keys & k) {
+void Interrupt::do_enable(Brand const &, Message const & m, Keys & k) {
   bool clear_pending = m.d1 != 0;
 
   if (clear_pending) nvic.clear_pending_irq(_irq);
@@ -82,7 +82,8 @@ void Interrupt::on_delivery_failed(Exception, uint32_t) {
   // TODO: should this be able to raise some sort of alert?
 }
 
-void Interrupt::block_in_send(Brand brand, List<BlockingSender> & list) {
+void Interrupt::block_in_send(Brand const & brand,
+                              List<BlockingSender> & list) {
   _saved_brand = brand;
   list.insert(&_sender_item);
 }

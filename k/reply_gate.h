@@ -19,7 +19,7 @@ public:
    * Implementation of Object
    */
 
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;
   Maybe<Key> make_key(Brand) override;
 

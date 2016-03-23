@@ -26,7 +26,7 @@ void ReplySender::on_delivery_failed(Exception, uint32_t) {
   // Don't care.
 }
 
-void ReplySender::block_in_send(Brand, List<BlockingSender> &) {
+void ReplySender::block_in_send(Brand const &, List<BlockingSender> &) {
   // No.
 }
 

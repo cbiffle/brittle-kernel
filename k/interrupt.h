@@ -26,14 +26,14 @@ public:
   /*
    * Handles a message in the interrupt control protocol.
    */
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
   /*
    * Implementation of Sender
    */
   void on_delivery_accepted(Message &, Keys &) override;
   void on_delivery_failed(Exception, uint32_t = 0) override;
-  void block_in_send(Brand, List<BlockingSender> &) override;
+  void block_in_send(Brand const &, List<BlockingSender> &) override;
 
   /*
    * Implementation of BlockingSender
@@ -49,8 +49,8 @@ private:
   Priority _priority;
   unsigned _irq;
 
-  void do_set_target(Brand, Message const &, Keys &);
-  void do_enable(Brand, Message const &, Keys &);
+  void do_set_target(Brand const &, Message const &, Keys &);
+  void do_enable(Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k

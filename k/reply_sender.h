@@ -27,7 +27,7 @@ public:
 
   void on_delivery_accepted(Message &, Keys &) override;
   void on_delivery_failed(Exception, uint32_t = 0) override;
-  void block_in_send(Brand, List<BlockingSender> &) override;
+  void block_in_send(Brand const &, List<BlockingSender> &) override;
 
 private:
   Message _m;

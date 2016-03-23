@@ -126,7 +126,7 @@ bool AddressRange::is_address_range() const {
   return true;
 }
 
-void AddressRange::deliver_from(Brand brand, Sender * sender) {
+void AddressRange::deliver_from(Brand const & brand, Sender * sender) {
   Message m;
   Keys k;
   sender->on_delivery_accepted(m, k);
@@ -142,7 +142,7 @@ void AddressRange::deliver_from(Brand brand, Sender * sender) {
   }
 }
 
-void AddressRange::do_inspect(Brand brand,
+void AddressRange::do_inspect(Brand const & brand,
                               Message const & m,
                               Keys & k) {
   ReplySender reply_sender{{

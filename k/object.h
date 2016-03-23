@@ -54,7 +54,7 @@ public:
    * take action on the message, it should call complete_blocked_send in place
    * of normal complete_send and finish the process above.
    */
-  virtual void deliver_from(Brand, Sender *) = 0;
+  virtual void deliver_from(Brand const &, Sender *) = 0;
 
   /*
    * The given Context wants to receive a message from this object.  This

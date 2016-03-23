@@ -15,7 +15,7 @@ void ObjectTable::invalidate(TableIndex index) {
   ++_objects[index].generation;
 }
 
-void ObjectTable::deliver_from(Brand brand, Sender * sender) {
+void ObjectTable::deliver_from(Brand const & brand, Sender * sender) {
   Message m;
   Keys k;
   sender->on_delivery_accepted(m, k);
@@ -34,7 +34,7 @@ void ObjectTable::deliver_from(Brand brand, Sender * sender) {
   }
 }
 
-void ObjectTable::do_mint_key(Brand,
+void ObjectTable::do_mint_key(Brand const &,
                               Message const & args,
                               Keys & keys) {
   auto index = args.d1;
@@ -59,14 +59,13 @@ void ObjectTable::do_mint_key(Brand,
   keys.keys[0].deliver_from(&reply_sender);
 }
 
-void ObjectTable::do_read_key(Brand,
+void ObjectTable::do_read_key(Brand const &,
                               Message const & args,
                               Keys & keys) {
   auto & k = keys.keys[1];
   auto index = k.get_index();
   auto brand = k.get_brand();
 
-  // TODO: systematic reply priorities?
   ReplySender reply_sender{{
     Descriptor::zero(),
     index,

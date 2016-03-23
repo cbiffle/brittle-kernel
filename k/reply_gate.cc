@@ -8,7 +8,7 @@ namespace k {
 ReplyGate::ReplyGate()
   : _expected_brand(0) {}
 
-void ReplyGate::deliver_from(Brand brand, Sender * sender) {
+void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
   // Filter out messages bearing the wrong brand.
   if (brand != _expected_brand) {
     // Fail like a null object.
