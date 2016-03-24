@@ -3,6 +3,7 @@
 
 namespace demo {
 
+__attribute__((noreturn))
 void client_main();
 
 }  // namespace demo
