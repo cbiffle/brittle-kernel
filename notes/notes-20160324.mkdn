@@ -1,0 +1,112 @@
+Thoughts on Muxes
+=================
+
+AKA gate groups.
+
+I've identified two separate but related uses for them.
+
+1. Allowing a single task to service several gates, appearing as several
+   services.
+
+2. Allowing a service to accept events from a bounded *and dynamic* set of
+   sources at different points in its life.
+
+The latter use case came up early on, in my sketch of a serial demo, where (for
+example) messages requesting transmission would be masked until the transmit
+hardware became available, while messages about reception would be handled
+immediately.  Since I haven't suggested having a receive operation that filters
+by selector (say), the way I suggested achieving this was by treating the
+transmitter and receiver sides as separate protocols, routed through separate
+gates.
+
+In order to receive the highest priority message from *either* gate, the two
+gates need to be attached to some sort of multiplexer.  But since the two need
+to have separate flow-control, there must be a mechanism for that.
+
+
+Idea #1
+-------
+
+Any gate can be a member of a group.
+
+Gates can be added to, and removed from, groups on the fly.  This is done by
+sending a message to the group, containing a gate key.  (Note: to keep clients
+from mischeviously adding service gates to their own groups, this may be another
+type of right encoded in the gate key.)
+
+Adding a gate to a group when it's already a group member would either fail or
+succeed.  (Yay tautologies.)
+
+For flow control, we have two options:
+
+1. Store a bit in the gate indicating whether it is open.
+
+2. Use gate membership status.
+
+Consider the second, since it's the fewest number of mechanisms.  The serial
+driver example would manage three gates:
+
+1. One exposed to clients as a transmitter.
+
+2. One exposed to clients as a receiver.
+
+3. One exposed to interrupts.
+
+To temporarily block transmit requests while waiting for a transmit-complete
+interrupt, the driver would simply remove the transmitter gate from the group.
+
+To ensure that moving gates in and out of groups is constant-time, and to ensure
+that groups can contain any number of gates without advance preparation, we
+likely need to allow for a doubly-linked-list node in each gate.  It would go
+unused in most gates.
+
+Hmmmmm.  The doubly-linked list may need to be linked in terms of table indices
+or keys, instead of pointers.  Well, actually.  Not necessarily.
+
+By analogy to the state lists, we could use pointers and provide an operation
+for removing the gate from any lists, for use in a future system where objects
+can be created and destroyed.  The group is a slightly harder case, since
+removing all the gates from a group -- correctly -- is O(n).
+
+
+Random notes on gate membership...
+
+- If a gate is a member of a group, and one tries to receive from it directly
+  ... what happens?
+
+- Receiving from a group is probably O(n) for n gates currently in the group,
+  because we have to keep the gates' state lists separate so we can remove them
+  from the group without disturbing the lists.  This gives applications a way to
+  construct a bounded but lengthy uninterruptible kernel call.
+
+Okay -- what if the gates themselves are held in a priority list by the gate
+group?  Instead of a single list.  They would be prioritized by their highest
+priority pending sender.
+
+- Receive: now O(priorities).
+
+- Blocking someone on a gate might require reprioritizing the gate in its group
+  list.  Generally O(1).
+
+- Unblocking someone: same deal.  O(priorities) scan for new highest priority.
+
+- Adding a gate to a group would behave differently depending on whether anyone
+  was blocked on it.
+
+- Removing a gate from a group ... same deal.
+
+Of course, gates would also need to be tracked when nobody was blocked on them,
+meaning they have no associated priority...so we need one more root than we
+otherwise would.
+
+
+
+
+
+Idea #2
+-------
+
+The objects that can be grouped are specialized in some way.  They are not
+normal gates.
+
+
