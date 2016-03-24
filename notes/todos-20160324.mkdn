@@ -1,0 +1,30 @@
+A Review of TODOs
+=================
+
+`context.cc:110` - a memo about where non-blocking receives will be implemented,
+should I decide they're a good idea.
+
+`null_object.h:8` and `reply_gate.cc:15` - debate on whether null objects, and
+thus revoked reply gates, should fail with `Exception::bad_operation` or do
+something else.  (From my perspective today, this exception seems pretty
+reasonable.)
+
+`context.h:73` - does the Exception overload of `complete_receive` pull its
+weight?  Note that it appears to be called from only one place: inside Context's
+`complete_blocked_receive` Exception overload.
+
+`sender.h:45` - is backing up the brand sent with a message, in case it gets
+modified during blocking, unreasonable?  e.g. Context copies the brand into an
+explicit `_saved_brand` field.  (I think this is good practice.)
+
+`address_range.cc:118` - should AddressRange enforce anything about memory
+ordering or cache policy, two of the fields in the MPU configuration that are
+currently not validated?  (It seems like at least filtering for illegal values
+would be good.)
+
+`interrupt.cc:82` - if an interrupt fires and its target responds with an
+exception (generally meaning it's a bogus key), do we care?  Note that it won't
+go into a loop, because the IRQ is disabled on firing regardless.
+
+`object.h:9` - huh?  A question about whether an include is necessary when it
+seems pretty patently necessary?  No idea.
