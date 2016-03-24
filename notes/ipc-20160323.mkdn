@@ -52,9 +52,8 @@ Notes:
 
 - Errors are mostly indicated on delivery failure or surprise unblocking before
   receive is complete.  I included the error bit so that user message protocols
-  didn't have to account for these cases, but currently I can't send an error
-  via IPC, meaning this aspect of the IPC protocol is not proxyable.  This bears
-  more thought.
+  didn't have to account for these cases.  Users can send errors by entering
+  the IPC with the error bit set.
 
 - Sysnum 0 is "IPC", Sysnum 1 is "copy key."  In the latter case the 'source'
   and 'target' key indices are the important ones.
@@ -79,4 +78,29 @@ a reply key (for calls) or a null key (otherwise).
 
 On receive, received keys are deposited into the same registers.
 
+The demo app is basically treating key registers 0-3 as volatile, using the ones
+above for storage and immediately copying any interesting keys out.  Because we
+don't currently have keyrings, this limits a context to 12 keys.
 
+
+Error Transmission
+------------------
+
+Currently, you can send errors through gates.  This is good for proxying and
+test and stuff, but may be tricky in general.
+
+Consider:
+
+A server performs a "receive" on its service gate.  If it gets a message, yay.
+However, if it gets an error `bad_operation`, can we distinguish between
+- The gate having been destroyed, such that the server's own key is revoked, and
+  no amount of retry will yield a valid message, and
+- A mischevious client has sent an error message.
+
+Currently, the only difference is in the received brand.  Client error messages
+are unavoidably branded by the key used to transmit through the gate; error
+messages due to revocation are differently branded.  (Currently, a
+kernel-generated error always has brand zero.)
+
+While zero is probably not the right choice, the approach might work.  We could
+specify that kernel errors get delivered with (say) the all-ones brand.
