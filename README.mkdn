@@ -1,0 +1,26 @@
+Overview
+========
+
+This is a messaging-oriented microkernel designed for embedded applications on
+ARM Cortex-M microcontrollers, and intended to support capability-based security
+models.
+
+- Minimal abstractions focus on extending the hardware with multiprogramming,
+  capability storage, and fast messaging.
+
+- L4-style rendezvous messaging without kernel buffering.
+
+- All kernel facilities are accessed by messaging capabilities.  Some hardware
+  operations (namely interrupts) are translated into messages.
+
+- Kernel is designed to be wrapped by system ("personality") tasks to provide OS
+  abstractions to applications.
+
+- Kernel is Cortex-M-specific, but systems can implement portable APIs to enable
+  portable applications.
+
+- Only kernel code runs privileged.  All application code runs unprivileged,
+  including drivers and interrupt service routines.
+
+- Specifically designed to allow for task-level restarts, enabling
+  high-availability system design.
