@@ -1,7 +1,7 @@
 #ifndef K_ADDRESS_RANGE_H
 #define K_ADDRESS_RANGE_H
 
-
+#include "k/key.h"
 #include "k/object.h"
 #include "k/range_ptr.h"
 

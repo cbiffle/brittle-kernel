@@ -2,6 +2,7 @@
 #define K_INTERRUPT_H
 
 #include "k/blocking_sender.h"
+#include "k/key.h"
 #include "k/list.h"
 #include "k/object.h"
 

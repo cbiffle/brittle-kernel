@@ -6,7 +6,7 @@
 #include "common/abi_types.h"
 #include "common/message.h"
 
-#include "k/key.h"  // TODO: not necessary?
+#include "k/key.h"
 #include "k/maybe.h"
 
 namespace k {

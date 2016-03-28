@@ -3,8 +3,9 @@
 
 #include "common/abi_types.h"
 
-#include "k/object.h"
+#include "k/key.h"
 #include "k/list.h"
+#include "k/object.h"
 
 namespace k {
 
