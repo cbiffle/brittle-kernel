@@ -9,7 +9,6 @@ static constexpr unsigned
   n_objects = 14,
   n_task_keys = 16,
   n_task_regions = 6,
-  n_message_data = 4,
   n_message_keys = 4,
   n_priorities = 2;
 
