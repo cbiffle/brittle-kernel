@@ -42,8 +42,6 @@ public:
    * sender probably needs to save it somewhere.  (We want the brand to stay
    * the same even if the sender's keys are asynchronously altered.)
    *
-   * (TODO this may be excessively paranoid.)
-   *
    * If the sender agrees to block, it will save the brand and add itself to
    * the given list, thus revealing its true identity as a BlockingSender.  It
    * then expects to be resumed later by a call to BlockingSender's functions

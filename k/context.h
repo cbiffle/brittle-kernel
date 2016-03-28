@@ -69,8 +69,6 @@ public:
   /*
    * Context-specific analog to complete_send.  This is a convenience function
    * for cancelling a receive operation without blocking.
-   *
-   * TODO: it is not clear that this pulls its weight.
    */
   void complete_receive(Exception, uint32_t = 0);
 

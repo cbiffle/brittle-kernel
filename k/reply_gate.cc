@@ -12,7 +12,6 @@ void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
   // Filter out messages bearing the wrong brand.
   if (brand != _expected_brand) {
     // Fail like a null object.
-    // TODO: should null objects fail in this way?
     sender->on_delivery_failed(Exception::bad_operation);
     return;
   }
