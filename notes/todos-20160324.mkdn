@@ -23,8 +23,9 @@ currently not validated?  (It seems like at least filtering for illegal values
 would be good.)
 
 `interrupt.cc:82` - if an interrupt fires and its target responds with an
-exception (generally meaning it's a bogus key), do we care?  Note that it won't
-go into a loop, because the IRQ is disabled on firing regardless.
+exception (generally meaning it's a bogus key), do we care?  Should we e.g.
+have a backup key that will receive a fault message?  Note that it won't go
+into a loop, because the IRQ is disabled on firing regardless.
 
 `object.h:9` - huh?  A question about whether an include is necessary when it
 seems pretty patently necessary?  No idea.
