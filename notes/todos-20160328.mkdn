@@ -1,0 +1,110 @@
+Open TODOs
+==========
+
+
+Restricting Gate Rights
+-----------------------
+
+Currently, any gate key can be used to both send and receive.  This means that a
+client could intercept messages intended for a server.  This is obviously wrong.
+
+The easiest fix would be to dedicate some of the bits in the brand of a gate key
+to access control.  We should be able to issue gate keys that are limited in the
+following ways:
+- Unable to receive.
+- Unable to send errors (i.e. cannot simulate the revocation of a receive gate
+  key).
+- Maybe unable to send?  This would let us restrict servers further.
+- Unable to add to a group?
+
+My current inclination is to reserve the top 32 bits of the gate brand for
+potential system use.  I can always loosen this later.
+
+
+Gate Groups
+-----------
+
+AKA muxes, in my notes.
+
+See `notes-20160324.mkdn` for more details.
+
+
+Rebooting
+---------
+
+I've hoped that we'd be able to "reboot" objects in-place, by resetting any
+internal state and revving the generation number in the object table.  This is
+critical for having surgical reboots of systems built out of kernel objects.
+
+We need to figure out the correct semantics for reboots, and audit the existing
+kernel object implementations for any reboot-related issues, such as potential
+dangling pointers.
+
+One biggie would be ensuring that anyone blocked on a rebooted object gets
+resumed with a consistent exception.
+
+
+Support for allocation/deallocation
+-----------------------------------
+
+It may be desirable to extend the kernel to support online allocation and
+deallocation of objects.  I've avoided it so far because it scares me.
+
+There may be cases in the existing design where allocation/deallocation could be
+problematic, e.g. potential dangling pointers.  Find these, fix them.
+
+One would want to keep a particular eye out for raw object pointers.
+
+It may also be desirable to revoke keys during destructor execution.
+
+
+Prioritization
+--------------
+
+We'll want to be able to change the priority of prioritizable objects (Contexts
+and Interrupts being the big ones).  This may mean re-collating any lists that
+contain the objects.  Make sure this happens in the right places.
+
+
+App Info Block
+--------------
+
+We'd like to separate the 'zoo' from the kernel, so that the kernel can be
+compiled with much less knowlege of the application internals.  For this purpose
+I've proposed an "app info block" that would be interpreted by the kernel on
+startup.  This needs to be designed and implemented.
+
+
+Faulting
+--------
+
+A fault in unprivileged code running in a Context should be translated into a
+message from the Context to a (configurable) supervisory object.  Note that the
+faulted Context cannot simply resume before action is taken, so it may need to
+be placed into a new state (other than `sending`).
+
+Consider the use case of a Context acting as an asynchronous message sender
+without actually being runnable (i.e. having no actual stack allocated).
+
+
+Interrupt delivery failures
+---------------------------
+
+Decide whether Interrupt objects should try to notify a supervisory object if
+their target key refuses message delivery.  (Sort of like a fault.)
+
+
+Non-Blocking receive
+--------------------
+
+Should a Context be able to request a non-blocking receive?  Should it be able
+to make the receive phase of a call non-blocking?
+
+
+AddressRange advanced validation
+--------------------------------
+
+Should AddressRange check the memory ordering and cache policy bits of its keys?
+
+
+
