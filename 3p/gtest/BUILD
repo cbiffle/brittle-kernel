@@ -1,17 +1,17 @@
 c_library('gtest',
-  sources = [ 'upstream/src/gtest-all.cc' ],
+  sources = [ 'upstream/googletest/src/gtest-all.cc' ],
   local = {
     'cxx_flags': [
-      '-isystem %(ROOT)s/3p/gtest/upstream/include',
+      '-isystem %(ROOT)s/3p/gtest/upstream/googletest/include',
       '-DGTEST_OS_LINUX',
 
       # This is here because gtest-all.cc #includes the other source files.
-      '-isystem %(ROOT)s/3p/gtest/upstream',
+      '-isystem %(ROOT)s/3p/gtest/upstream/googletest',
     ],
   },
   using = {
     'cxx_flags': [
-      '-isystem %(ROOT)s/3p/gtest/upstream/include',
+      '-isystem %(ROOT)s/3p/gtest/upstream/googletest/include',
       '-DGTEST_OS_LINUX',
     ],
   },
