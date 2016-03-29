@@ -55,6 +55,7 @@ SECTIONS {
   PROVIDE(_data_init_image_start = LOADADDR(.data));
   PROVIDE(_data_start = ADDR(.data));
   PROVIDE(_data_end = ADDR(.data) + SIZEOF(.data));
+  PROVIDE(_kernel_rom_end = ALIGN(LOADADDR(.data) + SIZEOF(.data), 4));
 
   .app : {
     . = ORIGIN(rom) + 16384;
