@@ -5,9 +5,6 @@ c_library('k_portable',
     'object_table.cc',
     'reply_sender.cc',
   ],
-  deps = [
-    '//etl:assert_loop'
-  ],
   local = {
     'cxx_flags': ['-Wno-invalid-offsetof'],
   },
@@ -15,9 +12,16 @@ c_library('k_portable',
   sources = [
     'object.cc',
   ],
+  deps = [
+    '//etl:assert_loop'
+  ],
 ).extend_when(lambda e: e['arch'] == 'native',
   sources = [
     'object_native.cc',
+  ],
+  deps = [
+    ':assert_fail_test',
+    '//3p/gtest',
   ],
 )
 
@@ -59,3 +63,11 @@ c_binary('address_range_test',
   ],
 )
 
+c_library('assert_fail_test',
+  sources = [
+    'assert_fail_test.cc',
+  ],
+  deps = [
+    '//3p/gtest',
+  ],
+)
