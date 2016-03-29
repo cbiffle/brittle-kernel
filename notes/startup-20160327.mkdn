@@ -1,0 +1,133 @@
+More Thoughts on the Startup Process
+====================================
+
+I'm trying to eliminate the 'zoo' from the kernel and enable the kernel and
+application to be separately compiled and linked.
+
+Here are more notes on that process.
+
+
+The App Info Block
+------------------
+
+There's this block of data, in ROM, that describes the kernel-application
+interface.  It has been getting smaller the more I've thought about it.
+
+It contains:
+
+- Information about the kernel object "zoo."
+  - The size of the object table.
+  - The memory region(s) the kernel can use for objects (not including its
+    linked areas).
+  - For each object table entry, the type of the object and any parameters.
+    - NullObject and ObjectTable are permanently assigned entries 0 and 1,
+      respectively.
+    - AddressRange: the base, length, and permissions.
+    - Interrupt: the IRQ number.
+    - Context: entry number for its reply gate.
+    - Others: nothing required.
+- Information about how to start the application.
+  - Object table index of the initial Context.
+  - Table of initial AddressRange keys for the MPU.
+  - Initial SP.
+  - Initial PC.
+
+The kernel validates this information before/during processing it.
+
+- The object table must be large enough for the described objects.
+- The memory region(s) offered to the kernel must be in normal RAM, and must not
+  overlap the kernel's linked memory area.
+- The described objects must fit in the offered memory region(s).
+- Any AddressRanges allocated must not provide access to either kernel RAM
+  (including the regions listed in the info) or reserved devices.
+- Interrupts must not attempt to intercept any reserved IRQs (currently this
+  only means faults).
+- The reply gate index provided for a Context must be valid.
+- The application's initial context object table entry must be a Context.
+
+The App Info Block is linked to immediately follow the kernel in ROM, so the
+kernel can assume its address at link time.
+
+
+The Startup Process
+-------------------
+
+The kernel initializes itself like it does today, running its CRT and activaitng
+the MPU.
+
+It then validates the App Info Block.  Startup only proceeds if it's kosher.
+
+Offered memory regions are defensively zeroed.
+
+The Object Table is created, sized appropriately.
+
+Each object described in the manifest is created in RAM using placement new, and
+wired into the object table.
+
+Then, the initial application Context is initialized, including its MPU regions,
+and started.
+
+
+Build and Link
+--------------
+
+My initial attempt will build the kernel and then link it into the application.
+The kernel might or might not support relocation by the application, but either
+way, it's important that its symbols not be exposed to the application (we don't
+want name conflicts).
+
+I'm going to have to page back in some information about ELF linking, I think.
+
+
+My first inclination is to transform the linked kernel into a pair of blobs (ROM
+and RAM) assigned to well-known section names, e.g. `.kernel_rom`.  I can do
+this by converting the kernel using `objcopy` through binary back to ELF, but
+there might be a more elegant way.
+
+This will lose relocation information, but the object files will necessarily
+need to be marked relocatable for the linker to accept them.  So the application
+linker script will need to carefully place them at the correct locations.
+
+
+Okay, what I've got so far:
+
+- Using partial linking with `-Ur` to emit a relocatable kernel.
+  - This requires specifying an entry symbol on the command line for
+    `gc-sections` to work.  Using the exception table.
+
+- Using objcopy with the following options to try to avoid collisions.
+  - `--strip-unneeded` removes symbols that are irrelevant to relocation.
+  - `--localize-symbol *` makes symbols local.
+
+When doing a partial link, gc-sections passes through any sections that it wants
+to remove, not allowing the linker script to merge them.  I can't get objcopy to
+remove these sections.  Unclear why!
+
+Oh, interesting.  Some of these sections are legit used.  So far it appears that
+*some* functions defined in header files are not being resolved during the `-Ur`
+partial link, leaving sections floating around in the output, curiously not
+merged by the partial linker script.
+
+The common property of the unresolve symbols is that they are COMDAT, function
+bodies generated from inline functions, in cases where inlining has failed.
+
+Many are templates, which can probably be moved out of COMDAT by using explicit
+instantiation and `extern`.
+
+- `List<BlockingSender>::insert`
+- `List<Context>::insert`
+
+Some are not.
+
+- `etl::data::AssertMaybeCheckPolicy::check_access`
+- `ReplySender::set_message`
+- `Gate` C1
+
+These could be un-inlined, but I'd like to see about fixing this in general.
+
+
+The linker option `-d` forces allocation of space for common symbols, but
+doesn't appear to apply to COMDAT.
+
+
+
