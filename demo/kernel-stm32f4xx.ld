@@ -18,12 +18,9 @@ SECTIONS {
     PROVIDE(_kernel_rom_start = .);
     KEEP(*(.etl_armv7m_exception_table*))
     KEEP(*(.etl_stm32f4xx_interrupt_table))
-    /* Include initialized data here, so we initialize it during the copy. */
-    /* We use a word copy, so ensure alignment. */
-    . = ALIGN(4);
   } >rom
 
-  .text : {
+  .text : ALIGN(4) {
     *(.text*)
     . = ALIGN(4);
     *(.rodata*)
@@ -47,7 +44,12 @@ SECTIONS {
     _init_array_end = .;
   } >rom
 
-  .data : {
+  .stack (NOLOAD) : ALIGN(4) {
+    . += 512;  /* Leave room for a stack. */
+    PROVIDE(etl_armv7m_initial_stack_top = .);
+  } >ccm
+
+  .data : ALIGN(4) {
     PROVIDE(_kernel_ram_start = .);
     *(.data*)
   } >ccm AT>rom
@@ -64,11 +66,7 @@ SECTIONS {
     PROVIDE(_app_rom_end = .);
   } >rom
 
-  .bss (NOLOAD) : {
-    . += 512;  /* Leave room for a stack. */
-    PROVIDE(etl_armv7m_initial_stack_top = .);
-    . += 512;  /* HACK padding */
-    . = ALIGN(4);
+  .bss (NOLOAD) : ALIGN(4) {
     PROVIDE(_bss_start = .);
     *(.bss*)
     *(COMMON)
