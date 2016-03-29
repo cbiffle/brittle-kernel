@@ -3,8 +3,8 @@
 
 #include "common/abi_types.h"
 
-#include "k/config.h"
 #include "k/object.h"
+#include "k/range_ptr.h"
 
 namespace k {
 
@@ -27,6 +27,9 @@ public:
     Object * ptr;
   };
 
+  void set_entries(RangePtr<Entry>);
+  void reset_entries_for_test();
+
   Entry & operator[](TableIndex index) { return _objects[index]; }
 
   /*
@@ -40,7 +43,7 @@ public:
   void deliver_from(Brand const &, Sender *) override;
 
 private:
-  Entry _objects[config::n_objects];
+  RangePtr<Entry> _objects;
 
   void do_mint_key(Brand const &, Message const &, Keys &);
   void do_read_key(Brand const &, Message const &, Keys &);

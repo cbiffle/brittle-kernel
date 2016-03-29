@@ -24,6 +24,7 @@ ReplyGate reply_gates[config::n_contexts];
 static NullObject null;
 
 ObjectTable object_table;
+static ObjectTable::Entry table_entries[config::n_objects];
 
 AddressRange init_rom{
   {&_app_rom_start, &_app_rom_end},
@@ -72,6 +73,8 @@ Gate irq_gate;
 Interrupt irq{unsigned(etl::stm32f4xx::Interrupt::usart2)};
 
 void init_zoo() {
+  object_table.set_entries(table_entries);
+
   // First, wire up the special objects.
   auto constexpr special_objects = 8;
   object_table[0].ptr = &null;

@@ -26,8 +26,6 @@ void Key::deliver_from(Sender * sender) {
 }
 
 void Key::lazy_revoke() {
-  ETL_ASSERT(_index < config::n_objects);
-
   auto const & te = object_table[_index];
   if (_generation != te.generation || te.ptr == nullptr) {
     *this = null();

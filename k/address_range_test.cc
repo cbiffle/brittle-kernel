@@ -24,6 +24,19 @@ protected:
   };
 
   Brand const _reg_brand{AddressRange::get_brand_for_region(_reg)};
+
+  ObjectTable::Entry _entries[1] {
+    { 0, &_range },
+  };
+
+  void SetUp() override {
+    object_table.set_entries(_entries);
+    _range.set_index(0);
+  }
+
+  void TearDown() override {
+    object_table.reset_entries_for_test();
+  }
 };
 
 TEST_F(AddressRangeTest_Small, begin_and_end) {
@@ -121,6 +134,19 @@ protected:
     false,
     AddressRange::ReadOnly::no,
   };
+
+  ObjectTable::Entry _entries[1] {
+    { 0, &_range },
+  };
+
+  void SetUp() override {
+    object_table.set_entries(_entries);
+    _range.set_index(0);
+  }
+
+  void TearDown() override {
+    object_table.reset_entries_for_test();
+  }
 };
 
 TEST_F(AddressRangeTest_Stm32, actual_init_rom_works) {

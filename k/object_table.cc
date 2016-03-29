@@ -9,9 +9,16 @@
 
 namespace k {
 
-void ObjectTable::invalidate(TableIndex index) {
-  ETL_ASSERT(index < config::n_objects);
+void ObjectTable::set_entries(RangePtr<Entry> entries) {
+  ETL_ASSERT(_objects.is_empty());
+  _objects = entries;
+}
 
+void ObjectTable::reset_entries_for_test() {
+  _objects = {};
+}
+
+void ObjectTable::invalidate(TableIndex index) {
   ++_objects[index].generation;
 }
 
@@ -42,7 +49,7 @@ void ObjectTable::do_mint_key(Brand const &,
 
   ReplySender reply_sender;
 
-  if (index >= config::n_objects) {
+  if (index >= _objects.count()) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   } else {
     // Give the recipient a chance to reject the brand.
