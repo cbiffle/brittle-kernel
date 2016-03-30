@@ -32,6 +32,7 @@ c_library('k',
     'entry.S',
     'gate.cc',
     'interrupt.cc',
+    'irq_redirector.cc',
     'main.cc',
     'mm_fault.cc',
     'null_object.cc',
@@ -71,3 +72,17 @@ c_library('assert_fail_test',
     '//3p/gtest',
   ],
 )
+
+c_library('stm32f4xx',
+  sources = [
+    'stm32f4xx_irq.cc',
+  ],
+  deps = [
+    ':k',
+    '//etl/stm32f4xx',
+  ],
+  local = {
+    'whole_archive': True,
+  },
+)
+
