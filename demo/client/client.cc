@@ -11,15 +11,12 @@
 
 #include <cstdint>
 
-#include "demo/runtime/ipc.h"
+#include "demo/driver/api.h"
 
 namespace demo {
 
 // Symbolic names for our key registers.
 static constexpr unsigned k_uart = 4;
-
-// Mnemonic name for the single message selector we use in the UART protocol.
-static constexpr unsigned s_send = 1;
 
 /*
  * Diagnostic variables, intended to be viewed through GDB.
@@ -37,19 +34,12 @@ void client_main() {
 
   while (true) {
     for (uint8_t value = ' '; value < 127; ++value) {
-      // Prepare the message.
-      Message m {
-        Descriptor::call(s_send, k_uart),
-        value,
-      };
-
-      // Send it.
       ++client_ipc_issue_count;
-      auto rm = ipc(m);
+      bool success = uart::send(k_uart, value);
       ++client_ipc_complete_count;
 
       // Record errors that occur.
-      if (rm.m.d0.get_error()) ++client_error_count;
+      if (!success) ++client_error_count;
     }
   }
 }

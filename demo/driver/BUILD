@@ -7,3 +7,14 @@ c_library('driver',
     '//demo/runtime',
   ],
 )
+
+c_library('api',
+  sources = [
+    'api.cc',
+  ],
+  deps = [
+    '//etl/stm32f4xx',
+    '//demo/runtime',
+  ],
+)
+

@@ -4,5 +4,6 @@ c_library('client',
   ],
   deps = [
     '//demo/runtime',
+    '//demo/driver:api',
   ],
 )
