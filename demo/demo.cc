@@ -2,7 +2,11 @@
 
 #include "etl/assert.h"
 #include "etl/armv7m/instructions.h"
+#include "etl/armv7m/mpu.h"
 #include "etl/data/range_ptr.h"
+#include "etl/stm32f4xx/interrupts.h"
+
+#include "common/app_info.h"
 
 #include "demo/client/client.h"
 #include "demo/driver/driver.h"
@@ -12,10 +16,97 @@
 #include "demo/runtime/ipc.h"
 
 using etl::data::RangePtr;
+using etl::armv7m::Mpu;
+using Rbar = Mpu::rbar_value_t;
+using Rasr = Mpu::rasr_value_t;
 
 namespace demo {
 
 void main();
+
+extern "C" {
+  extern uint32_t _donated_ram_begin, _donated_ram_end;
+  extern uint32_t _demo_initial_stack;
+
+  extern uint32_t _app_rom_start, _app_rom_end;
+  extern uint32_t _app_ram_start, _app_ram_end;
+}
+
+__attribute__((section(".app_info0")))
+__attribute__((used))
+constexpr AppInfo app_info {
+  .object_table_entry_count = 14,
+  .external_interrupt_count = uint32_t(etl::stm32f4xx::Interrupt::usart2) + 1,
+
+  .donated_ram_begin = reinterpret_cast<uint32_t>(&_donated_ram_begin),
+  .donated_ram_end = reinterpret_cast<uint32_t>(&_donated_ram_end),
+  .initial_task_sp = reinterpret_cast<uint32_t>(&_demo_initial_stack),
+  .initial_task_pc = reinterpret_cast<uint32_t>(&main),
+
+  .initial_task_grants = {
+    {  // ROM
+      .address_range_index = 4,
+      .brand_hi = uint32_t(Rasr()
+          .with_ap(Mpu::AccessPermissions::p_read_u_read)
+          .with_size(13)  // 16kiB
+          .with_enable(true)),
+      .brand_lo = uint32_t(Rbar()
+          .with_addr_27(0x08004000 >> 5)),
+    },
+    {  // RAM
+      .address_range_index = 5,
+      .brand_hi = uint32_t(Rasr()
+          .with_ap(Mpu::AccessPermissions::p_write_u_write)
+          .with_size(15)  // 64kiB
+          .with_xn(true)
+          .with_enable(true)),
+      .brand_lo = uint32_t(Rbar()
+          .with_addr_27(0x20000000 >> 5)),
+    },
+  },
+
+  .object_map = {},
+};
+
+__attribute__((section(".app_info1")))
+__attribute__((used))
+uint32_t const object_map[] {
+  // 4: AddressRange describing application ROM.
+  0,  // address range
+  reinterpret_cast<uint32_t>(&_app_rom_start),  // begin
+  reinterpret_cast<uint32_t>(&_app_rom_end),  // end
+  0,  // allow execution
+  2,  // read-only.
+  // 5: AddressRange describing application RAM.
+  0,  // address range
+  reinterpret_cast<uint32_t>(&_app_ram_start),  // begin
+  reinterpret_cast<uint32_t>(&_app_ram_end),  // end
+  1,  // disallow execution
+  0,  // read-write
+  // 6: AddressRange describing the peripheral region.
+  0,  // address range
+  0x40000000,
+  0x60000000,
+  1,  // disallow execution
+  0,  // read-write
+  // 7: Driver client gate.
+  2,
+  // 8: IRQ gate.
+  2,
+  // 9: IRQ sender.
+  3,
+  uint32_t(etl::stm32f4xx::Interrupt::usart2),
+  // 10: Client context.
+  1,
+  11,
+  // 11: Client context reply gate.
+  4,
+  // 12: Idle context.
+  1,
+  13,
+  // 13: Idle context reply gate.
+  4,
+};
 
 /*******************************************************************************
  * Context maintenance utilities.

@@ -14,6 +14,9 @@ SECTIONS {
     *(.rodata*)
   } >rom
 
+  PROVIDE(_app_rom_start = ADDR(.text));
+  PROVIDE(_app_rom_end = ORIGIN(rom) + LENGTH(rom));
+
   .data : {
     PROVIDE(_demo_data_start = .);
     *(.data*)
@@ -25,4 +28,7 @@ SECTIONS {
     . = ALIGN(4);
     PROVIDE(_demo_bss_end = .);
   } >sram112
+
+  PROVIDE(_app_ram_start = ORIGIN(sram112));
+  PROVIDE(_app_ram_end = ORIGIN(sram112) + LENGTH(sram112));
 }
