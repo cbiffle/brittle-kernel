@@ -20,6 +20,15 @@ c_binary('kernel',
   },
 )
 
+objcopy('kernel.blob',
+  environment = 'stm32f407_app',
+  src = 'latest/demo/kernel',
+  options = [
+    '--prefix-alloc-sections=.__kernel__',
+    '-S',
+  ],
+)
+
 c_binary('demo',
   environment = 'stm32f407_app',
   deps = [
