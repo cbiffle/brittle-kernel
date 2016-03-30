@@ -26,12 +26,6 @@ uint32_t volatile client_ipc_complete_count;
 uint32_t volatile client_error_count;
 
 void client_main() {
-  // We're not entirely sure that the CRT will zero our BSS in this demo
-  // environment, so let's be pedantic:
-  client_ipc_issue_count = 0;
-  client_ipc_complete_count = 0;
-  client_error_count = 0;
-
   while (true) {
     for (uint8_t value = ' '; value < 127; ++value) {
       ++client_ipc_issue_count;

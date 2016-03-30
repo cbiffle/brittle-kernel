@@ -8,8 +8,7 @@ MEMORY {
   sram16  (rwx) : ORIGIN = 0x2001c000, LENGTH =   16K
 }
 
-EXTERN(_ZN3etl6armv7m15exception_tableE)
-EXTERN(_ZN4demo4mainEv)
+EXTERN(_ZN3etl6armv7mL15exception_tableE)
 
 ENTRY(etl_armv7m_reset_handler)
 

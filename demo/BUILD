@@ -35,6 +35,7 @@ c_binary('demo',
     ':code',
     ':kernel.blob',
     '//etl/stm32f4xx',
+    '//etl/armv7m:implicit_crt0',
   ],
   extra = {
     'cxx_flags': [

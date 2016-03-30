@@ -105,11 +105,6 @@ static void wait_for_txe() {
  * Main driver loop.
  */
 void driver_main() {
-  // We're not totally confident that the CRT will initialize our BSS in the
-  // demo environment, so be pedantic:
-  receive_count = 0;
-  send_count = 0;
-
   initialize_hardware();
 
   while (true) {

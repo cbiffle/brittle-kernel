@@ -5,7 +5,7 @@ MEMORY {
   sram16  (rwx) : ORIGIN = 0x2001c000, LENGTH =   16K
 }
 
-ENTRY(_ZN4demo4mainEv)
+ENTRY(etl_armv7m_reset_handler)
 
 SECTIONS {
   .kernel_text : {
@@ -20,10 +20,27 @@ SECTIONS {
   } >ccm AT>rom
 
   .text ORIGIN(rom) + 16384 : {
-    KEEP(*(.text.startup._ZN4demo4mainEv))
     *(.text*)
     . = ALIGN(4);
     *(.rodata*)
+  } >rom
+
+  .init : ALIGN(2) {
+    KEEP(*(.init_prologue))
+    KEEP(*(.init))
+    KEEP(*(.init_epilogue))
+  } >rom
+
+  .preinit_array : ALIGN(4) {
+    _preinit_array_start = .;
+    KEEP(*(.preinit_array))
+    _preinit_array_end = .;
+  } >rom
+
+  .init_array : ALIGN(4) {
+    _init_array_start = .;
+    KEEP(*(.init_array))
+    _init_array_end = .;
   } >rom
 
   PROVIDE(_app_rom_start = ADDR(.text));
@@ -43,15 +60,18 @@ SECTIONS {
   } >sram112
 
   .data : {
-    PROVIDE(_demo_data_start = .);
     *(.data*)
   } >sram112 AT>rom
 
+  PROVIDE(_data_init_image_start = LOADADDR(.data));
+  PROVIDE(_data_start = ADDR(.data));
+  PROVIDE(_data_end = ADDR(.data) + SIZEOF(.data));
+
   .bss (NOLOAD) : ALIGN(4) {
-    PROVIDE(_demo_bss_start = .);
+    PROVIDE(_bss_start = .);
     *(.bss*)
     . = ALIGN(4);
-    PROVIDE(_demo_bss_end = .);
+    PROVIDE(_bss_end = .);
   } >sram112
 
   PROVIDE(_app_ram_start = ORIGIN(sram112));

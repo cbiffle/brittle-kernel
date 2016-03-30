@@ -5,6 +5,7 @@
 #include "etl/armv7m/mpu.h"
 #include "etl/data/range_ptr.h"
 #include "etl/stm32f4xx/interrupts.h"
+#include "etl/armv7m/implicit_crt0.h"
 
 #include "common/app_info.h"
 
@@ -21,8 +22,6 @@ using Rbar = Mpu::rbar_value_t;
 using Rasr = Mpu::rasr_value_t;
 
 namespace demo {
-
-void main();
 
 extern "C" {
   extern uint32_t _donated_ram_begin, _donated_ram_end;
@@ -261,7 +260,8 @@ static void spawn_client() {
   context::make_runnable(k_second);
 }
 
-void main() {
+__attribute__((noreturn))
+static void demo_main() {
   // Derive our authority from the kernel's representation.
   collect_keys();
   // Fire up the other tasks.
@@ -283,3 +283,7 @@ void main() {
 }
 
 }  // namespace demo
+
+int main() {
+  demo::demo_main();
+}
