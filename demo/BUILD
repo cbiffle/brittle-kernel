@@ -2,8 +2,8 @@ c_binary('kernel',
   environment = 'stm32f407_kernel',
   deps = [
     '//k',
+    '//k:stm32f4xx',
     '//etl/armv7m:exception_table',
-    '//etl/stm32f4xx:interrupt_table',
     '//etl/armv7m:implicit_crt0',
   ],
   extra = {
@@ -33,6 +33,7 @@ c_binary('demo',
   environment = 'stm32f407_app',
   deps = [
     ':code',
+    ':kernel.blob',
     '//etl/stm32f4xx',
   ],
   extra = {
@@ -45,6 +46,9 @@ c_binary('demo',
   local = {
     'link_flags': [
       '-T%(linker_script)s',
+    ],
+    'link_srcs': [
+      'gen/demo/kernel.blob',
     ],
     '__implicit__': [ '%(linker_script)s' ],
   },

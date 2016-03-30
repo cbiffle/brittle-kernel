@@ -178,13 +178,17 @@ static void idle_main() {
 
 // Some object indices of which we're aware:
 static constexpr unsigned
-  oi_peripheral_region = 4,
-  oi_gate = 5,
-  oi_irq_gate = 6,
-  oi_irq = 7,
-  oi_initial_context = 8,
-  oi_second_context = 9,
-  oi_idle_context = 10;
+  oi_initial_context = 2,
+  oi_rom_region = 4,
+  oi_ram_region = 5,
+  oi_peripheral_region = 6,
+  oi_gate = 7,
+  oi_irq_gate = 8,
+  oi_irq = 9,
+  oi_second_context = 10,
+  oi_second_context_reply = 11,
+  oi_idle_context = 12,
+  oi_idle_context_reply = 13;
 
 // Our use of key registers:
 static constexpr unsigned

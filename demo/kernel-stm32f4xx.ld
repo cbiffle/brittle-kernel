@@ -17,7 +17,7 @@ SECTIONS {
   .vector_tables : {
     PROVIDE(_kernel_rom_start = .);
     KEEP(*(.etl_armv7m_exception_table*))
-    KEEP(*(.etl_stm32f4xx_interrupt_table))
+    KEEP(*(.stm32f4xx_interrupt_redirect))
   } >rom
 
   .text : ALIGN(4) {
@@ -59,13 +59,6 @@ SECTIONS {
   PROVIDE(_data_end = ADDR(.data) + SIZEOF(.data));
   PROVIDE(_kernel_rom_end = ALIGN(LOADADDR(.data) + SIZEOF(.data), 4));
 
-  .app : {
-    . = ORIGIN(rom) + 16384;
-    PROVIDE(_app_rom_start = .);
-    . = ORIGIN(rom) + LENGTH(rom);
-    PROVIDE(_app_rom_end = .);
-  } >rom
-
   .bss (NOLOAD) : ALIGN(4) {
     PROVIDE(_bss_start = .);
     *(.bss*)
@@ -74,10 +67,4 @@ SECTIONS {
     PROVIDE(_bss_end = .);
     PROVIDE(_kernel_ram_end = .);
   } >ccm
-
-  .app_ram (NOLOAD) : {
-    PROVIDE(_app_ram_start = .);
-    . = ORIGIN(sram112) + LENGTH(sram112);
-    PROVIDE(_app_ram_end = .);
-  } >sram112
 }

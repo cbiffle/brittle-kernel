@@ -43,7 +43,6 @@ c_library('k',
     'svc.cc',
     'unprivileged.cc',
     'unprivileged.S',
-    'zoo.cc',
   ],
   deps = [
     ':k_portable',
