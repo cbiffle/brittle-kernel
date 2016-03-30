@@ -27,6 +27,7 @@ c_library('k_portable',
 
 c_library('k',
   sources = [
+    'app.cc',
     'context.cc',
     'cxxabi.cc',
     'entry.S',
