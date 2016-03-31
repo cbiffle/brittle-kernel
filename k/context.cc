@@ -318,7 +318,7 @@ void Context::do_read_register(Brand const &,
     GP_EF(15);
 #undef GP_EF
 
-    case 16: {
+    case 16: {  // PSR
       apply_to_mpu();
       auto r = uload(&_stack->psr);
       current->apply_to_mpu();
@@ -342,6 +342,10 @@ void Context::do_read_register(Brand const &,
     case 10:
     case 11:
       reply_sender.set_message({Descriptor::zero(), _save.raw[arg.d1 - 4]});
+      break;
+
+    case 17:  // BASEPRI
+      reply_sender.set_message({Descriptor::zero(), _save.named.basepri});
       break;
 
     default:
@@ -381,7 +385,7 @@ void Context::do_write_register(Brand const &,
     GP_EF(15);
 #undef GP
 
-    case 16: {
+    case 16: {  // PSR
       if (!ustore(&_stack->psr, v)) {
         reply_sender.set_message(Message::failure(Exception::fault));
       }
@@ -397,6 +401,10 @@ void Context::do_write_register(Brand const &,
     case 10:
     case 11:
       _save.raw[r - 4] = v;
+      break;
+
+    case 17:  // BASEPRI
+      _save.named.basepri = v;
       break;
 
     default:

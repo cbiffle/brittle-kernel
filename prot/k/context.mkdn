@@ -32,6 +32,11 @@ Exceptions:
 
 - 0 - 15: general-purpose registers r0 - r15.
 - 16: program status register.
+- 17: BASEPRI.
+
+Note that the implemented range for BASEPRI is system-specific, but the value
+accessed through this interface is always 8 bits.  Applications should adjust as
+needed.
 
 
 Write Register (1)
