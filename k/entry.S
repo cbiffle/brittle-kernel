@@ -20,18 +20,23 @@
     ldr r1, [r5]              @ Get current (new?) context.
     add r1, r1, #KCSO         @ Get address of register save area.
     ldm r1, {r4-r11}          @ Restore callee-save registers.
-    bx lr                     @ Return.
 .endm
 
 .globl etl_armv7m_sv_call_handler
 .thumb_func
 etl_armv7m_sv_call_handler:
     kernel_entry _ZN1k12svc_dispatchEPv
+    bx lr
 
 .globl etl_armv7m_pend_sv_handler
 .thumb_func
 etl_armv7m_pend_sv_handler:
+    movs r0, #1
+    msr PRIMASK, r0
     kernel_entry _ZN1k22switch_after_interruptEPv
+    movs r0, #0
+    msr PRIMASK, r0
+    bx lr
 
 .globl etl_armv7m_mem_manage_fault_handler
 .thumb_func
@@ -43,6 +48,7 @@ etl_armv7m_mem_manage_fault_handler:
 
     @ Fault was in task code.
     kernel_entry _ZN1k8mm_faultEPv
+    bx lr
 
 1:  mov r0, sp                @ Get kernel stack pointer.
 
