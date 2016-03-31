@@ -25,6 +25,7 @@ namespace k {
 
 Context::Context()
   : _stack{nullptr},
+    _save{},
     _keys{},
     _ctx_item{this},
     _sender_item{this},

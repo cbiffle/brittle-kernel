@@ -18,7 +18,12 @@ using StackRegisters = etl::armv7m::ExceptionFrame;
  * Machine registers, as saved by the kernel entry routines into kernel space.
  */
 union SavedRegisters {
-  uint32_t raw[8];
+  uint32_t raw[9];
+
+  struct {
+    uint32_t r4, r5, r6, r7, r8, r9, r10, r11;
+    uint32_t basepri;
+  } named;
 
   struct {
     Message m;
@@ -27,6 +32,10 @@ union SavedRegisters {
 
   SavedRegisters() : raw{} {}
 };
+
+static_assert(sizeof(static_cast<SavedRegisters *>(nullptr)->raw)
+      == sizeof(static_cast<SavedRegisters *>(nullptr)->named),
+        "named and raw register fields mismatched");
 
 }  // namespace k
 

@@ -9,7 +9,8 @@
     ldr r1, =_ZN1k7currentE   @ Get address of current context pointer.
     ldr r2, [r1]              @ Get current context.
     add r2, r2, #KCSO         @ Get address of register save area.
-    stm r2, {r4-r11}          @ Save callee-save registers into context.
+    mrs r12, BASEPRI          @ Back up current BASEPRI setting.
+    stm r2, {r4-r12}          @ Save callee-save registers into context.
 
     mov r4, lr                @ Back up exc_return.
     mov r5, r1                @ Back up address of current context pointer.
@@ -19,7 +20,8 @@
     msr PSP, r0               @ Apply new application stack pointer.
     ldr r1, [r5]              @ Get current (new?) context.
     add r1, r1, #KCSO         @ Get address of register save area.
-    ldm r1, {r4-r11}          @ Restore callee-save registers.
+    ldm r1, {r4-r12}          @ Restore callee-save registers.
+    msr BASEPRI, r12          @ Restore BASEPRI.
 .endm
 
 .globl etl_armv7m_sv_call_handler
