@@ -1,0 +1,184 @@
+More thoughts on interrupts
+===========================
+
+I'm thinking about the FreeRTOS port, and one of the (several) things I'll need
+to formalize before tackling that is the question of interrupt-kernel
+interaction.
+
+Some open questions that I'll try to resolve:
+
+- Can we let the system set interrupt/exception priorities arbitrarily, or will
+  some combinations defeat kernel invariants?
+
+- How about `BASEPRI`?  Can the system mask interrupts?
+
+- Interrupt objects don't currently accept a "disable" message.  They should,
+  right?
+
+- Systick.  It's not an interrupt, it's technically an exception, but I'd like
+  to handle it like an interrupt.  Shall we use the CMSIS style of negative
+  numbers for exceptions?
+
+- What does interrupt priority even mean in this system?
+
+
+Interrupts and the Kernel
+-------------------------
+
+All kernel code runs inside interrupts:
+- SVC, for synchronous syscalls.
+- PendSV, for deferred context switches.
+- Other hardware IRQs, for Interrupt forwarding.
+
+The kernel generally assumes it's not preempting *itself*.  This makes a lot of
+things simpler.  Given that the kernel only implements predictable-time
+operations, I'm comfortable saying that the kernel shall not be preempted.
+
+Assume, for the moment, that SVC and PendSV are given the highest interrupt
+priority.  This ensures that no ISR will preempt a syscall or deferred switch.
+
+At that point, interrupt priorities *beneath* syscalls could allow ISRs to
+preempt each other.  Because ISRs exercise kernel code, this means the kernel is
+getting preempted.  ISRs do not perform syscalls, so it's technically safe to
+put them at lower priority than SVC -- but priority ties are decided by vector
+number, and SVC's vector number is lower than yours.
+
+So it kind of looks like all interrupts need to be set for the same priority --
+the highest.
+
+This hurts interrupt response latency, but given that interrupt response is
+handled by Contexts anyway, even if ISRs could preempt the kernel, the latency
+would be the same.  (Higher, actually, since an ISR that waits out the syscall
+benefits from tail-chaining.)
+
+Oh!  Interrupts *can't* be set to a lower priority than PendSV, because they use
+PendSV to perform context switches!
+
+Since preemption could corrupt kernel data structures, it stands to reason that
+it could be used to break the kernel -- so we can't let the system violate the
+preemption rules.
+
+Okay.  So.
+
+- Everything gets set to the same priority.
+- Interrupts that arrive during kernel execution wait until it's done.
+- Access to the exception and interrupt priority registers is **reserved**.
+
+
+Critical Sections, masking interrupts
+-------------------------------------
+
+All that being said, applications may want to mask interrupts.  This is fine!
+The kernel does not rely on timely interrupt delivery for correct execution.
+
+More specifically, applications might be interested in two levels of masking:
+
+- Only preventing context switches, allowing interrupts to be delivered.
+  Interrupts could even be processed in this state, by noticing that Contexts
+  have become runnable by receipt of an interrupt message.
+
+- Stopping everything, ensuring that no instructions execute "by surprise."
+
+Note that *unmasking* an interrupt would require an SVC, implying that SVC
+itself must not be masked.
+
+We can do this using `BASEPRI`, but only if we configure the priorities to allow
+it.  We'd need the following tiers of priorities:
+
+- SVC is the highest.
+- Hardware interrupts come next.
+- PendSV is the lowest.
+
+But we can't support PendSV getting preempted, so PendSV itself will need to
+boost `BASEPRI` to temporarily disable interrupts.  Or use `PRIMASK`.
+
+`BASEPRI` can't prevent priority 0 from happening.  `PRIMASK` can.  Since none
+of our proposed schemes involve masking SVC, how about:
+
+- SVC: 0
+- IRQ: 1
+- PendSV: 2
+
+Masking context switches would raise `BASEPRI` to 2.  Masking context switches
+and interrupts, 1.  Enabling everything, 0.
+
+PendSV, then could use `PRIMASK`.
+
+
+Actual priority values
+----------------------
+
+We can't actually set a priority to 1.  Most implementations of ARMv7-M
+implement a small subset of the priority bits, and they're the MSBs.  So we need
+to figure out the true values.
+
+There doesn't seem to be a way to do this other than writing priorities and
+reading back the results.
+
+So we need a routine that
+
+- Writes a priority to all ones.
+- Reads the result back.
+- Derives the three important priority values.
+- Assigns them to everything.
+
+In this context, what is "everything?"
+
+- MemManage must be higher priority than SVC, because we use it to detect
+  invalid unprivileged accesses.  (How is this working today?)
+
+- BusFault too.
+
+- UsageFault can be used to report unaligned accesses and divide by zero.  It
+  might be interesting to allow applications to use this.
+
+- SVC gets "0"
+- DebugMon is TBD.
+- PendSV gets "2"
+- SysTick should be treated as an interrupt: "1"
+
+- All external interrupts get "1".
+
+
+What about synchronous preemption?
+----------------------------------
+
+So, say I block preemption and send a message to a runnable Context.
+
+Possible results include:
+
+- Control transfers into that Context, preemption is still disabled, it
+  eventually returns.
+
+- The call fails with an exception.
+
+- The system hangs forever.
+
+- The send actually returns, but leaves the Context in a non-runnable state.
+  (I'm pretty sure this is what would happen today.)
+
+If I say "don't preempt me" I can still make system calls, but what if the
+system call is to a system task that will implement the "don't preempt me" call?
+Surely I should be able to talk to it?
+
+In general, does "don't preempt me" mean "don't let me preempt myself?"  Surely
+it's intended to prevent *surprise* preemption, not synchronous preemption.
+
+And what of the server?  Is *it* now running with preemption blocked?  That
+seems like a surprising bit of the environment to let clients alter.
+
+Is it possible, then, that preemption-state should be an attribute of the
+Context?  Essentially, when activating a Context, we would load a BASEPRI value
+from somewhere inside it and restore it to the register.
+
+
+If it's an attribute of the Context, it should probably be altered by messages
+to the Context (by the system).  This gives an obvious place to proxy, if we
+don't want some tasks to be able to stop preemption.  (And we probably don't.)
+
+
+How sensitive is the BASEPRI value?  Sensitive enough that we don't want it
+deposited/reloaded on the stack in unprivileged memory!
+
+r12 is stacked and restored by hardware.  We could extend the context save area
+(in kernel memory) by one word and move BASEPRI through r12.
