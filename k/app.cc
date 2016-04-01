@@ -128,6 +128,8 @@ static void create_app_objects(Arena & arena) {
       case AppInfo::ObjectType::interrupt:
         {
           auto irq = *map++;
+          ETL_ASSERT(irq < app.external_interrupt_count);
+
           auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{irq};
           object_table[i].ptr = o;
           o->set_index(i);
