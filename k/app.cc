@@ -3,6 +3,10 @@
 #include "etl/mem/arena.h"
 
 #include "etl/armv7m/exception_table.h"
+#include "etl/armv7m/exceptions.h"
+#include "etl/armv7m/nvic.h"
+#include "etl/armv7m/registers.h"
+#include "etl/armv7m/scb.h"
 
 #include "common/app_info.h"
 
@@ -18,6 +22,14 @@
 #include "k/range_ptr.h"
 #include "k/scheduler.h"
 #include "k/unprivileged.h"
+
+using etl::armv7m::Byte;
+using etl::armv7m::get_basepri;
+using etl::armv7m::nvic;
+using etl::armv7m::scb;
+using etl::armv7m::set_basepri;
+
+using HwException = etl::armv7m::Exception;
 
 namespace k {
 
@@ -74,6 +86,40 @@ static void initialize_well_known_objects() {
   first_context.set_reply_gate_index(3);
 }
 
+
+/*******************************************************************************
+ * Interrupt priority initialization.
+ */
+
+static void initialize_irq_priorities() {
+  // Discover the number of implemented priority bits.
+  set_basepri(0xFF);
+  auto actual_basepri = get_basepri();
+  set_basepri(0);
+
+  // The 'actual_basepri' value will have ones in some number of MSBs.  We can
+  // compute the LSB of the implemented priority field through a bitwise trick:
+  auto priority_lsb = (actual_basepri ^ 0xFF) + 1;
+
+  // Compute the priorities we'll use.
+  auto p_fault  = Byte(0),
+       p_svc    = Byte(p_fault + priority_lsb),
+       p_irq    = Byte(p_svc + priority_lsb),
+       p_pendsv = Byte(p_irq + priority_lsb);
+
+  scb.set_exception_priority(HwException::mem_manage_fault, p_fault);
+  scb.set_exception_priority(HwException::bus_fault, p_fault);
+  scb.set_exception_priority(HwException::usage_fault, p_fault);
+  scb.set_exception_priority(HwException::sv_call, p_svc);
+  scb.set_exception_priority(HwException::debug_monitor, p_svc);
+  scb.set_exception_priority(HwException::pend_sv, p_pendsv);
+  scb.set_exception_priority(HwException::sys_tick, p_irq);
+
+  auto & app = get_app_info();
+  for (unsigned i = 0; i < app.external_interrupt_count; ++i) {
+    nvic.set_irq_priority(i, p_irq);
+  }
+}
 
 /*******************************************************************************
  * Interpretation of the object map from AppInfo.
@@ -264,6 +310,7 @@ static void start_scheduler() {
 }
 
 void start_app() {
+  initialize_irq_priorities();
   initialize_app();
   start_scheduler();
 }
