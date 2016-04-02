@@ -11,6 +11,14 @@ seems like a potential candidate, as does Context-ReplyGate-Context.
 
 Consider merging Gate and ReplyGate.
 
+Should the System be able to ask the Object Table about the *type* of a kernel
+object?  (i.e. "is this a gate or a context?")  This seems like it will be more
+critical once objects are created/destroyed at runtime.
+
+Should the Null Object be distinct from the behavior of a revoked key?  e.g.
+should revoked keys escalate to a supervisor, like a fault, or throw a very
+specific exception?
+
 
 Restricting Gate Rights
 -----------------------
