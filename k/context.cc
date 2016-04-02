@@ -146,6 +146,7 @@ void Context::apply_to_mpu() {
   for (unsigned i = 0; i < config::n_task_regions; ++i) {
     mpu.write_rnr(i);
     auto object = _memory_regions[i].get();
+    // TODO: this cast pattern is sub-optimal.  Better to have a cast method.
     if (object->is_address_range()) {
       auto range = static_cast<AddressRange *>(object);
       auto region = range->get_region_for_brand(_memory_regions[i].get_brand());
