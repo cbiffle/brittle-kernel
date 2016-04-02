@@ -19,6 +19,10 @@ bool Object::is_address_range() const {
   return false;
 }
 
+bool Object::is_gate() const {
+  return false;
+}
+
 void Object::do_badop(Message const & m, Keys & k) {
   ReplySender reply{Message::failure(Exception::bad_operation,
                                      m.d0.get_selector())};

@@ -20,4 +20,8 @@ void Gate::deliver_to(Context * receiver) {
   }
 }
 
+bool Gate::is_gate() const {
+  return true;
+}
+
 }  // namespace k

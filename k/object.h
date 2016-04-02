@@ -7,13 +7,14 @@
 #include "common/message.h"
 
 #include "k/key.h"
+#include "k/list.h"
 #include "k/maybe.h"
 
 namespace k {
 
-struct Context;  // see: k/context.h
-struct Keys;     // see: k/keys.h
-struct Sender;   // see: k/sender.h
+struct Context;    // see: k/context.h
+struct Keys;       // see: k/keys.h
+struct Sender;     // see: k/sender.h
 
 class Object {
 public:
@@ -85,6 +86,12 @@ public:
    * implementation returns false.
    */
   virtual bool is_address_range() const;
+
+  /*
+   * Checks whether this Object is really a Gate.  The default implementation
+   * returns false.
+   */
+  virtual bool is_gate() const;
 
 protected:
   Object();

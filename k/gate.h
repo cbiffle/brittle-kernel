@@ -25,6 +25,7 @@ class Gate final : public Object {
 public:
   void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;
+  bool is_gate() const override;
 
 private:
   List<BlockingSender> _senders;
