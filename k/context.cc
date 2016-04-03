@@ -295,10 +295,10 @@ void Context::do_read_register(Brand const &,
           });
       break;
 
-#define GP_EF(n) \
-    case n: { \
+#define GP_EF(num, nam) \
+    case num: { \
       apply_to_mpu(); \
-      auto r = uload(&_stack->r ## n); \
+      auto r = uload(&_stack->nam); \
       current->apply_to_mpu(); \
       if (r) { \
         reply_sender.set_message({ \
@@ -310,29 +310,15 @@ void Context::do_read_register(Brand const &,
       } \
       break; \
     }
-    GP_EF(0);
-    GP_EF(1);
-    GP_EF(2);
-    GP_EF(3);
-    GP_EF(12);
-    GP_EF(14);
-    GP_EF(15);
+    GP_EF(0, r0);
+    GP_EF(1, r1);
+    GP_EF(2, r2);
+    GP_EF(3, r3);
+    GP_EF(12, r12);
+    GP_EF(14, r14);
+    GP_EF(15, r15);
+    GP_EF(16, psr);
 #undef GP_EF
-
-    case 16: {  // PSR
-      apply_to_mpu();
-      auto r = uload(&_stack->psr);
-      current->apply_to_mpu();
-      if (r) {
-        reply_sender.set_message({
-            Descriptor::zero(),
-            r.ref(),
-          });
-      } else {
-        reply_sender.set_message(Message::failure(Exception::fault));
-      }
-      break;
-    }
 
     case 4 ... 11:
       reply_sender.set_message({Descriptor::zero(), _save.raw[arg.d1 - 4]});
@@ -363,28 +349,22 @@ void Context::do_write_register(Brand const &,
       _stack = reinterpret_cast<decltype(_stack)>(v);
       break;
 
-#define GP_EF(n) \
-    case n: { \
-      if (!ustore(&_stack->r ## n, v)) { \
+#define GP_EF(num, nam) \
+    case num: { \
+      if (!ustore(&_stack->nam, v)) { \
         reply_sender.set_message(Message::failure(Exception::fault)); \
       } \
       break; \
     }
-    GP_EF(0);
-    GP_EF(1);
-    GP_EF(2);
-    GP_EF(3);
-    GP_EF(12);
-    GP_EF(14);
-    GP_EF(15);
+    GP_EF(0, r0);
+    GP_EF(1, r1);
+    GP_EF(2, r2);
+    GP_EF(3, r3);
+    GP_EF(12, r12);
+    GP_EF(14, r14);
+    GP_EF(15, r15);
+    GP_EF(16, psr);
 #undef GP
-
-    case 16: {  // PSR
-      if (!ustore(&_stack->psr, v)) {
-        reply_sender.set_message(Message::failure(Exception::fault));
-      }
-      break;
-    }
 
     case 4 ... 11:
       _save.raw[r - 4] = v;
