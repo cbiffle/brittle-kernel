@@ -1,71 +1,68 @@
 Revisiting a FreeRTOS port
 ==========================
 
-Here's a crack at a simpler port, based on `ARM_CM3`.
+Here's an overview of the relatively simple initial FreeRTOS port.
 
-The `ARM_CM3` port uses interrupts in a really limited way:
-- SVC is used *once* to start the scheduler.
-- PendSV is used for context switches.
-- SysTick is used for timer updates and preemption.
-
-Kernel and app code are directly linked.  App ISRs run with full kernel
-authority.
-
-So it seems I'd want two contexts:
-- Interrupt
-- Task
-
-Their relative priority would be fixed, as a rough simulation of the ARMv7-M
-preemption behavior.
-
-Q: should the Interrupt Context have (microkernel) interrupts masked at all
-times?  It's not required for correctness, and the existence of an Interrupt
-Context implicitly serializes application-level and FreeRTOS-level interrupts.
+This port is based on `ARM_CM3`.  It's deliberately limited to keep the porting
+complexity down.
 
 
-
-vPortYield: send a message to the Interrupt context simulating PendSV.
-
-`portYIELD_FROM_ISR` directly calls a `vPortSwitchContext` function, which is
-presumably an implementation factor of the Interrupt dispatcher.
-
-
-"Disabling interrupts" from FreeRTOS implies altering the Task Context's
-BASEPRI.  A separate operation disables interrupts from ISRs, which would alter
-the Interrupt Context's BASEPRI.
+FreeRTOS's task and scheduler mechanics run *unmodified.*  When FreeRTOS selects
+a task to run and activates it, its state is copied from the FreeRTOS TCB into a
+kernel Context called the Task Context.  A single Task Context is shared between
+all FreeRTOS tasks, including the idle task.
 
 
-All the Cortex-M port's ideas about valid interrupt priorities, kernel interrupt
-priorities, etc. go out the window in this port.
+As in a traditional FreeRTOS application, the FreeRTOS API code (e.g. for
+operations like "create task" or "send to queue") gets called directly by
+application tasks, as C functions.  That is, it also runs on the Task Context.
 
 
-'main' runs on the Interrupt Context.  It eventually starts the scheduler, which
-configures the Task Context and then blocks waiting for messages.
+There is a second Context, however, used for two things:
+- Hardware interrupts.
+- "System calls."
+
+This is the Interrupt Context, and has priority one higher than the Task Context
+to ensure it can preempt the Task when permitted.
+
+The Interrupt Context is normally blocked in a message dispatch loop, waiting
+for a message from either a kernel Interrupt object, or the Task Context.
+Messages from interrupts cause the dispatcher to call application ISRs *from the
+Interrupt Context*, mirroring how FreeRTOS invokes application ISRs from
+hardware interrupts.  Messages from the Task Context cause the dispatcher to
+perform work on the Task's behalf before replying.
 
 
-What do the messages look like?
+The set of "system calls" handled by the dispatcher is quite small:
 
-- The kernel will generate messages in response to enabled interrupts.
-  - Hm, with the current design we need to walk through all Interrupt objects
-    and explicitly enable them.  Might be nice to have a global switch for this.
-  - We need to handle many interrupt messages by running application code.  How
-    do we find this application code?  Is it by *another freaking vector table?*
+- Yield (analogous to PendSV in `ARM_CM3`).
+- Set BASEPRI (permitted in `ARM_CM3` because task code is privileged; we must
+  provide a backdoor).
 
-- The Task Context will generate messages to perform certain operations.
-  - YIELD is the main one.
-  - Could route interrupt / critical section operations through messages, though
-    it's not clear that it buys us anything.  We could also just give Task a key
-    to itself.
-  - Stopping the scheduler.
+Notably missing is "start scheduler," which hooks `SVC` in `ARM_CM3`.  In this
+port, the application `main` is run from the Interrupt Context.  It eventually
+starts the scheduler with a simple function call, which spins dispatching
+messages.
 
-
-Why can't a single interrupt object handle multiple interrupts?  Because it
-wouldn't be able to pend multiple times.  But if interrupt handling is being
-serialized anyway, this isn't actually a problem.  Could I make this work?
+This has the interesting implication that, unlike `ARM_CM3`, the scheduler
+actually does have somewhere to return to should it stop.
 
 
+As in `ARM_CM3`, FreeRTOS handles one interrupt internally: the SysTick timer.
 
-Okay, well.  Let's direct through another vector table for now, I can always
-rework the approach later.
+
+As in `ARM_CM3` there are two yield operations.
+
+- `portYIELD` / `vPortYield` are the equivalent to pending PendSV from a task.
+  They send a message to the Interrupt Context.
+
+- `portYIELD_FROM_ISR` is for use from the Interrupt Context itself, and just
+  triggers an immediate context switch in the Task Context.
+
+
+Likewise, the operations for disabling interrupts are different from tasks and
+interrupts.  From a task, we generate a message to the Interrupt Context to set
+the task's BASEPRI.  From an interrupt, it's not clear whether the operation is
+meaningful with the single-interrupt-context design.
 
 
