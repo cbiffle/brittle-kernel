@@ -1,0 +1,32 @@
+More on Interrupts
+==================
+
+Well.  My oh-so-clever interrupt masking strategy has a problem.  It turns out
+that masking interrupts using `BASEPRI` prevents them from waking the processor
+from `WFI`.
+
+Running `WFI` with interrupts masked is useful, but it appears that, for it to
+work, one needs to use `PRIMASK`.  I don't currently allow user access to
+`PRIMASK`.
+
+...which is a problem, actually.  `PRIMASK` raises the execution priority *so
+high* that you can't use `SVC` while it's set.
+
+User tasks cannot use e.g. `cpsid` or `msr PRIMASK` because they're privileged
+instructions.  And for good reason.
+
+But since I've banned privileged user code... this is a bit of a pickle.
+
+
+Perhaps I need to provide a syscall.  The semantics of this syscall would be:
+
+- Set PRIMASK.
+- Save BASEPRI and clear it.
+- WFI.
+- Restore BASEPRI.
+- Clear PRIMASK.
+- Return.
+
+
+
+

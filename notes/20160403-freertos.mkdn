@@ -1,0 +1,71 @@
+Revisiting a FreeRTOS port
+==========================
+
+Here's a crack at a simpler port, based on `ARM_CM3`.
+
+The `ARM_CM3` port uses interrupts in a really limited way:
+- SVC is used *once* to start the scheduler.
+- PendSV is used for context switches.
+- SysTick is used for timer updates and preemption.
+
+Kernel and app code are directly linked.  App ISRs run with full kernel
+authority.
+
+So it seems I'd want two contexts:
+- Interrupt
+- Task
+
+Their relative priority would be fixed, as a rough simulation of the ARMv7-M
+preemption behavior.
+
+Q: should the Interrupt Context have (microkernel) interrupts masked at all
+times?  It's not required for correctness, and the existence of an Interrupt
+Context implicitly serializes application-level and FreeRTOS-level interrupts.
+
+
+
+vPortYield: send a message to the Interrupt context simulating PendSV.
+
+`portYIELD_FROM_ISR` directly calls a `vPortSwitchContext` function, which is
+presumably an implementation factor of the Interrupt dispatcher.
+
+
+"Disabling interrupts" from FreeRTOS implies altering the Task Context's
+BASEPRI.  A separate operation disables interrupts from ISRs, which would alter
+the Interrupt Context's BASEPRI.
+
+
+All the Cortex-M port's ideas about valid interrupt priorities, kernel interrupt
+priorities, etc. go out the window in this port.
+
+
+'main' runs on the Interrupt Context.  It eventually starts the scheduler, which
+configures the Task Context and then blocks waiting for messages.
+
+
+What do the messages look like?
+
+- The kernel will generate messages in response to enabled interrupts.
+  - Hm, with the current design we need to walk through all Interrupt objects
+    and explicitly enable them.  Might be nice to have a global switch for this.
+  - We need to handle many interrupt messages by running application code.  How
+    do we find this application code?  Is it by *another freaking vector table?*
+
+- The Task Context will generate messages to perform certain operations.
+  - YIELD is the main one.
+  - Could route interrupt / critical section operations through messages, though
+    it's not clear that it buys us anything.  We could also just give Task a key
+    to itself.
+  - Stopping the scheduler.
+
+
+Why can't a single interrupt object handle multiple interrupts?  Because it
+wouldn't be able to pend multiple times.  But if interrupt handling is being
+serialized anyway, this isn't actually a problem.  Could I make this work?
+
+
+
+Okay, well.  Let's direct through another vector table for now, I can always
+rework the approach later.
+
+
