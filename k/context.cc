@@ -334,14 +334,7 @@ void Context::do_read_register(Brand const &,
       break;
     }
 
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-    case 9:
-    case 10:
-    case 11:
+    case 4 ... 11:
       reply_sender.set_message({Descriptor::zero(), _save.raw[arg.d1 - 4]});
       break;
 
@@ -393,14 +386,7 @@ void Context::do_write_register(Brand const &,
       break;
     }
 
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-    case 9:
-    case 10:
-    case 11:
+    case 4 ... 11:
       _save.raw[r - 4] = v;
       break;
 
