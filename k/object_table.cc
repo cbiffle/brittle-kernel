@@ -47,7 +47,7 @@ void ObjectTable::do_mint_key(Brand const &,
   auto index = args.d1;
   auto brand = args.d2 | (Brand(args.d3) << 32);
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{keys.keys[0]};
 
   if (index >= _objects.count()) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
@@ -58,12 +58,9 @@ void ObjectTable::do_mint_key(Brand const &,
     if (!maybe_key) {
       reply_sender.set_message(Message::failure(Exception::bad_brand));
     } else {
-      reply_sender.set_message({});
       reply_sender.set_key(1, maybe_key.ref());
     }
   }
-
-  keys.keys[0].deliver_from(&reply_sender);
 }
 
 void ObjectTable::do_read_key(Brand const &,
@@ -73,13 +70,12 @@ void ObjectTable::do_read_key(Brand const &,
   auto index = k.get_index();
   auto brand = k.get_brand();
 
-  ReplySender reply_sender{{
+  ScopedReplySender reply_sender{keys.keys[0], {
     Descriptor::zero(),
     index,
     uint32_t(brand),
     uint32_t(brand >> 32),
   }};
-  keys.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

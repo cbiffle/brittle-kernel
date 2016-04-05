@@ -286,14 +286,15 @@ void Context::deliver_from(Brand const & brand, Sender * sender) {
 void Context::do_read_register(Brand const &,
                                Message const & arg,
                                Keys & k) {
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
+
   switch (arg.d1) {
     case 13:
       reply_sender.set_message({
           Descriptor::zero(),
           reinterpret_cast<Word>(_stack),
           });
-      break;
+      return;
 
 #define GP_EF(num, nam) \
     case num: { \
@@ -308,7 +309,7 @@ void Context::do_read_register(Brand const &,
       } else { \
         reply_sender.set_message(Message::failure(Exception::fault)); \
       } \
-      break; \
+      return; \
     }
     GP_EF(0, r0);
     GP_EF(1, r1);
@@ -322,18 +323,16 @@ void Context::do_read_register(Brand const &,
 
     case 4 ... 11:
       reply_sender.set_message({Descriptor::zero(), _save.raw[arg.d1 - 4]});
-      break;
+      return;
 
     case 17:  // BASEPRI
       reply_sender.set_message({Descriptor::zero(), _save.named.basepri});
-      break;
+      return;
 
     default:
       reply_sender.set_message(Message::failure(Exception::index_out_of_range));
-      break;
+      return;
   }
-
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 void Context::do_write_register(Brand const &,
@@ -342,19 +341,19 @@ void Context::do_write_register(Brand const &,
   auto r = arg.d1;
   auto v = arg.d2;
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
 
   switch (r) {
     case 13:
       _stack = reinterpret_cast<decltype(_stack)>(v);
-      break;
+      return;
 
 #define GP_EF(num, nam) \
     case num: { \
       if (!ustore(&_stack->nam, v)) { \
         reply_sender.set_message(Message::failure(Exception::fault)); \
       } \
-      break; \
+      return; \
     }
     GP_EF(0, r0);
     GP_EF(1, r1);
@@ -368,18 +367,16 @@ void Context::do_write_register(Brand const &,
 
     case 4 ... 11:
       _save.raw[r - 4] = v;
-      break;
+      return;
 
     case 17:  // BASEPRI
       _save.named.basepri = v;
-      break;
+      return;
 
     default:
       reply_sender.set_message(Message::failure(Exception::index_out_of_range));
-      break;
+      return;
   }
-
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 void Context::do_read_key(Brand const &,
@@ -387,13 +384,13 @@ void Context::do_read_key(Brand const &,
                           Keys & k) {
   auto r = arg.d1;
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
+
   if (r >= config::n_task_keys) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   } else {
     reply_sender.set_key(1, key(r));
   }
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 void Context::do_write_key(Brand const &,
@@ -404,13 +401,13 @@ void Context::do_write_key(Brand const &,
   auto & reply = k.keys[0];
   auto & new_key = k.keys[1];
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{reply};
+
   if (r >= config::n_task_keys) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   } else {
     key(r) = new_key;
   }
-  reply.deliver_from(&reply_sender);
 }
 
 void Context::do_read_region(Brand const &,
@@ -418,13 +415,12 @@ void Context::do_read_region(Brand const &,
                              Keys & k) {
   auto n = arg.d1;
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _memory_regions[n]);
   } else {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   }
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 void Context::do_write_region(Brand const &,
@@ -434,7 +430,7 @@ void Context::do_write_region(Brand const &,
   auto & reply = k.keys[0];
   auto & object_key = k.keys[1];
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{reply};
 
   if (n < config::n_task_regions) {
     _memory_regions[n] = object_key;
@@ -443,28 +439,23 @@ void Context::do_write_region(Brand const &,
   }
 
   if (current == this) apply_to_mpu();
-
-  reply.deliver_from(&reply_sender);
 }
 
 void Context::do_make_runnable(Brand const &, Message const & arg, Keys & k) {
+  ScopedReplySender reply_sender{k.keys[0]};
+
   make_runnable();
   pend_switch();
-
-  ReplySender reply_sender;
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 void Context::do_read_priority(Brand const &, Message const & arg, Keys & k) {
-  ReplySender reply_sender;
-  reply_sender.set_message({Descriptor::zero(), _priority});
-  k.keys[0].deliver_from(&reply_sender);
+  ScopedReplySender reply_sender{k.keys[0], {Descriptor::zero(), _priority}};
 }
 
 void Context::do_write_priority(Brand const &, Message const & arg, Keys & k) {
   auto priority = arg.d1;
 
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
 
   if (priority < config::n_priorities) {
     _priority = priority;
@@ -474,8 +465,6 @@ void Context::do_write_priority(Brand const &, Message const & arg, Keys & k) {
   } else {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
   }
-
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

@@ -145,12 +145,11 @@ void AddressRange::deliver_from(Brand const & brand, Sender * sender) {
 void AddressRange::do_inspect(Brand const & brand,
                               Message const & m,
                               Keys & k) {
-  ReplySender reply_sender{{
+  ScopedReplySender reply_sender{k.keys[0], {
     Descriptor::zero(),
     uint32_t(brand),
     uint32_t(brand >> 32),
   }};
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

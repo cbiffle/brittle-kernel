@@ -61,21 +61,18 @@ void InterruptBase::do_set_target(Brand const &, Message const &, Keys & k) {
   auto & reply = k.keys[0];
   auto & target = k.keys[1];
 
-  _target = target;
+  ScopedReplySender reply_sender{reply};
 
-  ReplySender reply_sender;
-  reply.deliver_from(&reply_sender);
+  _target = target;
 }
 
 void InterruptBase::do_enable(Brand const &, Message const & m, Keys & k) {
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
 
   bool clear_pending = m.d1 != 0;
 
   if (clear_pending) clear_pending_interrupt();
   enable_interrupt();
-
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 Priority InterruptBase::get_priority() const {

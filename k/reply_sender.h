@@ -34,6 +34,27 @@ private:
   Keys _keys;
 };
 
+
+/*
+ * Variant on ReplySender that automatically delivers a reply when it goes out
+ * of scope.
+ */
+class ScopedReplySender final {
+public:
+  ScopedReplySender(Key & key) : rs{}, k(key) {}
+  explicit ScopedReplySender(Key & key, Message const &m) : rs{m}, k(key) {}
+
+  ~ScopedReplySender() {
+    k.deliver_from(&rs);
+  }
+
+  void set_message(Message const & m) { rs.set_message(m); }
+  void set_key(unsigned index, Key const & k) { rs.set_key(index, k); }
+
+  ReplySender rs;
+  Key & k;
+};
+
 }  // namespace k
 
 #endif  // K_REPLY_SENDER_H

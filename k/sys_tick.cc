@@ -46,7 +46,7 @@ void SysTick::do_extension(Selector s,
 }
 
 void SysTick::do_read_register(Brand const &, Message const & m, Keys & k) {
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
 
   uint32_t value;
   bool ok = true;
@@ -70,12 +70,10 @@ void SysTick::do_read_register(Brand const &, Message const & m, Keys & k) {
   if (ok) {
     reply_sender.set_message({Descriptor::zero(), value});
   }
-
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 void SysTick::do_write_register(Brand const &, Message const & m, Keys & k) {
-  ReplySender reply_sender;
+  ScopedReplySender reply_sender{k.keys[0]};
 
 #define STREG(num, name) case num: sys_tick.write_ ## name(m.d2); break;
 
@@ -91,8 +89,6 @@ void SysTick::do_write_register(Brand const &, Message const & m, Keys & k) {
   }
 
 #undef STREG
-
-  k.keys[0].deliver_from(&reply_sender);
 }
 
 }  // namespace k

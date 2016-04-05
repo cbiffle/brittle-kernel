@@ -24,9 +24,8 @@ bool Object::is_gate() const {
 }
 
 void Object::do_badop(Message const & m, Keys & k) {
-  ReplySender reply{Message::failure(Exception::bad_operation,
-                                     m.d0.get_selector())};
-  k.keys[0].deliver_from(&reply);
+  ScopedReplySender reply{k.keys[0],
+    Message::failure(Exception::bad_operation, m.d0.get_selector())};
 }
 
 }  // namespace k
