@@ -1,23 +1,41 @@
 #include "k/interrupt.h"
 
 #include "etl/armv7m/nvic.h"
+#include "etl/armv7m/scb.h"
+#include "etl/armv7m/sys_tick.h"
+#include "etl/assert.h"
 
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 
 using etl::armv7m::nvic;
+using etl::armv7m::scb;
+using etl::armv7m::Scb;
+using etl::armv7m::sys_tick;
 
 namespace k {
 
-Interrupt::Interrupt(unsigned irq)
+Interrupt::Interrupt(int32_t irq)
   : _saved_brand{0},
     _target{},
     _sender_item{this},
     _priority{0},
-    _irq{irq} {}
+    _irq{irq} {
+  // We only allow a single "negative interrupt", namely -1, which means the
+  // SysTick.
+  ETL_ASSERT(irq >= -1);
+}
 
 void Interrupt::trigger() {
-  nvic.disable_irq(_irq);
+  // Disable the interrupt.
+  if (_irq < 0) {
+    // SysTick redirection.
+    sys_tick.write_csr(sys_tick.read_csr().with_tickint(false));
+  } else {
+    // External interrupt.
+    nvic.disable_irq(_irq);
+  }
+
   _target.deliver_from(this);
   do_deferred_switch_from_irq();
 }
@@ -52,12 +70,18 @@ void Interrupt::do_set_target(Brand const &, Message const &, Keys & k) {
 }
 
 void Interrupt::do_enable(Brand const &, Message const & m, Keys & k) {
+  ReplySender reply_sender;
+
   bool clear_pending = m.d1 != 0;
 
-  if (clear_pending) nvic.clear_pending_irq(_irq);
-  nvic.enable_irq(_irq);
+  if (_irq < 0) {
+    if (clear_pending) scb.write_icsr(Scb::icsr_value_t{}.with_pendsvclr(true));
+    sys_tick.write_csr(sys_tick.read_csr().with_tickint(true));
+  } else {
+    if (clear_pending) nvic.clear_pending_irq(_irq);
+    nvic.enable_irq(_irq);
+  }
 
-  ReplySender reply_sender;
   k.keys[0].deliver_from(&reply_sender);
 }
 
@@ -68,7 +92,7 @@ Priority Interrupt::get_priority() const {
 void Interrupt::on_delivery_accepted(Message & m, Keys & k) {
   m = {
     Descriptor::zero().with_selector(1),
-    _irq,
+    uint32_t(_irq),
   };
   k.keys[0] = make_key(0).ref();
   for (unsigned ki = 0; ki < config::n_message_keys; ++ki) {

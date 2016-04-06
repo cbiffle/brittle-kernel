@@ -1,6 +1,8 @@
 #ifndef K_INTERRUPT_H
 #define K_INTERRUPT_H
 
+#include <cstdint>
+
 #include "k/blocking_sender.h"
 #include "k/key.h"
 #include "k/list.h"
@@ -10,7 +12,7 @@ namespace k {
 
 class Interrupt final : public Object, public BlockingSender {
 public:
-  explicit Interrupt(unsigned irq);
+  explicit Interrupt(int32_t irq);
 
   /*
    * Triggers this interrupt.  Should be called from an ISR.
@@ -48,7 +50,7 @@ private:
   Key _target;
   List<BlockingSender>::Item _sender_item;
   Priority _priority;
-  unsigned _irq;
+  int32_t _irq;
 
   void do_set_target(Brand const &, Message const &, Keys &);
   void do_enable(Brand const &, Message const &, Keys &);

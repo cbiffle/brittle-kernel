@@ -173,13 +173,17 @@ static void create_app_objects(Arena & arena) {
 
       case AppInfo::ObjectType::interrupt:
         {
-          auto irq = *map++;
-          ETL_ASSERT(irq < app.external_interrupt_count);
+          auto irq = int32_t(*map++);
+          ETL_ASSERT(irq == -1 || uint32_t(irq) < app.external_interrupt_count);
 
           auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{irq};
           object_table[i].ptr = o;
           o->set_index(i);
-          get_irq_redirection_table()[irq] = o;
+          if (irq < 0) {
+            set_sys_tick_redirector(o);
+          } else {
+            get_irq_redirection_table()[irq] = o;
+          }
           break;
         }
 

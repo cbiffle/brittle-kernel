@@ -13,6 +13,10 @@ RangePtr<Interrupt *> get_irq_redirection_table();
 
 void irq_redirector();
 
+
+void set_sys_tick_redirector(Interrupt *);
+void sys_tick_redirector();
+
 }  // namespace k
 
 #endif  // K_IRQ_REDIRECTOR_H

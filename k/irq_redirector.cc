@@ -8,6 +8,7 @@
 namespace k {
 
 static RangePtr<Interrupt *> redirection_table;
+static Interrupt * sys_tick_redirect;
 
 void set_irq_redirection_table(RangePtr<Interrupt *> t) {
   ETL_ASSERT(redirection_table.is_empty());
@@ -27,6 +28,16 @@ void irq_redirector() {
   auto sender = redirection_table[vector_number];
   ETL_ASSERT(sender);
   sender->trigger();
+}
+
+void set_sys_tick_redirector(Interrupt * irq) {
+  ETL_ASSERT(sys_tick_redirect == nullptr);
+  sys_tick_redirect = irq;
+}
+
+void sys_tick_redirector() {
+  ETL_ASSERT(sys_tick_redirect);
+  sys_tick_redirect->trigger();
 }
 
 }  // namespace k
