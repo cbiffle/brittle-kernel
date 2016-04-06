@@ -1,0 +1,33 @@
+Continuing adventures of FreeRTOS
+=================================
+
+The port is coming along!
+
+I've hit a new snag: I need to (or, would like to) give the FreeRTOS system
+direct access to the SysTick device, but it's aligned wrong.
+
+Specifically, there's a 256-byte region of memory starting at 0xE000E000 that
+contains the SysTick, except it *also* contains sensitive registers in its first
+16 bytes.
+
+AddressRange itself doesn't care about alignment, and I could create an
+AddressRange object describing SysTick.  I had imagined, in the past, extending
+AddressRange keys with a protocol for accessing memory without altering the MPU
+map.  However, the way AddressRange keys are structured prevents this: they must
+contain valid MPU region settings.
+
+I'm considering using the MPU RASR "enable" bit to distinguish between valid MPU
+keys and some other type.  I could extend the MPU loading to treat keys with the
+enable bit clear as invalid, at some performance cost.
+
+I would need to record:
+- Base address (possibly with arbitrary alignment, or at least no larger than
+  16).
+- Length.
+- Read/write.
+
+
+The alternative would be to create a kernel object responsible for interacting
+with SysTick on the system's behalf.
+
+

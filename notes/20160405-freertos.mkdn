@@ -1,0 +1,69 @@
+Continuing notes on FreeRTOS
+============================
+
+Imagine that you actually *want* preemptive interrupt behavior.
+
+We can do that by allocating one Interrupt Context per (logical) priority level.
+The interrupts themselves would be assigned the same *hardware* priority, but
+the *kernel* priority of the Contexts would govern preemption.
+
+Each such Context would be running the exact same dispatch code.  The vector
+number received in the interrupt message would determine which application ISR
+to call.
+
+
+This has an interesting implication: the kernel for a given architecture could
+be *reused* across applications with the same number of priority levels.
+
+
+So as an initial crack, I'll just compile a kernel for an obvious number of
+priority levels (2) and copy it over, rather than integrating the builds.
+
+
+-----
+
+
+So I kind of need the SysTick interrupt now.  Currently, I have no way of
+describing it in the app ABI: interrupt redirectors are only allocated for
+external interrupts, but SysTick is in the fault space, yet is an interrupt.
+
+What to do, what to do.
+
+I'm kind of inclined to make the SysTick Interrupt sender one of the Well Known
+Objects, allocated for every app.  Apps not using the SysTick wouldn't pay for
+it.  I'm pretty sure this is the only fault that I'll want to handle this way...
+if that statement proves false, I should reconsider the approach.
+
+However, the Interrupt class doesn't currently work with SysTick.  Its IRQ
+numbering starts with the first external IRQ.  I could follow the CMSIS
+convention of using negative numbers for SysTick...
+
+To do that,
+- Interrupt would need conditional code to redirect negative vector numbers when
+  it enables/disables IRQ and adjusts pending.
+
+For clarity, I should switch the IRQ number to a signed type.
+
+I'd need to validate negative indices, to avoid applications from hooking
+faults.
+
+And I'd need to provide specific redirection support.
+
+
+-----
+
+
+Okay, in this latest scheme, how do the interrupt/critical-section operations
+work?
+
+From the task context, "masking interrupts" means raising the task's BASEPRI to value "1"
+(shifted by however many bits).
+
+From the interrupt context, FreeRTOS is trying to keep some other interrupt from
+jumping in and confusing things.  This can happen with my kernel, if there are
+multiple interrupt contexts.  So it's still an attempt to prevent preemption,
+and thus means the same thing as from a task.  Intriguing.  But the task context
+can't be permitted access to its own Context, or it might try to do something
+dumb... right?
+
+
