@@ -1,0 +1,46 @@
+The Private Peripheral Bus (wants to stay private)
+==================================================
+
+So far, my strategy for exposing peripherals to the System has revolved around
+the MPU.  Because ARMv7-M processors rely on memory-mapped peripherals, my
+assumption has been that I could expose things to the System simply by marking
+them as accessible.
+
+This turns out to be incorrect.
+
+In section B3.5 of the ARMv7-M ARM, there's a list of caveats and exceptions to
+how the MPU works.  One of them reads:
+
+> Accesses to the Private Peripheral Bus (PPB) always use the default system
+> address map.
+
+...meaning that no amount of MPU diddling can change the memory attributes on
+the PPB, which are, by default, privileged access only.  This is probably good,
+because the PPB *contains the MPU*, so this rule ensures continued MPU access
+even if it's misconfigured.
+
+However, the PPB also contains peripherals I had hoped to expose to the System,
+such as the SysTick timer.
+
+
+This means I'll have to use some other approach with these peripherals.
+Approaches that might work, off the top of my head, include:
+
+- PPB Poker: a kernel object that responds to IPC by reading and writing the
+  PPB, one word at a time.  Ranges would be white- or black-listed to keep it
+  from destroying kernel state.
+
+- Dedicated Driver(s): a kernel object representing SysTick; one representing
+  the SCB, should we need that; and so forth.  Each would present specific APIs.
+
+
+The Poker is easier to write, easier to get wrong, and probably (though not
+certainly) harder to use.
+
+The Driver is more code, more thinking, but may be more robust and easier in the
+long run.
+
+For now, I just need SysTick access to further my FreeRTOS port.  That suggests
+that a SysTick driver might be the minimum viable fix.
+
+

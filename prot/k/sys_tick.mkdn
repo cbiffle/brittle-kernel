@@ -1,0 +1,46 @@
+SysTick Protocol
+================
+
+This protocol is used by the native kernel interface to the ARMv7-M SysTick
+Timer.  It extends the Interrupt protocol.
+
+
+Read Register (3)
+-----------------
+
+Reads a register from the SysTick timer.  Valid registers:
+
+- 0: CSR
+- 1: RVR
+- 2: CVR
+- 3: CALIB
+
+Arguments:
+- d0: descriptor
+- d1: register number
+
+Results:
+- d0: success descriptor
+- d1: register value
+
+Exceptions:
+- `index_out_of_range`: if a bad register number is given.
+
+
+Write Register (4)
+------------------
+
+Writes a register.  Valid registers are the same as for Read Register.
+
+Arguments:
+- d0: descriptor
+- d1: register number
+- d2: new value.
+
+Results:
+- d0: success descriptor
+
+Exceptions:
+- `index_out_of_range`: if a bad register number is given.
+
+

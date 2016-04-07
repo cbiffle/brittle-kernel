@@ -21,6 +21,7 @@
 #include "k/reply_gate.h"
 #include "k/range_ptr.h"
 #include "k/scheduler.h"
+#include "k/sys_tick.h"
 #include "k/unprivileged.h"
 
 using etl::armv7m::Byte;
@@ -173,17 +174,13 @@ static void create_app_objects(Arena & arena) {
 
       case AppInfo::ObjectType::interrupt:
         {
-          auto irq = int32_t(*map++);
-          ETL_ASSERT(irq == -1 || uint32_t(irq) < app.external_interrupt_count);
+          auto irq = *map++;
+          ETL_ASSERT(irq < app.external_interrupt_count);
 
           auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{irq};
           object_table[i].ptr = o;
           o->set_index(i);
-          if (irq < 0) {
-            set_sys_tick_redirector(o);
-          } else {
-            get_irq_redirection_table()[irq] = o;
-          }
+          get_irq_redirection_table()[irq] = o;
           break;
         }
 
@@ -192,6 +189,15 @@ static void create_app_objects(Arena & arena) {
           auto o = new(arena.allocate(sizeof(ReplyGate))) ReplyGate;
           object_table[i].ptr = o;
           o->set_index(i);
+          break;
+        }
+
+      case AppInfo::ObjectType::sys_tick:
+        {
+          auto o = new(arena.allocate(sizeof(SysTick))) SysTick;
+          object_table[i].ptr = o;
+          o->set_index(i);
+          set_sys_tick_redirector(o);
           break;
         }
 

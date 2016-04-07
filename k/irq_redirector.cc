@@ -4,11 +4,12 @@
 #include "etl/armv7m/registers.h"
 
 #include "k/interrupt.h"
+#include "k/sys_tick.h"
 
 namespace k {
 
 static RangePtr<Interrupt *> redirection_table;
-static Interrupt * sys_tick_redirect;
+static SysTick * sys_tick_redirect;
 
 void set_irq_redirection_table(RangePtr<Interrupt *> t) {
   ETL_ASSERT(redirection_table.is_empty());
@@ -30,7 +31,7 @@ void irq_redirector() {
   sender->trigger();
 }
 
-void set_sys_tick_redirector(Interrupt * irq) {
+void set_sys_tick_redirector(SysTick * irq) {
   ETL_ASSERT(sys_tick_redirect == nullptr);
   sys_tick_redirect = irq;
 }

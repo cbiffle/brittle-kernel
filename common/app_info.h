@@ -79,6 +79,9 @@ struct AppInfo {
 
     // Describes a kernel ReplyGate object.  No parameters.
     reply_gate,
+
+    // Describes a kernel SysTick object.  No parameters.
+    sys_tick,
   };
 };
 
