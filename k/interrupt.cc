@@ -85,7 +85,7 @@ void InterruptBase::on_delivery_accepted(Message & m, Keys & k) {
     _identifier,
   };
   k.keys[0] = make_key(0).ref();
-  for (unsigned ki = 0; ki < config::n_message_keys; ++ki) {
+  for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
     k.keys[ki] = Key::null();
   }
 }
