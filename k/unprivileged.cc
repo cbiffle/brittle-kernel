@@ -3,7 +3,6 @@
 #include "etl/error/check.h"
 
 using etl::armv7m::Byte;
-using etl::armv7m::DoubleWord;
 using etl::armv7m::Word;
 
 namespace k {
@@ -57,11 +56,6 @@ bool ustore(Word * addr, Word value) {
 
 bool ustore(Byte * addr, Byte value) {
   return ustore_common(addr, value);
-}
-
-bool ustore(DoubleWord * addr, DoubleWord value) {
-  return ustore(reinterpret_cast<Word *>(addr), Word(value))
-      && ustore(reinterpret_cast<Word *>(addr) + 1, Word(value >> 32));
 }
 
 }  // namespace k

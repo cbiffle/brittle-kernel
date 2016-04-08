@@ -20,8 +20,8 @@ extern uintptr_t mm_fault_recovery_handler;
 
 /*
  * The uload family of functions dereference the given pointer if the task
- * currently loaded on the MPU would be able to do so.  Otherwise, they
- * return SysResult::fault.
+ * currently loaded on the MPU would be able to do so.  On success, they return
+ * the value read; on failure, they return nothing.
  */
 __attribute__((warn_unused_result))
 Maybe<etl::armv7m::Word> uload(etl::armv7m::Word const *);
@@ -30,16 +30,13 @@ Maybe<etl::armv7m::Byte> uload(etl::armv7m::Byte const *);
 
 /*
  * The ustore family of functions write to the given pointer if the task
- * currently loaded on the MPU would be able to do so.  On success, they
- * return SysResult::success.  Otherwise, they return SysResult::fault.
+ * currently loaded on the MPU would be able to do so.  They return a flag
+ * indicating success (true) or failure (false).
  */
 __attribute__((warn_unused_result))
 bool ustore(etl::armv7m::Word *, etl::armv7m::Word);
 __attribute__((warn_unused_result))
 bool ustore(etl::armv7m::Byte *, etl::armv7m::Byte);
-
-__attribute__((warn_unused_result))
-bool ustore(etl::armv7m::DoubleWord *, etl::armv7m::DoubleWord);
 
 }  // namespace k
 
