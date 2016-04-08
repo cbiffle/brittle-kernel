@@ -61,14 +61,14 @@ void SysTick::do_read_register(Brand const &, Message const & m, Keys & k) {
 
     default:
       ok = false;
-      reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+      reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
       break;
   }
 
 #undef STREG
 
   if (ok) {
-    reply_sender.set_message({Descriptor::zero(), value});
+    reply_sender.get_message().d1 = value;
   }
 }
 
@@ -84,7 +84,7 @@ void SysTick::do_write_register(Brand const &, Message const & m, Keys & k) {
     STREG(3, calib)
 
     default:
-      reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+      reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
       break;
   }
 

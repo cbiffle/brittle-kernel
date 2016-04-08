@@ -293,10 +293,7 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
                                Keys & k) {
   switch (arg.d1) {
     case 13:
-      reply_sender.set_message({
-          Descriptor::zero(),
-          reinterpret_cast<Word>(_stack),
-          });
+      reply_sender.get_message().d1 = reinterpret_cast<Word>(_stack);
       return;
 
 #define GP_EF(num, nam) \
@@ -305,12 +302,9 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
       auto r = uload(&_stack->nam); \
       current->apply_to_mpu(); \
       if (r) { \
-        reply_sender.set_message({ \
-            Descriptor::zero(), \
-            r.ref(), \
-          }); \
+        reply_sender.get_message().d1 = r.ref(); \
       } else { \
-        reply_sender.set_message(Message::failure(Exception::fault)); \
+        reply_sender.get_message() = Message::failure(Exception::fault); \
       } \
       return; \
     }
@@ -325,15 +319,15 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
 #undef GP_EF
 
     case 4 ... 11:
-      reply_sender.set_message({Descriptor::zero(), _save.raw[arg.d1 - 4]});
+      reply_sender.get_message().d1 = _save.raw[arg.d1 - 4];
       return;
 
     case 17:  // BASEPRI
-      reply_sender.set_message({Descriptor::zero(), _save.named.basepri});
+      reply_sender.get_message().d1 = _save.named.basepri;
       return;
 
     default:
-      reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+      reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
       return;
   }
 }
@@ -353,7 +347,7 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
 #define GP_EF(num, nam) \
     case num: { \
       if (!ustore(&_stack->nam, v)) { \
-        reply_sender.set_message(Message::failure(Exception::fault)); \
+        reply_sender.get_message() = Message::failure(Exception::fault); \
       } \
       return; \
     }
@@ -376,7 +370,7 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
       return;
 
     default:
-      reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+      reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
       return;
   }
 }
@@ -388,7 +382,7 @@ void Context::do_read_key(ScopedReplySender & reply_sender,
   auto r = arg.d1;
 
   if (r >= config::n_task_keys) {
-    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
   } else {
     reply_sender.set_key(1, key(r));
   }
@@ -403,7 +397,7 @@ void Context::do_write_key(ScopedReplySender & reply_sender,
   auto & new_key = k.keys[1];
 
   if (r >= config::n_task_keys) {
-    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
   } else {
     key(r) = new_key;
   }
@@ -418,7 +412,7 @@ void Context::do_read_region(ScopedReplySender & reply_sender,
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _memory_regions[n]);
   } else {
-    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
   }
 }
 
@@ -432,7 +426,7 @@ void Context::do_write_region(ScopedReplySender & reply_sender,
   if (n < config::n_task_regions) {
     _memory_regions[n] = object_key;
   } else {
-    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
   }
 
   if (current == this) apply_to_mpu();
@@ -450,7 +444,7 @@ void Context::do_read_priority(ScopedReplySender & reply_sender,
                                Brand const &,
                                Message const & arg,
                                Keys & k) {
-  reply_sender.set_message({Descriptor::zero(), _priority});
+  reply_sender.get_message().d1 = _priority;
 }
 
 void Context::do_write_priority(ScopedReplySender & reply_sender,
@@ -465,7 +459,7 @@ void Context::do_write_priority(ScopedReplySender & reply_sender,
     if (_ctx_item.is_linked()) _ctx_item.reinsert();
     if (_sender_item.is_linked()) _sender_item.reinsert();
   } else {
-    reply_sender.set_message(Message::failure(Exception::index_out_of_range));
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
   }
 }
 

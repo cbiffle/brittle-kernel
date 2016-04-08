@@ -18,7 +18,7 @@ public:
   ReplySender();
   explicit ReplySender(Message const &);
 
-  void set_message(Message const & m) { _m = m; }
+  Message & get_message() { return _m; }
   void set_key(unsigned index, Key const &);
 
   /*
@@ -48,7 +48,7 @@ public:
     k.deliver_from(&rs);
   }
 
-  void set_message(Message const & m) { rs.set_message(m); }
+  Message & get_message() { return rs.get_message(); }
   void set_key(unsigned index, Key const & k) { rs.set_key(index, k); }
 
   ReplySender rs;
