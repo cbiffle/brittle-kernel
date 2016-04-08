@@ -346,9 +346,11 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
 
 #define GP_EF(num, nam) \
     case num: { \
+      apply_to_mpu(); \
       if (!ustore(&_stack->nam, v)) { \
         reply_sender.get_message() = Message::failure(Exception::fault); \
       } \
+      current->apply_to_mpu(); \
       return; \
     }
     GP_EF(0, r0);
