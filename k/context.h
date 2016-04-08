@@ -193,6 +193,9 @@ private:
 
   void do_read_priority(ScopedReplySender &, Brand const &, Message const &, Keys &);
   void do_write_priority(ScopedReplySender &, Brand const &, Message const &, Keys &);
+
+  struct RegisterLocation { uint32_t * addr; bool in_context; };
+  Maybe<RegisterLocation> lookup_register(unsigned);
 };
 
 }  // namespace k

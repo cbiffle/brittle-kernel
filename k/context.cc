@@ -287,48 +287,58 @@ void Context::deliver_from(Brand const & brand, Sender * sender) {
   }
 }
 
+auto Context::lookup_register(unsigned r) -> Maybe<RegisterLocation> {
+  switch (r) {
+#define EFR(n, name) \
+    case n: \
+      return {{ &_stack->name, false }};
+    EFR(0, r0);
+    EFR(1, r1);
+    EFR(2, r2);
+    EFR(3, r3);
+    EFR(12, r12);
+    EFR(14, r14);
+    EFR(15, r15);
+    EFR(16, psr);
+#undef EFR
+
+    case 4 ... 11:
+      return {{ &_save.raw[r - 4], true }};
+
+    case 13:
+      return {{ reinterpret_cast<uint32_t *>(&_stack), true }};
+
+    case 17:
+      return {{ &_save.named.basepri, true }};
+
+    default:
+      return nothing;
+  }
+}
+
 void Context::do_read_register(ScopedReplySender & reply_sender,
                                Brand const &,
                                Message const & arg,
                                Keys & k) {
-  switch (arg.d1) {
-    case 13:
-      reply_sender.get_message().d1 = reinterpret_cast<Word>(_stack);
-      return;
+  auto maybe_rloc = lookup_register(arg.d1);
 
-#define GP_EF(num, nam) \
-    case num: { \
-      apply_to_mpu(); \
-      auto r = uload(&_stack->nam); \
-      current->apply_to_mpu(); \
-      if (r) { \
-        reply_sender.get_message().d1 = r.ref(); \
-      } else { \
-        reply_sender.get_message() = Message::failure(Exception::fault); \
-      } \
-      return; \
+  if (!maybe_rloc) {
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    return;
+  }
+
+  auto & rloc = maybe_rloc.ref();
+  if (rloc.in_context) {
+    reply_sender.get_message().d1 = *rloc.addr;
+  } else {
+    apply_to_mpu();
+    auto maybe_value = uload(rloc.addr);
+    current->apply_to_mpu();
+    if (maybe_value) {
+      reply_sender.get_message().d1 = maybe_value.ref();
+    } else {
+      reply_sender.get_message() = Message::failure(Exception::fault);
     }
-    GP_EF(0, r0);
-    GP_EF(1, r1);
-    GP_EF(2, r2);
-    GP_EF(3, r3);
-    GP_EF(12, r12);
-    GP_EF(14, r14);
-    GP_EF(15, r15);
-    GP_EF(16, psr);
-#undef GP_EF
-
-    case 4 ... 11:
-      reply_sender.get_message().d1 = _save.raw[arg.d1 - 4];
-      return;
-
-    case 17:  // BASEPRI
-      reply_sender.get_message().d1 = _save.named.basepri;
-      return;
-
-    default:
-      reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
-      return;
   }
 }
 
@@ -336,44 +346,22 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
                                 Brand const &,
                                 Message const & arg,
                                 Keys & k) {
-  auto r = arg.d1;
-  auto v = arg.d2;
+  auto maybe_rloc = lookup_register(arg.d1);
 
-  switch (r) {
-    case 13:
-      _stack = reinterpret_cast<decltype(_stack)>(v);
-      return;
+  if (!maybe_rloc) {
+    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    return;
+  }
 
-#define GP_EF(num, nam) \
-    case num: { \
-      apply_to_mpu(); \
-      if (!ustore(&_stack->nam, v)) { \
-        reply_sender.get_message() = Message::failure(Exception::fault); \
-      } \
-      current->apply_to_mpu(); \
-      return; \
+  auto & rloc = maybe_rloc.ref();
+  if (rloc.in_context) {
+    *rloc.addr = arg.d2;
+  } else {
+    apply_to_mpu();
+    if (!ustore(rloc.addr, arg.d2)) {
+      reply_sender.get_message() = Message::failure(Exception::fault);
     }
-    GP_EF(0, r0);
-    GP_EF(1, r1);
-    GP_EF(2, r2);
-    GP_EF(3, r3);
-    GP_EF(12, r12);
-    GP_EF(14, r14);
-    GP_EF(15, r15);
-    GP_EF(16, psr);
-#undef GP
-
-    case 4 ... 11:
-      _save.raw[r - 4] = v;
-      return;
-
-    case 17:  // BASEPRI
-      _save.named.basepri = v;
-      return;
-
-    default:
-      reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
-      return;
+    current->apply_to_mpu();
   }
 }
 
