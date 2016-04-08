@@ -1,0 +1,7 @@
+Notes on Brittle's Development
+==============================
+
+This directory contains my chronological lab notebook.  It may be interesting if
+you want to learn about the process that led to Brittle's current architecture,
+but be careful trying to use this as documentation --- the concepts described
+here, particularly in older files, may be obsolete.
