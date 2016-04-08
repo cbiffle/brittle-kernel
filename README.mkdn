@@ -1,26 +1,85 @@
-Overview
-========
+The Brittle Kernel
+==================
 
-This is a messaging-oriented microkernel designed for embedded applications on
-ARM Cortex-M microcontrollers, and intended to support capability-based security
-models.
+Brittle is a research microkernel, designed for embedded applications on ARM
+Cortex-M microcontrollers.  It is specifically designed to support fine-grained
+isolation, capability-based security, and recursive microreboots --- properties
+that make it much easier to design robust high-reliability systems.
 
-- Minimal abstractions focus on extending the hardware with multiprogramming,
-  capability storage, and fast messaging.
+The name "brittle" is a deliberate spoof on that goal, to keep me from getting
+too full of myself.
 
-- L4-style rendezvous messaging without kernel buffering.
+Brittle is licensed under the terms of the Apache Software License v2.0.  See
+the `LICENSE` and `NOTICE` files for more information.
 
-- All kernel facilities are accessed by messaging capabilities.  Some hardware
-  operations (namely interrupts) are translated into messages.
 
-- Kernel is designed to be wrapped by system ("personality") tasks to provide OS
-  abstractions to applications.
+Status
+------
 
-- Kernel is Cortex-M-specific, but systems can implement portable APIs to enable
-  portable applications.
+Demo applications are now running atop Brittle, but setting one up is not
+particularly user-friendly, and the documentation could use work.
 
-- Only kernel code runs privileged.  All application code runs unprivileged,
-  including drivers and interrupt service routines.
+Several planned features, such as supervisor fault handling, are not yet
+implemented.  See `notes/TODO.mkdn` for details.
 
-- Specifically designed to allow for task-level restarts, enabling
-  high-availability system design.
+There are surely errors and omissions yet to be found.
+
+
+Design
+------
+
+Brittle's core design principles can be summarized thusly:
+
+- All kernel services are accessed by sending and receiving *messages*, using an
+  L4-style synchronous rendezvous operation.
+
+- All kernel services are *constant-time* --- their time cost scales only with
+  certain configuration parameters, never with system load.
+
+- The same messaging operation can be used to invoke non-kernel services
+  implemented by applications.  *Clients cannot generally distinguish kernel
+  from non-kernel services.*  Thus an application can proxy or extend kernel
+  services if desired.
+
+- Messages flow through *keys* or *capabilities*.  Keys serve as both service
+  designators and permissions; holding a key is both necessary and sufficient to
+  use the corresponding service.  There is no *ambient authority* (powers gained
+  by applications from thin air or implicitly).
+
+- All application code runs *unprivileged,* including drivers and interrupt
+  service routines.  This makes the code easier to isolate and reason about, and
+  reduces the potential impact of bugs.
+
+- The kernel abstractions are an attempt at *minimality:* support for messaging,
+  multiprogramming, unprivileged wrappers for privileged peripherals, and
+  capability storage.  In this respect, the kernel blurs the line between an
+  L4-style kernel and a hypervisor.  Brittle pursues minimality more strenuously
+  than some similar systems.  For example, the kernel has no notion of time or
+  timeouts.
+
+- The kernel is intended to be wrapped by the *system* to create a useful
+  operating system.  The system consists of one or more tasks that build upon,
+  extend, or completely hide the kernel interface.  System tasks are *trusted*
+  by the application but, like all code outside the kernel, unprivileged by the
+  hardware.  For example, I have ported FreeRTOS.
+
+- The kernel is *non-portable.*  It is very much ARMv7-M specific, and provides 
+  ARMv7-M specific API.  If portability is desired, the *system* can establish a
+  hardware abstraction layer for the application.  The main benefit of this
+  decision: the kernel can provide useful abstractions for working with the
+  unusual parts of ARMv7-M, such as the memory protection unit.
+
+
+Implementation
+--------------
+
+Brittle is written in C++11.  I'm trying to keep the core kernel under 2,000
+`sloccount` lines and 10 kiB, but I wouldn't be surprised to end up closer to
+2,500 lines.  (As of this writing, it's at 1,800 LOC / 9.25 kiB.  Using the
+"semicolons" metric that seems popular in academia, we're at 772 semicolons.)
+
+The kernel is implemented according to my personal principles for robust
+embedded application design with C++, some of which is embodied in my ETL
+library (which Brittle uses).  It's currently designed for maximum research
+flexibility, which is a nice way of saying that I'm currently pursuing clarity
+over performance.
