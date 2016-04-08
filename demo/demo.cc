@@ -34,6 +34,8 @@ extern "C" {
 __attribute__((section(".app_info0")))
 __attribute__((used))
 constexpr AppInfo app_info {
+  .abi_token = current_abi_token,
+
   .object_table_entry_count = 14,
   .external_interrupt_count = uint32_t(etl::stm32f4xx::Interrupt::usart2) + 1,
 

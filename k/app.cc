@@ -264,6 +264,8 @@ static void prepare_first_context() {
 static void initialize_app() {
   auto & app = get_app_info();
 
+  ETL_ASSERT(app.abi_token == current_abi_token);
+
   // Create an Arena that can allocate RAM from the donated RAM region.
   Arena arena{{reinterpret_cast<uint8_t *>(app.donated_ram_begin),
                reinterpret_cast<uint8_t *>(app.donated_ram_end)}};

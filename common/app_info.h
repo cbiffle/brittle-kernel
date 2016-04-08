@@ -5,6 +5,8 @@
 
 #include "abi_types.h"
 
+static constexpr uint32_t current_abi_token = 0x5ca1ab1e;
+
 /*
  * Describes the application's kernel interface.  An instance of this should be
  * placed in ROM directly after the end of the kernel's ROM image; the kernel
@@ -14,6 +16,10 @@
  * pointers.
  */
 struct AppInfo {
+  // ABI token.  The kernel checks this before attempting to interpret the rest
+  // of the AppInfo.  If the ABI token is wrong, initialization fails.
+  uint32_t abi_token;
+
   // Number of object table entries.  Must be at least 4 for the kernel's
   // well-known objects.  Any objects beyond 4 are described by the object_map
   // at the end of the block.
