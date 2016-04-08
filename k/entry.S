@@ -46,7 +46,7 @@ etl_armv7m_mem_manage_fault_handler:
     mov r0, lr                @ Put exc_return somewhere we can see it.
 
     lsls r1, r0, #(31 - 2)    @ Get bit 2 (stack select) into N flag
-    bpl 1f                    @ If set, we're in the kernel; jump ahead.
+    bpl 1f                    @ If clear, we're in the kernel; jump ahead.
 
     @ Fault was in task code.
     kernel_entry _ZN1k8mm_faultEPv
