@@ -16,6 +16,8 @@
 
 namespace k {
 
+struct ScopedReplySender;  // see: k/reply_sender.h
+
 /*
  * A hardware execution context -- the kernel side of what an application
  * might call a task.
@@ -178,19 +180,19 @@ private:
   Key make_reply_key() const;
 
   // Factors of deliver_from
-  void do_read_register(Brand const &, Message const &, Keys &);
-  void do_write_register(Brand const &, Message const &, Keys &);
+  void do_read_register(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_write_register(ScopedReplySender &, Brand const &, Message const &, Keys &);
 
-  void do_read_key(Brand const &, Message const &, Keys &);
-  void do_write_key(Brand const &, Message const &, Keys &);
+  void do_read_key(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_write_key(ScopedReplySender &, Brand const &, Message const &, Keys &);
 
-  void do_read_region(Brand const &, Message const &, Keys &);
-  void do_write_region(Brand const &, Message const &, Keys &);
+  void do_read_region(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_write_region(ScopedReplySender &, Brand const &, Message const &, Keys &);
 
-  void do_make_runnable(Brand const &, Message const &, Keys &);
+  void do_make_runnable(ScopedReplySender &, Brand const &, Message const &, Keys &);
 
-  void do_read_priority(Brand const &, Message const &, Keys &);
-  void do_write_priority(Brand const &, Message const &, Keys &);
+  void do_read_priority(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_write_priority(ScopedReplySender &, Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k

@@ -257,7 +257,10 @@ Key Context::make_reply_key() const {
  * Implementation of Context protocol.
  */
 
-using IpcImpl = void (Context::*)(Brand const &, Message const &, Keys &);
+using IpcImpl = void (Context::*)(ScopedReplySender &,
+                                  Brand const &,
+                                  Message const &,
+                                  Keys &);
 
 void Context::deliver_from(Brand const & brand, Sender * sender) {
   Message m;
@@ -276,18 +279,18 @@ void Context::deliver_from(Brand const & brand, Sender * sender) {
     &Context::do_write_priority,
   };
   if (m.d0.get_selector() < etl::array_count(dispatch)) {
+    ScopedReplySender reply_sender{k.keys[0]};
     auto fn = dispatch[m.d0.get_selector()];
-    (this->*fn)(brand, m, k);
+    (this->*fn)(reply_sender, brand, m, k);
   } else {
     do_badop(m, k);
   }
 }
 
-void Context::do_read_register(Brand const &,
+void Context::do_read_register(ScopedReplySender & reply_sender,
+                               Brand const &,
                                Message const & arg,
                                Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0]};
-
   switch (arg.d1) {
     case 13:
       reply_sender.set_message({
@@ -335,13 +338,12 @@ void Context::do_read_register(Brand const &,
   }
 }
 
-void Context::do_write_register(Brand const &,
+void Context::do_write_register(ScopedReplySender & reply_sender,
+                                Brand const &,
                                 Message const & arg,
                                 Keys & k) {
   auto r = arg.d1;
   auto v = arg.d2;
-
-  ScopedReplySender reply_sender{k.keys[0]};
 
   switch (r) {
     case 13:
@@ -379,12 +381,11 @@ void Context::do_write_register(Brand const &,
   }
 }
 
-void Context::do_read_key(Brand const &,
+void Context::do_read_key(ScopedReplySender & reply_sender,
+                          Brand const &,
                           Message const & arg,
                           Keys & k) {
   auto r = arg.d1;
-
-  ScopedReplySender reply_sender{k.keys[0]};
 
   if (r >= config::n_task_keys) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
@@ -393,15 +394,13 @@ void Context::do_read_key(Brand const &,
   }
 }
 
-void Context::do_write_key(Brand const &,
+void Context::do_write_key(ScopedReplySender & reply_sender,
+                           Brand const &,
                            Message const & arg,
                            Keys & k) {
   auto r = arg.d1;
 
-  auto & reply = k.keys[0];
   auto & new_key = k.keys[1];
-
-  ScopedReplySender reply_sender{reply};
 
   if (r >= config::n_task_keys) {
     reply_sender.set_message(Message::failure(Exception::index_out_of_range));
@@ -410,12 +409,12 @@ void Context::do_write_key(Brand const &,
   }
 }
 
-void Context::do_read_region(Brand const &,
+void Context::do_read_region(ScopedReplySender & reply_sender,
+                             Brand const &,
                              Message const & arg,
                              Keys & k) {
   auto n = arg.d1;
 
-  ScopedReplySender reply_sender{k.keys[0]};
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _memory_regions[n]);
   } else {
@@ -423,14 +422,12 @@ void Context::do_read_region(Brand const &,
   }
 }
 
-void Context::do_write_region(Brand const &,
+void Context::do_write_region(ScopedReplySender & reply_sender,
+                              Brand const &,
                               Message const & arg,
                               Keys & k) {
   auto n = arg.d1;
-  auto & reply = k.keys[0];
   auto & object_key = k.keys[1];
-
-  ScopedReplySender reply_sender{reply};
 
   if (n < config::n_task_regions) {
     _memory_regions[n] = object_key;
@@ -441,21 +438,26 @@ void Context::do_write_region(Brand const &,
   if (current == this) apply_to_mpu();
 }
 
-void Context::do_make_runnable(Brand const &, Message const & arg, Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0]};
-
+void Context::do_make_runnable(ScopedReplySender &,
+                               Brand const &,
+                               Message const & arg,
+                               Keys & k) {
   make_runnable();
   pend_switch();
 }
 
-void Context::do_read_priority(Brand const &, Message const & arg, Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0], {Descriptor::zero(), _priority}};
+void Context::do_read_priority(ScopedReplySender & reply_sender,
+                               Brand const &,
+                               Message const & arg,
+                               Keys & k) {
+  reply_sender.set_message({Descriptor::zero(), _priority});
 }
 
-void Context::do_write_priority(Brand const &, Message const & arg, Keys & k) {
+void Context::do_write_priority(ScopedReplySender & reply_sender,
+                                Brand const &,
+                                Message const & arg,
+                                Keys & k) {
   auto priority = arg.d1;
-
-  ScopedReplySender reply_sender{k.keys[0]};
 
   if (priority < config::n_priorities) {
     _priority = priority;
