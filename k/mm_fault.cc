@@ -9,7 +9,9 @@
 namespace k {
 
 void * mm_fault(void * stack) {
-  return stack;
+  // TODO: generate fault message to supervisor.
+  // For now, halt execution here.
+  ETL_ASSERT(false);
 }
 
 void mm_fault_k(void * vstack) {
