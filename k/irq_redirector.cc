@@ -1,6 +1,7 @@
 #include "k/irq_redirector.h"
 
 #include "etl/prediction.h"
+#include "etl/armv7m/exception_table.h"
 #include "etl/armv7m/registers.h"
 
 #include "k/interrupt.h"
@@ -36,9 +37,9 @@ void set_sys_tick_redirector(SysTick * irq) {
   sys_tick_redirect = irq;
 }
 
-void sys_tick_redirector() {
-  ETL_ASSERT(sys_tick_redirect);
-  sys_tick_redirect->trigger();
-}
-
 }  // namespace k
+
+void etl_armv7m_sys_tick_handler() {
+  ETL_ASSERT(k::sys_tick_redirect);
+  k::sys_tick_redirect->trigger();
+}

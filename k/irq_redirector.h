@@ -16,7 +16,6 @@ void irq_redirector();
 
 
 void set_sys_tick_redirector(SysTick *);
-void sys_tick_redirector();
 
 }  // namespace k
 
