@@ -44,7 +44,7 @@ public:
   /*
    * Overridden to insist that this is, in fact, an AddressRange.
    */
-  virtual bool is_address_range() const;
+  virtual bool is_address_range() const override;
 
 private:
   RangePtr<uint8_t> _range;

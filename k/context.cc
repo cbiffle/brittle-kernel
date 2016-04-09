@@ -78,10 +78,9 @@ void Context::do_ipc() {
     key(d.get_target()).deliver_from(this);
   } else if (d.get_receive_enabled()) {
     key(d.get_source()).get()->deliver_to(this);
-  } else {
-    // Simply return with registers unchanged.
-    // (Weirdo.)
   }
+  // Note that if neither bit is set, we'll just return with the registers
+  // unchanged.
 
   do_deferred_switch();
 }
@@ -294,14 +293,14 @@ auto Context::lookup_register(unsigned r) -> Maybe<RegisterLocation> {
 #define EFR(n, name) \
     case n: \
       return {{ &_stack->name, false }};
-    EFR(0, r0);
-    EFR(1, r1);
-    EFR(2, r2);
-    EFR(3, r3);
-    EFR(12, r12);
-    EFR(14, r14);
-    EFR(15, r15);
-    EFR(16, psr);
+    EFR(0, r0)
+    EFR(1, r1)
+    EFR(2, r2)
+    EFR(3, r3)
+    EFR(12, r12)
+    EFR(14, r14)
+    EFR(15, r15)
+    EFR(16, psr)
 #undef EFR
 
     case 4 ... 11:
@@ -321,7 +320,7 @@ auto Context::lookup_register(unsigned r) -> Maybe<RegisterLocation> {
 void Context::do_read_register(ScopedReplySender & reply_sender,
                                Brand const &,
                                Message const & arg,
-                               Keys & k) {
+                               Keys &) {
   auto maybe_rloc = lookup_register(arg.d1);
 
   if (!maybe_rloc) {
@@ -347,7 +346,7 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
 void Context::do_write_register(ScopedReplySender & reply_sender,
                                 Brand const &,
                                 Message const & arg,
-                                Keys & k) {
+                                Keys &) {
   auto maybe_rloc = lookup_register(arg.d1);
 
   if (!maybe_rloc) {
@@ -370,7 +369,7 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
 void Context::do_read_key(ScopedReplySender & reply_sender,
                           Brand const &,
                           Message const & arg,
-                          Keys & k) {
+                          Keys &) {
   auto r = arg.d1;
 
   if (r >= config::n_task_keys) {
@@ -398,7 +397,7 @@ void Context::do_write_key(ScopedReplySender & reply_sender,
 void Context::do_read_region(ScopedReplySender & reply_sender,
                              Brand const &,
                              Message const & arg,
-                             Keys & k) {
+                             Keys &) {
   auto n = arg.d1;
 
   if (n < config::n_task_regions) {
@@ -426,23 +425,23 @@ void Context::do_write_region(ScopedReplySender & reply_sender,
 
 void Context::do_make_runnable(ScopedReplySender &,
                                Brand const &,
-                               Message const & arg,
-                               Keys & k) {
+                               Message const &,
+                               Keys &) {
   make_runnable();
   pend_switch();
 }
 
 void Context::do_read_priority(ScopedReplySender & reply_sender,
                                Brand const &,
-                               Message const & arg,
-                               Keys & k) {
+                               Message const &,
+                               Keys &) {
   reply_sender.get_message().d1 = _priority;
 }
 
 void Context::do_write_priority(ScopedReplySender & reply_sender,
                                 Brand const &,
                                 Message const & arg,
-                                Keys & k) {
+                                Keys &) {
   auto priority = arg.d1;
 
   if (priority < config::n_priorities) {

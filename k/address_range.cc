@@ -84,7 +84,7 @@ Maybe<Key> AddressRange::make_key(Brand brand) {
 
   // Ensure that the memory region described falls entirely within our purview.
   auto begin = reinterpret_cast<uint8_t *>(region.rbar.get_addr_27() << 5);
-  auto size  = (1 << (region.rasr.get_size() + 1));
+  auto size  = 1 << (region.rasr.get_size() + 1);
   auto last  = begin + size - 1;  // inclusive
 
   if (!_range.contains(begin)) return nothing;
@@ -143,7 +143,7 @@ void AddressRange::deliver_from(Brand const & brand, Sender * sender) {
 }
 
 void AddressRange::do_inspect(Brand const & brand,
-                              Message const & m,
+                              Message const &,
                               Keys & k) {
   ScopedReplySender reply_sender{k.keys[0], {
     Descriptor::zero(),

@@ -138,7 +138,7 @@ static void create_app_objects(Arena & arena) {
         {
           auto begin = reinterpret_cast<uint8_t *>(*map++);
           auto end   = reinterpret_cast<uint8_t *>(*map++);
-          auto prevent_execution = !!*map++;
+          auto prevent_execution = bool(*map++);
           auto read_only =
             static_cast<AddressRange::ReadOnly>(*map++);
           auto range = RangePtr<uint8_t>{begin, end};
