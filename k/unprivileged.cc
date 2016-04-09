@@ -1,7 +1,5 @@
 #include "k/unprivileged.h"
 
-#include "etl/error/check.h"
-
 using etl::armv7m::Byte;
 using etl::armv7m::Word;
 
@@ -13,6 +11,7 @@ uintptr_t mm_fault_recovery_handler;
  * Loads
  */
 
+// These are defined in unprivileged.S.
 bool uload_impl(Byte const *, Byte * out);
 bool uload_impl(Word const *, Word * out);
 
@@ -38,6 +37,7 @@ Maybe<Byte> uload(Byte const * p) {
  * Stores
  */
 
+// These are defined in unprivileged.S.
 bool ustore_impl(Byte *, Byte);
 bool ustore_impl(Word *, Word);
 

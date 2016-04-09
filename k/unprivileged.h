@@ -2,13 +2,18 @@
 #define K_UNPRIVILEGED_H
 
 /*
- * Access memory using the currently loaded MPU configuration, as though the
- * access were taking place from an unprivileged task.  This can be used to
- * safely dereference pointers (including the contents of registers) read from
- * tasks as arguments or for state inspection.
+ * Operations that access memory from privileged code, but using the currently
+ * loaded MPU configuration, as though the access were taking place from an
+ * unprivileged context.  This can be used to safely dereference pointers
+ * into unprivileged memory, without potentially leaking or mutating kernel
+ * state.
+ *
+ * Note that the kernel is designed to use these operations *very* *rarely.*
+ * They only come into play during initialization and for inspecting
+ * unprivileged stacks.
  */
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "etl/armv7m/types.h"
 
@@ -16,6 +21,9 @@
 
 namespace k {
 
+/*
+ * Variable used to communicate with the memory management fault handler.
+ */
 extern uintptr_t mm_fault_recovery_handler;
 
 /*
