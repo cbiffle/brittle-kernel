@@ -51,8 +51,6 @@ private:
   Generation _generation;
   // Index of the object table slot.
   TableIndex _index;
-
-  void lazy_revoke();
 };
 
 }  // namespace k

@@ -17,19 +17,17 @@ Key Key::filled(TableIndex index, Brand brand) {
 }
 
 Object * Key::get() {
-  lazy_revoke();
-  return object_table[_index].ptr;
+  auto const & te = object_table[_index];
+  if (_generation == te.generation && te.ptr) {
+    return te.ptr;
+  } else {
+    *this = null();
+    return object_table[0].ptr;
+  }
 }
 
 void Key::deliver_from(Sender * sender) {
   get()->deliver_from(_brand, sender);
-}
-
-void Key::lazy_revoke() {
-  auto const & te = object_table[_index];
-  if (_generation != te.generation || te.ptr == nullptr) {
-    *this = null();
-  }
 }
 
 }  // namespace k
