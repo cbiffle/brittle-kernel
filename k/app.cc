@@ -314,7 +314,7 @@ static void start_scheduler() {
       "msr PSP, r0\n"       // replicate it in process stack pointer.
       "msr MSP, %0\n"       // Reset main stack pointer.
       "mov r0, #2\n"
-      "msr CONTROL, r0\n"   // Drop privs, switch stacks.
+      "msr CONTROL, r0\n"   // Switch stacks, remain privileged.
       "svc #0"
       :: "r"(&etl_armv7m_initial_stack_top)
       );
