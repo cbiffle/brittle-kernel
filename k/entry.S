@@ -108,17 +108,12 @@ etl_armv7m_pend_sv_handler:
 .globl etl_armv7m_mem_manage_fault_handler
 .thumb_func
 etl_armv7m_mem_manage_fault_handler:
-    mov r0, lr                @ Put exc_return somewhere we can see it.
-
-    lsls r1, r0, #(31 - 2)    @ Get bit 2 (stack select) into N flag
-    bpl 1f                    @ If clear, we're in the kernel; jump ahead.
+    tst lr, #(1 << 2)         @ Test bit 2 (stack select).
+    beq 1f                    @ If clear, we're in the kernel; jump ahead.
 
     @ Fault was in task code.
     kernel_entry _ZN1k8mm_faultEPv
     bx lr
 
 1:  mov r0, sp                @ Get kernel stack pointer.
-
-    push {lr}                 @ Back up exc_return.
-    bl _ZN1k10mm_fault_kEPv   @ Call the C version.
-    pop {pc}                  @ Restore exc_return, return.
+    b _ZN1k10mm_fault_kEPv    @ Call the C version.
