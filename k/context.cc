@@ -162,10 +162,12 @@ void Context::apply_to_mpu() {
 void Context::make_runnable() {
   switch (_state) {
     case State::sending:
+      _sender_item.unlink();
       on_blocked_delivery_failed(Exception::would_block);
       break;
 
     case State::receiving:
+      _ctx_item.unlink();
       complete_blocked_receive(Exception::would_block);
       break;
 
