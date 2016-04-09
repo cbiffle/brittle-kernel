@@ -2,7 +2,9 @@
 
 .syntax unified
 
-.equ KCSO, K_CONTEXT_SAVE_OFFSET  @ Shorter alias for long define.
+@ Shorter aliases for long defines.
+.equ KCSO, K_CONTEXT_SAVE_OFFSET
+.equ KCST, K_CONTEXT_STACK_OFFSET
 
 .macro kernel_entry c_handler
     mrs r0, PSP               @ Get application stack pointer.
@@ -24,11 +26,63 @@
     msr BASEPRI, r12          @ Restore BASEPRI.
 .endm
 
+@ Entry point for system calls (SVC instruction).  This routine dispatches
+@ between three different options:
+@ - Context::do_ipc (assumed to be the common case)
+@ - Context::do_copy_key (fast path)
+@ - initial scheduler start (happens once)
+.balign 4
 .globl etl_armv7m_sv_call_handler
 .thumb_func
 etl_armv7m_sv_call_handler:
-    kernel_entry _ZN1k12svc_dispatchEPv
-    bx lr
+    @ Detect the special case of starting the scheduler, but try to do so
+    @ as cheaply as possible -- since it will add overhead to *every* syscall.
+    @ The case can be distinguished by the call originating from the Main
+    @ Stack, rather than the Process Stack, as indicated by bit 2 of LR being
+    @ clear.  By branching out of line on this case, we keep the overhead for
+    @ later syscalls to 2 cycles.
+    tst lr, #(1 << 2)
+    beq 1f
+
+    @ Call through to 'current->do_syscall(stack)'
+    ldr r3, =_ZN1k7currentE   @ Get '&k::current'
+    mrs r1, PSP               @ Get the unprivileged stack pointer.
+    ldr r0, [r3]              @ Load 'k::current'
+    
+    mrs r12, BASEPRI          @ Back up BASEPRI setting for saving.
+    add r2, r0, #KCSO         @ Compute address of register save area.
+    stm r2, {r4-r12}          @ Save callee-save registers.
+
+    mov r2, r4                @ Copy descriptor to pass to context.
+    mov r4, lr                @ Back up EXC_RETURN value.
+    mov r5, r3                @ Back up '&k::current' for reuse below.
+
+    bl _ZN1k7Context10do_syscallEPv10Descriptor
+
+    mov lr, r4                @ Restore EXC_RETURN so we can trash r4.
+
+2:  msr PSP, r0               @ Set new unprivileged stack pointer.
+    ldr r0, [r5]              @ Get the address of current context.
+    adds r0, #KCSO            @ Compute address of register save area.
+    ldm r0, {r4-r12}          @ Restore registers from context.
+    msr BASEPRI, r12          @ Restore BASEPRI for new context.
+    bx lr                     @ Return from exception.
+
+1:  @ Out-of-line path used to start scheduler, activating first context.
+    movs r0, #1
+    msr CONTROL, r0           @ Shed privileges from Thread mode.
+
+    orr lr, lr, #(1 << 2)     @ Alter EXC_RETURN to use process stack.
+
+    ldr r5, =_ZN1k7currentE   @ Get address of current context pointer.
+
+    ldr r0, [r5]              @ Get address of current context.
+    ldr r0, [r0, #KCST]       @ Get context stack pointer.
+
+    @ The registers are now in the same state that they'd be on return from
+    @ Context::do_syscall, above.  Thus, we can reuse the tail of the normal
+    @ SVC exit sequence.
+    b 2b
 
 .globl etl_armv7m_pend_sv_handler
 .thumb_func

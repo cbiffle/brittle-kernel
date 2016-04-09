@@ -37,6 +37,8 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   // Had to do this somewhere, this is as good a place as any.
   // (The fields in question are private, so this can't be at top level.)
   // (Putting it in the ctor hits the ill-defined non-trivial ctor rules.)
+  static_assert(K_CONTEXT_STACK_OFFSET == __builtin_offsetof(Context, _stack),
+                "K_CONTEXT_STACK_OFFSET is wrong");
   static_assert(K_CONTEXT_SAVE_OFFSET == __builtin_offsetof(Context, _save),
                 "K_CONTEXT_SAVE_OFFSET is wrong");
 
@@ -54,24 +56,18 @@ Keys & Context::get_message_keys() {
   return *reinterpret_cast<Keys *>(_keys);
 }
 
-void Context::do_syscall() {
-  switch (get_descriptor().get_sysnum()) {
-    case 0:  // IPC
-      do_ipc();
-      break;
+void * Context::do_syscall(void * stack, Descriptor d) {
+  auto sysnum = d.get_sysnum();
 
-    case 1:  // Copy Key
-      do_copy_key();
-      break;
-    
-    default:
-      do_bad_sys();
-      break;
+  if (sysnum == 0) {
+    return do_ipc(stack, d);
+  } else {
+    return do_copy_key(stack, d);
   }
 }
 
-void Context::do_ipc() {
-  auto d = get_descriptor();
+void * Context::do_ipc(void * stack, Descriptor d) {
+  set_stack(static_cast<StackRegisters *>(stack));
 
   // Perform first phase of IPC.
   if (d.get_send_enabled()) {
@@ -83,15 +79,13 @@ void Context::do_ipc() {
   // unchanged.
 
   do_deferred_switch();
+
+  return current->stack();
 }
 
-void Context::do_copy_key() {
-  auto d = get_descriptor();
+void * Context::do_copy_key(void * stack, Descriptor d) {
   key(d.get_target()) = key(d.get_source());
-}
-
-void Context::do_bad_sys() {
-  put_message(0, Message::failure(Exception::bad_syscall));
+  return stack;
 }
 
 void Context::complete_receive(BlockingSender * sender) {
