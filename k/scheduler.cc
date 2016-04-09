@@ -1,7 +1,5 @@
 #include "k/scheduler.h"
 
-#include "etl/armv7m/exception_table.h"
-#include "etl/armv7m/instructions.h"
 #include "etl/armv7m/scb.h"
 
 #include "k/context.h"
@@ -38,6 +36,8 @@ void do_deferred_switch() {
 
 void do_deferred_switch_from_irq() {
   if (switch_pending) {
+    // Leave switch_pending set.  It will be consumed by do_deferred_switch
+    // after switch_after_interrupt.
     scb.write_icsr(Scb::icsr_value_t().with_pendsvset(true));
   }
 }
