@@ -5,7 +5,6 @@
 
 namespace k {
 
-struct Context;  // see: k/context.h
 struct Object;  // see: k/object.h
 struct Sender;  // see: k/sender.h
 
