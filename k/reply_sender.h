@@ -1,6 +1,33 @@
 #ifndef K_REPLY_SENDER_H
 #define K_REPLY_SENDER_H
 
+/*
+ * Defines ReplySender and ScopedReplySender, utility classes for sending
+ * messages from kernel objects back to the application.
+ *
+ * Kernel objects agree to send a single, non-blocking reply in response to any
+ * operation.  It may indicate success or failure.  This implies the existence,
+ * at least temporarily, of a k::Sender object to participate in the message
+ * delivery virtual protocol.  While some kernel objects are, themselves,
+ * k::Senders, they may be busy sending some *other* message.
+ *
+ * Thus a dedicated Sender is needed.
+ *
+ * But since the reply from the kernel cannot block, the Sender doesn't need to
+ * be a BlockingSender, so it can exist transitively on the stack.  This is
+ * good, as the alternatives -- allocating one spare Sender per kernel object,
+ * for example -- would waste RAM.
+ *
+ * ReplySender is a Sender that's designed to be stack allocated to deliver a
+ * single message.
+ *
+ * ScopedReplySender is a wrapper that makes ReplySender easier to use.
+ *
+ * TODO: the two are separate for historical reasons.  It might make sense to
+ * fold them together someday, since I'm not using ReplySender without Scoped
+ * in practice.
+ */
+
 #include "common/message.h"
 
 #include "k/key.h"
@@ -9,16 +36,27 @@
 
 namespace k {
 
+/*
+ * Acts as a Sender for a configurable message and block of keys, refusing to
+ * block.
+ */
 class ReplySender final : public Sender {
 public:
   /*
    * ReplySender specifics
    */
 
+  // Constructs a ReplySender with a default-constructed (zero) message and
+  // null keys.
   ReplySender();
+
+  // Constructs a ReplySender with the given message and null keys.
   explicit ReplySender(Message const &);
 
+  // Gets a mutable reference to the contained message, so it can be updated.
   Message & get_message() { return _m; }
+
+  // Replaces one of the keys in the contained message.
   void set_key(unsigned index, Key const &);
 
   /*
@@ -34,10 +72,11 @@ private:
   Keys _keys;
 };
 
-
 /*
  * Variant on ReplySender that automatically delivers a reply when it goes out
  * of scope.
+ *
+ * TODO: fold the two together?
  */
 class ScopedReplySender final {
 public:
