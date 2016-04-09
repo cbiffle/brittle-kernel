@@ -6,7 +6,7 @@
 namespace k {
 
 ReplyGate::ReplyGate()
-  : _expected_brand(0) {}
+  : _expected_brand{0} {}
 
 void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
   // Filter out messages bearing the wrong brand.
