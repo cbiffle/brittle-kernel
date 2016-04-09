@@ -1,6 +1,12 @@
 #ifndef K_OBJECT_H
 #define K_OBJECT_H
 
+/*
+ * Most kernel entities and services are represented by Objects.  Objects are
+ * tracked by the ObjectTable, can receive (and possibly send) messages, and
+ * are given the power to vet any keys that reference them.
+ */
+
 #include <stdint.h>
 
 #include "common/abi_types.h"
@@ -25,7 +31,7 @@ public:
   void set_index(TableIndex index) { _index = index; }
 
   /*
-   * Gets the objet table index for this object.
+   * Gets the object table index for this object.
    */
   TableIndex get_index() const { return _index; }
 
@@ -42,7 +48,7 @@ public:
    *
    * If this object can reason about the send right away, it should:
    * - Use sender's member functions to collect information about the message.
-   * - Call the sender's complete_send function to end the send phase.
+   * - Call the sender's on_delivery_accepted function to end the send phase.
    * - If doing a call-style invocation, generate a reply to sender's k0.
    *
    * This object may not be able to accept the message right away, in which
@@ -50,21 +56,23 @@ public:
    * sender may or may not agree to do so, but that's between the sender and
    * the provided list.
    *
-   * This object can inspect the sender's message using member functions
-   * while the sender is blocked.  Once it decides to unblock the sender and
-   * take action on the message, it should call complete_blocked_send in place
-   * of normal complete_send and finish the process above.
+   * Should the sender agree to block, this object can inspect the sender's
+   * message using its member functions while the sender is blocked.  Once this
+   * object decides to unblock the sender and take action on the message, it
+   * should call on_blocked_delivery_accepted in place of normal
+   * on_delivery_accepted and finish the process above.
    */
   virtual void deliver_from(Brand const &, Sender *) = 0;
 
   /*
    * The given Context wants to receive a message from this object.  This
-   * operation is typically valid only on gates, but is implemented uniformly
+   * operation is typically valid only on Gates, but is implemented uniformly
    * on all objects to avoid the need for a cast.
    *
    * If this object has something to say right now, it should:
    * - Call the context's complete_receive member function, providing a
-   *   brand and sender.
+   *   BlockingSender ready to deliver.  (This makes sense mostly on Gates,
+   *   where the BlockingSender will be a *different* object.)
    * 
    * If the object may have something to say later but needs to block the
    * context, it should:
