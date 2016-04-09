@@ -44,10 +44,15 @@ etl_armv7m_sv_call_handler:
     tst lr, #(1 << 2)
     beq 1f
 
-    @ Call through to 'current->do_syscall(stack)'
     ldr r3, =_ZN1k7currentE   @ Get '&k::current'
-    mrs r1, PSP               @ Get the unprivileged stack pointer.
     ldr r0, [r3]              @ Load 'k::current'
+
+    @ Distinguish between IPC and cheap syscalls.  Treat IPC as the fast path.
+    lsrs r1, r4, #28          @ Sysnum into r0
+    bne 3f                    @ If it's non-zero, trap out.
+
+    @ Call through to 'current->do_ipc(stack, descriptor)'
+    mrs r1, PSP               @ Get the unprivileged stack pointer.
     
     mrs r12, BASEPRI          @ Back up BASEPRI setting for saving.
     add r2, r0, #KCSO         @ Compute address of register save area.
@@ -57,7 +62,7 @@ etl_armv7m_sv_call_handler:
     mov r4, lr                @ Back up EXC_RETURN value.
     mov r5, r3                @ Back up '&k::current' for reuse below.
 
-    bl _ZN1k7Context10do_syscallEPv10Descriptor
+    bl _ZN1k7Context6do_ipcEPv10Descriptor
 
     mov lr, r4                @ Restore EXC_RETURN so we can trash r4.
 
@@ -83,6 +88,12 @@ etl_armv7m_sv_call_handler:
     @ Context::do_syscall, above.  Thus, we can reuse the tail of the normal
     @ SVC exit sequence.
     b 2b
+
+3:  @ Cheap syscall path for Copy Key, without a context save.
+    @ Note that the sysnum is in r1, if we want to add more syscalls later!
+    mov r1, r4                @ Copy descriptor to act as argument.
+    b _ZN1k7Context11do_copy_keyE10Descriptor
+    
 
 .globl etl_armv7m_pend_sv_handler
 .thumb_func

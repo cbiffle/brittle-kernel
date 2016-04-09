@@ -52,7 +52,8 @@ public:
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
-  void * do_syscall(void * stack, Descriptor);
+  void * do_ipc(void * stack, Descriptor);
+  void do_copy_key(Descriptor);
 
   void put_message(Brand sender_brand,
                    Message const &);
@@ -172,9 +173,6 @@ private:
 
   Descriptor get_descriptor() const;
   Keys & get_message_keys();
-
-  void * do_ipc(void * stack, Descriptor);
-  void * do_copy_key(void * stack, Descriptor);
 
   Key make_reply_key() const;
 

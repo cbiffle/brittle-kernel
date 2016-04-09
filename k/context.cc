@@ -56,16 +56,6 @@ Keys & Context::get_message_keys() {
   return *reinterpret_cast<Keys *>(_keys);
 }
 
-void * Context::do_syscall(void * stack, Descriptor d) {
-  auto sysnum = d.get_sysnum();
-
-  if (sysnum == 0) {
-    return do_ipc(stack, d);
-  } else {
-    return do_copy_key(stack, d);
-  }
-}
-
 void * Context::do_ipc(void * stack, Descriptor d) {
   set_stack(static_cast<StackRegisters *>(stack));
 
@@ -83,9 +73,8 @@ void * Context::do_ipc(void * stack, Descriptor d) {
   return current->stack();
 }
 
-void * Context::do_copy_key(void * stack, Descriptor d) {
+void Context::do_copy_key(Descriptor d) {
   key(d.get_target()) = key(d.get_source());
-  return stack;
 }
 
 void Context::complete_receive(BlockingSender * sender) {
