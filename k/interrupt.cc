@@ -22,6 +22,12 @@ InterruptBase::InterruptBase(uint32_t identifier)
 
 void InterruptBase::trigger() {
   disable_interrupt();
+  if (_sender_item.is_linked()) {
+    // We took an interrupt while we're still blocking to deliver a previous
+    // one!  TODO: what shall we do in this case?  Well, "not crash" is a great
+    // start.
+    return;
+  }
   _target.deliver_from(this);
 }
 
