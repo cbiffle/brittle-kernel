@@ -19,11 +19,7 @@ void pend_switch() {
   switch_pending = true;
 }
 
-void do_deferred_switch() {
-  if (!switch_pending) return;
-
-  switch_pending = false;
-
+static void switch_now() {
   auto head = runnable.peek();
 
   if (config::checks == false) {
@@ -34,17 +30,25 @@ void do_deferred_switch() {
   current = head.ref()->owner;
 }
 
+void do_deferred_switch() {
+  if (!switch_pending) return;
+
+  switch_pending = false;
+
+  switch_now();
+}
+
 void do_deferred_switch_from_irq() {
   if (switch_pending) {
-    // Leave switch_pending set.  It will be consumed by do_deferred_switch
-    // after switch_after_interrupt.
+    switch_pending = false;
+
     scb.write_icsr(Scb::icsr_value_t().with_pendsvset(true));
   }
 }
 
 void * switch_after_interrupt(void * stack) {
   current->set_stack(static_cast<StackRegisters *>(stack));
-  do_deferred_switch();
+  switch_now();
   return current->stack();
 }
 

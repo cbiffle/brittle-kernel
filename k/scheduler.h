@@ -34,19 +34,17 @@
  * ------------------------
  *
  * ISRs, including the SysTick Timer, don't follow the normal kernel entry
- * sequence (though this is likely a TODO).  To reduce latency, the
- * unprivileged Context's state is not saved and restored in the normal way.
- *
- * As a result, we can't switch Contexts within an ISR -- directly.
+ * sequence.  To reduce latency, the unprivileged Context's state is not saved
+ * and restored in the normal way.  As a result, we can't switch Contexts
+ * within an ISR -- directly.
  *
  * Instead, on the way out of an ISR, the kernel calls
  * 'do_deferred_switch_from_isr'.  This pends a PendSV exception.  The PendSV
  * handler *does* fully save unprivileged Context state, and can then perform
- * a normal context switch (using 'switch_after_interrupt').
+ * a normal context switch.
  *
- * This design makes sense if most interrupts do not wake a higher priority
- * blocked Context.  However, I'm not sure that's realistic, and it bears
- * reconsideration.
+ * This approach ensures that context switches are handled correctly even in
+ * the case of interrupts preempting one another.
  */
 
 namespace k {

@@ -98,12 +98,34 @@ etl_armv7m_sv_call_handler:
 .globl etl_armv7m_pend_sv_handler
 .thumb_func
 etl_armv7m_pend_sv_handler:
-    movs r0, #1
-    msr PRIMASK, r0
-    kernel_entry _ZN1k22switch_after_interruptEPv
-    movs r0, #0
-    msr PRIMASK, r0
-    bx lr
+    cpsid i                   @ Block other interrupts using PRIMASK.
+
+    ldr r3, =_ZN1k7currentE   @ Get '&k::current'
+    ldr r1, [r3]              @ Load 'k::current'
+
+    @ Call through to 'k::switch_after_interrupt(stack)'
+    mrs r0, PSP               @ Get the unprivileged stack pointer.
+    
+    mrs r12, BASEPRI          @ Back up BASEPRI setting for saving.
+    add r2, r1, #KCSO         @ Compute address of register save area.
+    stm r2, {r4-r12}          @ Save callee-save registers.
+
+    mov r4, lr                @ Back up EXC_RETURN value.
+    mov r5, r3                @ Back up '&k::current' for reuse below.
+
+    bl _ZN1k22switch_after_interruptEPv
+
+    mov lr, r4                @ Restore EXC_RETURN so we can trash r4.
+
+    msr PSP, r0               @ Set new unprivileged stack pointer.
+    ldr r0, [r5]              @ Get the address of current context.
+    adds r0, #KCSO            @ Compute address of register save area.
+    ldm r0, {r4-r12}          @ Restore registers from context.
+    msr BASEPRI, r12          @ Restore BASEPRI for new context.
+
+    cpsie i                   @ Re-enable other interrupts.
+
+    bx lr                     @ Return from exception.
 
 .globl etl_armv7m_mem_manage_fault_handler
 .thumb_func

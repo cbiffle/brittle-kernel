@@ -1,15 +1,11 @@
 #include "k/interrupt.h"
 
 #include "etl/armv7m/nvic.h"
-#include "etl/armv7m/scb.h"
 #include "etl/assert.h"
 
 #include "k/reply_sender.h"
-#include "k/scheduler.h"
 
 using etl::armv7m::nvic;
-using etl::armv7m::scb;
-using etl::armv7m::Scb;
 
 namespace k {
 
@@ -27,7 +23,6 @@ InterruptBase::InterruptBase(uint32_t identifier)
 void InterruptBase::trigger() {
   disable_interrupt();
   _target.deliver_from(this);
-  do_deferred_switch_from_irq();
 }
 
 void InterruptBase::deliver_from(Brand const & brand, Sender * sender) {
