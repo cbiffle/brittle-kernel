@@ -178,3 +178,62 @@ Results:
 
 Bugs:
 - Priorities ought to be capabilities.
+
+
+Save Kernel Registers (9)
+--------------------------
+
+Saves the kernel-maintained registers into memory at consecutive addresses.  The
+caller (not the target Context) must have rights to write those addresses.
+
+This operation is intended to make "swapping" -- multiplexing multiple logical
+tasks across a single Context -- faster.
+
+The kernel-maintained registers are r4 - r11 and basepri.  When saved to memory
+they are written in that order (by ascending address).
+
+Arguments:
+- d0: descriptor
+- d1: dest address.
+
+Results:
+- d0: success descriptor.
+
+Exceptions:
+- `k.fault` if any of the nine words starting at the destination address cannot
+  be written by the caller.
+
+Bugs:
+- What if the caller is an Interrupt?  Interrupts don't have memory rights.
+
+
+Restore Kernel Registers (10)
+-----------------------------
+
+Restores the kernel-maintained registers in this Context from consecutive memory
+locations.  The caller (not the target Context) must have rights to read from
+the memory locations.
+
+This operation is intended to make "swapping" -- multiplexing multiple logical
+tasks across a single Context -- faster.
+
+The kernel-maintained registers are r4 - r11 and basepri.  When restored from
+memory they are read in that order (by ascending address).
+
+Arguments:
+- d0: descriptor
+- d1: source address.
+
+Results:
+- d0: success descriptor.
+
+Exceptions:
+- `k.fault` if any of the nine words starting at the source address cannot be
+  read by the caller.
+
+Bugs:
+- What if the caller is an Interrupt?  Interrupts don't have memory rights.
+- If a fault happens when the registers are only partially restored, the Context
+  may be left in an intermediate state.
+
+

@@ -261,6 +261,8 @@ void Context::deliver_from(Brand const & brand, Sender * sender) {
     &Context::do_make_runnable,
     &Context::do_read_priority,
     &Context::do_write_priority,
+    &Context::do_save_kernel_registers,
+    &Context::do_restore_kernel_registers,
   };
   if (m.d0.get_selector() < etl::array_count(dispatch)) {
     ScopedReplySender reply_sender{k.keys[0]};
@@ -434,6 +436,36 @@ void Context::do_write_priority(ScopedReplySender & reply_sender,
     if (_sender_item.is_linked()) _sender_item.reinsert();
   } else {
     reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+  }
+}
+
+void Context::do_save_kernel_registers(ScopedReplySender & reply_sender,
+                                       Brand const &,
+                                       Message const & arg,
+                                       Keys &) {
+  uint32_t * dest = reinterpret_cast<uint32_t *>(arg.d1);
+
+  for (unsigned i = 0; i < etl::array_count(_save.raw); ++i) {
+    if (!ustore(&dest[i], _save.raw[i])) {
+      reply_sender.get_message() = Message::failure(Exception::fault);
+      return;
+    }
+  }
+}
+
+void Context::do_restore_kernel_registers(ScopedReplySender & reply_sender,
+                                          Brand const &,
+                                          Message const & arg,
+                                          Keys &) {
+  uint32_t const * src = reinterpret_cast<uint32_t const *>(arg.d1);
+
+  for (unsigned i = 0; i < etl::array_count(_save.raw); ++i) {
+    if (auto mval = uload(&src[i])) {
+      _save.raw[i] = mval.ref();
+    } else {
+      reply_sender.get_message() = Message::failure(Exception::fault);
+      return;
+    }
   }
 }
 
