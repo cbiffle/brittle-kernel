@@ -1,0 +1,296 @@
+Kernel Entry
+============
+
+There are three (ish) different ways of entering the kernel.  They save
+different amounts of state.  I'm concerned that the factoring is poor and some
+are doing too much work.
+
+SVC
+---
+
+Used for syscalls, currently Copy Key and IPC.
+
+The immediate field in the instruction is not used, because it requires a read
+from unprivileged code memory, and I'd rather not.
+
+Performs a complete context switch:
+- r5-r11, BASEPRI are stored into Current.
+- The stack pointer is updated.
+- Current is reloaded on exit and the process is reversed.
+
+(Note that this entry sequence leaves BASEPRI intact unless it gets changed by a
+context switch.  This is good.  Invoking Copy Key should not give the kernel
+license to preempt.  That being said, SVC is currently highest-priority anyway,
+so there's no risk.)
+
+For Copy Key, this is too much work.  It never causes a context switch and
+doesn't produce any return values.  There will likely be other syscalls with
+this property someday.
+
+For IPC, it's about right.  When a reply is generated (which may occur without
+blocking or a context switch) we need to read and then deposit a bunch of
+registers into the Current Context.  To do that, we need to know where they are.
+If we didn't save them into the Context, they'd be saved willy-nilly onto the
+stack as kernel procedures spilled them.
+
+And in non-trivial applications, I'd expect most IPCs to cause context switches.
+
+So, could we make the saving decision *later* in the process, after
+distinguishing Copy Key from IPC?
+
+(This also points out a more general performance issue with the current ABI: we
+save the callee-save registers, but have no way of indicating to other
+procedures that they're available.  So they'll get saved again.)
+
+Finally, SVC's call path is:
+
+    etl_armv7m_sv_call_handler
+    k::svc_dispatch
+    k::Context::do_syscall
+      k::Context::do_ipc (on IPC)
+      k::Context::do_copy_key (on Copy Key)
+
+
+PendSV
+------
+
+Used for deferred context switches.  Same entry sequence as SVC, except that it
+also sets and clears PRIMASK, since PendSV is the lowest priority entry point,
+while SVC is assumed to be the highest.
+
+In this case, completely saving and restoring Context is legit, because it's
+expected to result in a context switch.  Basically, PendSV is the context save
+for interrupts.  The main potential performance problem is the double-save, but
+that's an ABI problem.
+
+PendSV's call path:
+
+    etl_armv7m_pend_sv_handler
+    k::switch_after_interrupt
+
+
+General Interrupts
+------------------
+
+Interrupts currently don't use a special entry sequence, which means they don't
+save preempted state in a predictable location.  I'm trying to decide whether
+this is okay.
+
+The current approach: if an ISR decides a context switch is appropriate -- which
+is pretty much always the case -- it pends PendSV, which kicks in later to do
+the actual swap.
+
+In the presence of interrupt preemption, this is certainly the right approach,
+for two reasons:
+
+1. If an ISR can preempt some other ISR, it would be *wrong* to write the
+   preempted state into the unprivileged Context -- because the state may be
+   from the privileged preempted ISR instead!
+
+2. In the presence of simultaneously occurring interrupts, or nearly
+   simultaneous interrupts, doing the context swap in PendSV is actually cheaper
+   than doing it repeatedly in each ISR.
+
+Currently, the kernel doesn't expect preemptive interrupts, but simultaneously
+occurring interrupts can still trigger back-to-back ISRs at the same priority
+level, making point #2 above worthwhile.
+
+The down side?  In cases where a single interrupt occurs, going all the way out
+of the ISR and back into PendSV will be more expensive than doing the switch
+directly in the ISR.  But perhaps not a *lot* more expensive.  Tail-chaining
+from an ISR to PendSV costs 6 cycles on an M4.
+
+Interrupt call path:
+
+    etl_XXX_handler
+    k::Interrupt::trigger
+    k::do_deferred_switch_from_irq
+    (chain)
+    etl_armv7m_pend_sv_handler
+    k::switch_after_interrupt
+
+
+Memory Management Fault
+-----------------------
+
+This uses the SVC entry sequence, except with an initial check: because memory
+management faults can occur in the kernel (and SVCs presumably can't), we check
+the privilege level of the faulting code before blindly stuffing registers into
+the unprivileged Context.
+
+Which is a good thing.
+
+Faults in unprivileged code will eventually cause context switches.
+
+MemMang call path:
+
+    etl_armv7m_mem_manage_fault_handler
+      k::mm_fault (in unprivileged code)  <-- context saved/restored
+      k::mm_fault_k (in kernel)
+
+
+On the ABI
+----------
+
+I laid some of these issues at the feet of the ABI above.  Let's look at this in
+more detail.
+
+On entry to a syscall, unprivileged code must deliver four words to the kernel.
+
+On exit from most syscalls, the kernel delivers 0-4 words to the unprivileged
+code.  Receive is the exception; on receive, the kernel delivers six words, the
+additional two being the brand.
+
+If we could communicate between kernel and userland entirely in the caller-save
+registers, we wouldn't need to explicitly save r4-r11 in the SVC entry path...
+assuming we use PendSV to context switch.
+
+But the caller-save registers get deposited in the unprivileged stack, which
+means the kernel now has more code paths that can fault when we try to read and
+write them.
+
+This is why I put the arguments and return values in the *callee-save* registers
+in the first place: we have to save them anyway, and we can do so without risk
+of fault.  (It also allows for zombie Contexts that act as message senders
+without needing stack.)
+
+But -- after the entry sequence saves the callee-save registers, the next
+function called will do it again.  This adds a worst-case latency (assuming
+zero-wait-state memory) of 9 cycles at each end of the kernel call, for 18
+cycles total.
+
+Using GCC there is basically no way to avoid this.  The `naked` attribute almost
+works, but it's well-defined only for assembly language functions -- and the
+last thing I need is more assembly language.
+
+So we might just suffer with our 18 cycle cost.  The day when that dominates our
+syscall latency will be a good day.
+
+
+Entry Sequences Redux
+=====================
+
+Great, I've laid out the problems -- what will I do about them?
+
+To summarize:
+- Entry sequence for Copy Key (and other potential non-IPC syscalls) is too
+  expensive.
+- Entry sequence for interrupts may merit reconsideration.
+- These sequences feel like they have lots of layers.  I'm not convinced that
+  e.g. `svc.cc` is carrying its own weight.
+
+This is not a problem best solved by moving more stuff into assembly; the
+challenge is in finding the right border between the assembly entry sequence and
+the C++ path.
+
+
+Revised SVC
+-----------
+
+- Unlikely: is this the first?  (Check privilege bit of LR.)
+  - If so, the PSP and MSP likely alias each other!  Fortunately the state
+    saved on the PSP is immaterial.  So don't save it.
+  - Call into "boot" C++ entry point.
+    - STUFF
+    - Sets PSP
+  - Restore callee-save registers of initial task.
+  - Restore initial BASEPRI.
+  - Return from exception.
+- Otherwise
+  - Dispatch SVC flavors.
+    - Copy Key?
+      - Don't bother saving context, we won't switch.
+      - r0 <- r4 as descriptor argument.
+      - Call C++ implementation
+      - Return from exception.  r4-r11 preserved.
+    - Future non-IPC syscalls follow a similar pattern (possibly same code)
+    - IPC?
+      - Save context for switch...
+      - Read 'current'
+      - Blow r4-r11, BASEPRI into current
+      - While we're at it, why not the stack pointer too.
+      - Call Context::do_ipc.
+      - Read r4-r11, BASEPRI, stack pointer from *new* current.
+      - Return from exception.
+
+
+Revised Interrupt
+-----------------
+
+If we're to permit the use of multiple interrupt priority levels, then the
+interrupt entry point must protect non-reentrant kernel data structures, e.g. by
+using PRIMASK.
+
+
+Revised PendSV
+--------------
+
+PendSV remains pretty much the same, possibly with some simplifications.
+
+
+Improved SVC Entry Path, Take 1
+===============================
+
+Bracketing a Copy Key call in the demo UART driver with GPIO code produces a
+9,250 ns pulse.  Inspection of the binary suggests that this is a reasonable
+measurement (though `copy_key` is not currently inlined).
+
+**Observation:** `copy_key` fills in three fields: sysnum, source, target.
+These are located across 12 bits that can't be materialized as a single constant
+(in the general case).  If they were moved to the bottom 12 bits, or if
+`copy_key`'s sysnum became 0, every invocation would become slightly cheaper.
+
+Rewriting `copy_key` to encourage inlining reduces the pulse to 8,300 ns.  Let's
+take that as our baseline.
+
+At 16MHz that gives ~133 cycles.  Not awful.  Could be better.
+
+The initial syscall path rewrite
+- Removes `svc.cc`
+- Replaces the entry sequence
+
+The pulse is now 7,360 ns -- 118 cycles, a 15 cycle improvement.  It's a start.
+
+
+By altering the logic in `Context::do_syscall` to treat any non-zero sysnum as
+"copy key" and avoid spilling: 6,740 ns, 108 cycles, -10 more cycles.
+
+
+By passing the descriptor from SVC directly instead of reloading it from the
+context: 6,610ns, 106 cycles, -2.
+
+
+At this point we've shaved 20% (27 cycles) off the execution of the Copy Key
+syscall.  Note that sysnum dispatch is still in C++, and so we're doing an
+unnecessary context save.
+
+
+By eliminating the context save, bypassing `do_syscall`, and moving sysnum
+discrimination into the ISR: 3,992ns, 64 cycles, -42!  Overall we're down 51%.
+
+Inter-byte transmission delay in the demo is down from 292us to 275us, 5%.
+
+
+Take 2
+======
+
+Let's consider IPC now.  Instrumenting the "enable interrupt" IPC.  I've got a
+bunch of wrapper library code counting against it, fwiw.
+
+Baseline: 97.02 us, or 1552 cycles (!).
+
+With changes made above: 95.85 us, or 1533 cycles (-19).  yaaaay
+
+Simplifying Key::get and `Key::lazy_revoke`: 88.81 us, 1420 cycles (-113).  Keys
+are used a lot.
+
+
+Interrupts, PendSV
+==================
+
+Currently the call to `do_deferred_switch_from_isr` is hiding inside of
+Interrupt.  That's asymmetric with respect to the IPC entry point, so I'll hoist
+it out.
+
+
+
