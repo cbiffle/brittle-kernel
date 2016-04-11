@@ -23,9 +23,8 @@ void ObjectTable::invalidate(TableIndex index) {
 }
 
 void ObjectTable::deliver_from(Brand const & brand, Sender * sender) {
-  Message m;
   Keys k;
-  sender->on_delivery_accepted(m, k);
+  Message m = sender->on_delivery_accepted(k);
   switch (m.d0.get_selector()) {
     case 0:
       do_mint_key(brand, m, k);

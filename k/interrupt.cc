@@ -32,9 +32,8 @@ void InterruptBase::trigger() {
 }
 
 void InterruptBase::deliver_from(Brand const & brand, Sender * sender) {
-  Message m;
   Keys k;
-  sender->on_delivery_accepted(m, k);
+  Message m = sender->on_delivery_accepted(k);
   switch (m.d0.get_selector()) {
     case 1:
       do_set_target(brand, m, k);
@@ -80,15 +79,15 @@ Priority InterruptBase::get_priority() const {
   return _priority;
 }
 
-void InterruptBase::on_delivery_accepted(Message & m, Keys & k) {
-  m = {
-    Descriptor::zero().with_selector(1),
-    _identifier,
-  };
+Message InterruptBase::on_delivery_accepted(Keys & k) {
   k.keys[0] = make_key(0).ref();
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
     k.keys[ki] = Key::null();
   }
+  return {
+    Descriptor::zero().with_selector(1),
+    _identifier,
+  };
 }
 
 void InterruptBase::on_delivery_failed(Exception, uint32_t) {
@@ -103,9 +102,9 @@ void InterruptBase::block_in_send(Brand const & brand,
   list.insert(&_sender_item);
 }
 
-void InterruptBase::on_blocked_delivery_accepted(Message & m, Brand & b, Keys & k) {
+Message InterruptBase::on_blocked_delivery_accepted(Brand & b, Keys & k) {
   b = _saved_brand;
-  on_delivery_accepted(m, k);
+  return on_delivery_accepted(k);
 }
 
 void InterruptBase::on_blocked_delivery_failed(Exception, uint32_t) {

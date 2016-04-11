@@ -112,7 +112,7 @@ public:
    * Overridden to indicate success and switch the context into reply state,
    * when relevant.
    */
-  void on_delivery_accepted(Message &, Keys &) override;
+  Message on_delivery_accepted(Keys &) override;
 
   /*
    * Overridden to record the exception and abort any remaining phase.
@@ -130,9 +130,7 @@ public:
    */
 
   Priority get_priority() const override;
-  void on_blocked_delivery_accepted(Message &,
-                                    Brand &,
-                                    Keys &) override;
+  Message on_blocked_delivery_accepted(Brand &, Keys &) override;
   void on_blocked_delivery_failed(Exception, uint32_t = 0) override;
 
 

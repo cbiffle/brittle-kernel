@@ -36,7 +36,7 @@ public:
   /*
    * Implementation of Sender
    */
-  void on_delivery_accepted(Message &, Keys &) override final;
+  Message on_delivery_accepted(Keys &) override final;
   void on_delivery_failed(Exception, uint32_t = 0) override final;
   void block_in_send(Brand const &, List<BlockingSender> &) override final;
 
@@ -44,7 +44,7 @@ public:
    * Implementation of BlockingSender
    */
   Priority get_priority() const override final;
-  void on_blocked_delivery_accepted(Message &, Brand &, Keys &) override final;
+  Message on_blocked_delivery_accepted(Brand &, Keys &) override final;
   void on_blocked_delivery_failed(Exception, uint32_t = 0) override final;
 
 protected:

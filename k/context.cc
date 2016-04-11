@@ -78,9 +78,8 @@ void Context::do_copy_key(Descriptor d) {
 }
 
 void Context::complete_receive(BlockingSender * sender) {
-  sender->on_blocked_delivery_accepted(_save.sys.m,
-                                       _save.sys.b,
-                                       get_message_keys());
+  _save.sys.m = sender->on_blocked_delivery_accepted(_save.sys.b,
+                                                     get_message_keys());
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
@@ -105,7 +104,7 @@ void Context::complete_blocked_receive(Brand const & brand, Sender * sender) {
 
   pend_switch();
 
-  sender->on_delivery_accepted(_save.sys.m, get_message_keys());
+  _save.sys.m = sender->on_delivery_accepted(get_message_keys());
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
@@ -172,10 +171,10 @@ Priority Context::get_priority() const {
   return _priority;
 }
 
-void Context::on_delivery_accepted(Message & m, Keys & k) {
+Message Context::on_delivery_accepted(Keys & k) {
   auto d = get_descriptor();
 
-  m = _save.sys.m.sanitized();
+  auto m = _save.sys.m.sanitized();
 
   k.keys[0] = d.is_call() ? make_reply_key() : Key::null();
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
@@ -187,6 +186,8 @@ void Context::on_delivery_accepted(Message & m, Keys & k) {
                                 : key(d.get_source());
     source.get()->deliver_to(this);
   }
+
+  return m;
 }
 
 void Context::on_delivery_failed(Exception e, uint32_t param) {
@@ -213,13 +214,13 @@ void Context::block_in_send(Brand const & brand, List<BlockingSender> & list) {
   }
 }
 
-void Context::on_blocked_delivery_accepted(Message & m, Brand & b, Keys & k) {
+Message Context::on_blocked_delivery_accepted(Brand & b, Keys & k) {
   runnable.insert(&_ctx_item);
   _state = State::runnable;
 
   b = _saved_brand;
   pend_switch();
-  on_delivery_accepted(m, k);
+  return on_delivery_accepted(k);
 }
 
 void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
@@ -247,9 +248,8 @@ using IpcImpl = void (Context::*)(ScopedReplySender &,
                                   Keys &);
 
 void Context::deliver_from(Brand const & brand, Sender * sender) {
-  Message m;
   Keys k;
-  sender->on_delivery_accepted(m, k);
+  Message m = sender->on_delivery_accepted(k);
 
   static constexpr IpcImpl dispatch[] {
     &Context::do_read_register,

@@ -63,7 +63,7 @@ public:
    * Implementation of Sender
    */
 
-  void on_delivery_accepted(Message &, Keys &) override;
+  Message on_delivery_accepted(Keys &) override;
   void on_delivery_failed(Exception, uint32_t = 0) override;
   void block_in_send(Brand const &, List<BlockingSender> &) override;
 

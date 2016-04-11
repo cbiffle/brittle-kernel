@@ -21,13 +21,13 @@ class Sender {
 public:
   /*
    * Indicates that an object has accepted delivery of this sender's message.
-   * The sender should deposit the message and keys into the provided
-   * locations.
+   * The sender should return the sent message, and deposit the keys into the
+   * provided location (including zeroing it if required).
    *
    * This ends the non-blocking send protocol.  If the sender needs to
    * atomically transition to receive state, it should do so here.
    */
-  virtual void on_delivery_accepted(Message &, Keys &) = 0;
+  virtual Message on_delivery_accepted(Keys &) = 0;
 
   /*
    * Indicates that delivery of the sender's current message has failed.

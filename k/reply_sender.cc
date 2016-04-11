@@ -17,9 +17,9 @@ void ReplySender::set_key(unsigned index, Key const & k) {
   _keys.keys[index] = k;
 }
 
-void ReplySender::on_delivery_accepted(Message & m, Keys & keys) {
-  m = _m;
+Message ReplySender::on_delivery_accepted(Keys & keys) {
   keys = _keys;
+  return _m;
 }
 
 void ReplySender::on_delivery_failed(Exception, uint32_t) {
