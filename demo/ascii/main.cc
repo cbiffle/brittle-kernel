@@ -9,8 +9,8 @@
 
 #include "common/app_info.h"
 
-#include "demo/client/client.h"
-#include "demo/driver/driver.h"
+#include "demo/ascii/client.h"
+#include "demo/drv/uart/driver.h"
 #include "demo/k/context.h"
 #include "demo/k/interrupt.h"
 #include "demo/k/object_table.h"
@@ -281,7 +281,7 @@ static void demo_main() {
     copy_key(i, 0);
   }
 
-  driver_main();
+  drv::uart::main();
 }
 
 }  // namespace demo

@@ -1,7 +1,9 @@
-#include "demo/driver/api.h"
+#include "demo/drv/uart/api.h"
 
 #include "demo/runtime/ipc.h"
 
+namespace demo {
+namespace drv {
 namespace uart {
 
 bool send(unsigned k, uint8_t value) {
@@ -14,3 +16,5 @@ bool send(unsigned k, uint8_t value) {
 }
 
 }  // namespace uart
+}  // namespace drv
+}  // namespace demo

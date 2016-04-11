@@ -1,0 +1,6 @@
+Simple RPC Demo App
+===================
+
+This enters an infinite loop, repeatedly requesting "mint key" from the Object
+Table as a simple example of a kernel RPC.  This is intended as a benchmark of
+the RPC facility.

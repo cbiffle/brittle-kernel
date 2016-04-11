@@ -7,11 +7,11 @@
  * - Enough memory authority to run (does not need hardware access).
  */
 
-#include "demo/client/client.h"
+#include "demo/ascii/client.h"
 
 #include <cstdint>
 
-#include "demo/driver/api.h"
+#include "demo/drv/uart/api.h"
 
 namespace demo {
 
@@ -29,7 +29,7 @@ void client_main() {
   while (true) {
     for (uint8_t value = ' '; value < 127; ++value) {
       ++client_ipc_issue_count;
-      bool success = uart::send(k_uart, value);
+      bool success = drv::uart::send(k_uart, value);
       ++client_ipc_complete_count;
 
       // Record errors that occur.

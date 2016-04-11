@@ -11,7 +11,7 @@
  * - Selector 1: send character from low 8 bits of D1.
  */
 
-#include "demo/driver/driver.h"
+#include "demo/drv/uart/driver.h"
 
 #include <cstdint>
 
@@ -27,6 +27,8 @@ using etl::stm32f4xx::Usart;
 using etl::stm32f4xx::usart2;
 
 namespace demo {
+namespace drv {
+namespace uart {
 
 // Our use of key registers:
 static constexpr unsigned
@@ -104,7 +106,7 @@ static void wait_for_txe() {
 /*
  * Main driver loop.
  */
-void driver_main() {
+void main() {
   initialize_hardware();
 
   while (true) {
@@ -154,4 +156,6 @@ void driver_main() {
   }
 }
 
+}  // namespace uart
+}  // namespace drv
 }  // namespace demo
