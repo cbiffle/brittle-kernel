@@ -1,0 +1,182 @@
+Notes on seL4
+=============
+
+I've been familiar with seL4 from the verification side, but I've never taken a
+close look at its APIs.  These are my observations from studying its reference
+manual:
+
+    https://sel4.systems/Info/Docs/seL4-manual-2.0.0.pdf
+
+I will occasionally make reference to a previous research kernel of mine,
+Potato.
+
+In seL4, revocation of a capability may take time linear in the number of child
+capabilities.  This is similar to Potato.  In Brittle, I decided that this sort
+of list maintenance and traversal was not fitting for a minimal kernel, and
+moved it out to the system.  This has the key advantage of not requiring a
+preemptible kernel (seL4, like Integrity, has controlled preemption points for
+long-running kernel operations).
+
+Deleting the final cap to an object reclaims it, so the runtime of deleting a
+cap is not predictable.  Note that this applies recursively when the deleted
+object contains caps.
+
+
+Capabilities are 16 bytes.  I assume this is, like Potato,
+- Forward and back link pointers.
+- Object address.
+- 32 bits of control.
+
+
+seL4 capability addresses describe paths through a tree.  Does this mean that
+using one may have complexity linear in the depth?  What impact does this have
+on the machine seL4 targets, which are paged and thus have locality concerns?
+
+Cap spaces are deliberately designed to be sparse, which likely simplifies
+allocation of cspace addresses across threads (i.e. they could be allocated
+globally).
+
+Using a null cap is a fault, which is something I've discussed for Brittle but
+not implemented (since I don't currently support faults).  This has the
+advantage of allowing caps to be silently paged in at time of use.
+
+
+
+
+How are call replies implemented in seL4?  They sound vaguely similar to EROS,
+though already in 2.2 they've noted an optimization: the reply capability is
+only issued on IPC through an endpoint (cf. Gate).  I've been assuming that the
+vast majority of IPCs in a typical system will be through Gates, so I haven't
+special-cased direct calls to kernel objects, but it's worth considering.
+
+The reply cap is stored in a dedicated location, implicitly addressed by the
+Reply operation.  A separate syscall copies it out into capability space.
+
+Interesting, seL4 models three access rights across all object types (plus,
+presumably, more type-specific rights):
+- Read - receive from endpoint, wait on semaphore, map page readable.
+- Write - send to endpoint, signal semaphore, map page writeable.
+- Grant - send caps through endpoint (only barely orthogonal).
+
+
+Interesting, the ability to send capabilities through an Endpoint is treated as
+a separate right (in addition to send and receive).
+
+
+IPC details
+-----------
+
+seL4 follows some other L4 kernels in splitting messages between physical
+registers and a pinned "extra registers" buffer in RAM.  As a result, seL4 can
+transfer relatively large messages.
+
+The IPC operations specify message size and the number of caps to transfer.
+Only one cap can be transferred to a thread through an endpoint, though!  Others
+are dropped.
+
+Except that they're sometimes unwrapped.  When sending through an endpoint E,
+any caps to endpoint E that are sent can be unwrapped, delivering their badges
+in addition to the badge of the cap used to send.
+
+Badges function as brands in Brittle.
+
+Odd.  If caps are received through an endpoint capability that is missing Write
+permission (i.e. one that cannot be used to send through the endpoint), the
+Write bits on receive capabilities are stripped?
+
+
+Notifications
+-------------
+
+Notifications are separate objects, not attached to the TCB as in some other
+systems I've examined.  Like in other systems they're a word-sized bit mask that
+acts as an array of binary semaphores.
+
+Notification capabilities treat "signal" and "wait" as separate rights.
+
+The badge of a notification cap gives its bitmask.  Signaling ORs it into the
+notification word, potentially waking a single waiting thread.
+
+Wait does not take a bitmask.  It atomically returns the bitmask and zeroes it,
+blocking if required.
+
+
+Notifications can be bound to a TCB.  Bound Notifications can interrupt a TCB
+from an Endpoint receive operation.  The two are distinguished by badge.
+
+Other threads cannot attempt to wait on a bound Notification.
+
+There is a separate "unbind" operation.
+
+**Analysis:** Modeling notifications as objects separate from TCBs makes sense.
+Supporting both notifications and IPC feels like a minimality violation, but at
+the same time I see the value of each.  In particular, notifications could allow
+interrupts to be modeled more cleanly.
+
+The concept of "binding" notifications is similar to the bound gates that I had
+early in Brittle's design.  As an interruption mechanism goes, it's more general
+than e.g. having a notification word in the TCB, or a data-less interrupt
+operation.  However, they only interrupt when the TCB is in receive.
+
+
+Exceptions
+----------
+
+Each thread has an exception handler, which is an Endpoint.
+
+Replying to an exception message restarts the faulted thread.
+
+Cap faults: blocking send/call on invalid cap, recv/nb-recv on invalid cap or on
+invalid cap type (incl. permissions).
+
+Unknown syscall number is a fault.
+
+User exception faults are for things like divide-by-zero.
+
+**Analysis:** pretty much exactly what I was planning, except that:
+1. I expected the supervisor to restart faulted tasks by performing direct
+   maintenance through a Context key, not replying with a specially-formatted
+   message -- mostly because I don't yet know what that message should contain.
+
+2. Whether the use of an invalid key produces a fault has been an open question
+   in Brittle's design.
+
+
+Interrupts
+----------
+
+Interrupts signal notifications, setting bits corresponding to the IRQ number.
+
+There's an "ack" operation that acks.  There doesn't appear to be support for
+atomically acknowledging an interrupt and clearing any pending instances of it,
+which I've found valuable in Brittle.
+
+Because seL4 doesn't deal in null keys, there is a separate "clear target of
+interrupt" operation to disconnect an interrupt from its notification.
+
+**Analysis:**  I like this scheme very much, because it eliminates the
+BlockingSender role from the messaging protocol (it gets replaced by Context,
+since Interrupts are currently the only other BlockingSender).
+
+
+Open Questions
+--------------
+
+What are non-blocking receives used for?  (They are stubbed out in Brittle
+because I haven't found a compelling use case.)
+
+
+Action Items
+------------
+
+- Finally implement faults.
+
+- Consider implementing a primitive like Notification and rewriting interrupt
+  delivery in terms of this.
+  - Then make blocking send Context-specific.
+  - Then consider fast-pathing kernel IPC to make *all* send Context-specific,
+    which would eliminate ReplySender and the virtual send protocol and....
+
+- Consider the key-delivery ABI, and particularly the use of k0.  Would a
+  dedicated reply key (i.e. link register) location make sense?  It would save
+  simple servers from backing up reply keys before generating IPC...
