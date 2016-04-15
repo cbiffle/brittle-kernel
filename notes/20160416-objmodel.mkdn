@@ -1,0 +1,251 @@
+Revisions to the Object Model (Proposed)
+========================================
+
+Several of the changes I've been considering have come together into an
+interesting, consistent, but pretty different object model for the kernel.  I
+need to consider its implications.
+
+
+Basic Idea
+----------
+
+Objects can be created and destroyed.  Creation may require donation of
+memory.  Destruction returns that memory.
+
+Some objects don't require donation of memory, because we'll enlarge the Object
+Table entries to contain small (16 byte) objects.  In particular, memory objects
+will fit.
+
+Larger objects will consist of a small object inside the Object Table ("head")
+which has a pointer to a larger object outside ("body").  It's sort of like the
+C++ PImpl idiom but for different reasons.
+
+There is a new type of object that occupies unused Object Table slots.  Its keys
+serve as slot usage capabilities.  e.g. to split a memory object into two, you
+must provide a slot usage capability to account for the second slot.
+
+
+Why am I doing this?
+--------------------
+
+Depends on which part you mean.
+
+**Split object model,** aka **fat table entries.**
+
+This is being driven primarily by my desire to manipulate memory objects easily.
+Without fat table entries, application-mappable memory objects would require
+explicit System-level management of a split model *anyway*, with one memory
+donation for the control block, and one for the controlled region.
+
+This presents a serious bootstrapping problem, since splitting such a region
+requires donation of another memory block and consumes another table entry, for
+two more entries.  Splitting the initial memory block is likely to be the first
+thing a system does...where will the donated memory block come from?
+
+I "solved" this in Potato by having two types of memory objects, one that
+allocated control information in-place and could be split for free, and one that
+didn't and could be mapped.  This feels like complexity to me.
+
+With fat table entries I could avoid this.  Only one type of memory object
+needed.  Book-keeping info can be stored in the table.  Derivation doesn't
+require donation.  Since memory objects are already "destroyed" and cannot be
+created except by derivation, creating a kernel object takes exactly one memory
+object in donation, and destroying an object yields exactly one memory object in
+change.
+
+But at what cost?  It introduces significant complexity into basically every
+kernel object, which must now manage its two pieces.  The object table becomes
+significantly more complex, since it now needs to placement-new within itself
+(not to mention that the object table must be allocated within the object
+table!).
+
+**Modeling object table slots as capabilities.**  This one's more clear-cut.
+They're a consumable resource, and we don't allocate consumable resources
+implicitly (except, arguably, time).
+
+In a fat-table world we'd probably stuff a "stem" object into every empty slot.
+
+In a skinny-table world, empty slots could be null, and attempting to act upon
+them directly (i.e. send them a message) would be an error.  We could prevent
+the minting of keys to such slots.  So the *slot* capabilities themselves would
+likely be specially-badged Object Table pointers.
+
+
+
+Implication: quit using multiple inheritance
+--------------------------------------------
+
+Not because it's bad, but because a basic object with two parent classes and one
+data field, in the 32-bit G++ ABI, is *already* 16 bytes long.  And we need one
+data field in the base class to store the generation.  This means we have
+no room left for the body pointer.
+
+I suspect that I can pull this off, though, because the thing in the table
+(Object) probably doesn't need to be a BlockingSender (which is, in practice,
+the problematic parent).  The *body* can probably be a BlockingSender and not an
+Object.
+
+
+Implication: ability to exhaust generation counters
+---------------------------------------------------
+
+By repeatedly destroying an object and then using its resources to create a new
+object, I could chew through generation numbers pretty fast, with the potential
+to resurrect old keys.
+
+The original goal of key revocation was to support object reboots, without the
+object necessarily being destroyed.  These were expected to be relatively rare.
+So while this problem has *technically* existed since the conception of the
+system (see notes from 2015-03-23), object deletion makes it more visible.
+
+One option would be to generate an exception of some sort when a counter rolls
+over.
+
+Another would be to meter generation usage as a capability.
+
+Yet another would be to adjust the Generation / Brand relationship.  Recall that
+Brands went 64-bit in support of AddressRange, which does not have a future in
+this model.  If Brands shrunk to 32 bits, Generation could be enlarged without
+widening keys.  In the single-inheritance case (see above) we have room for a
+vtable pointer, a two-word generation, and a body pointer inside Object.
+However, this means that the payload of a Memory Object must be exactly one
+word....
+
+(64-bit generations might also simplify the operation of reply gates.)
+
+Note that these would be in support of System behavior.  Key resurrection is not
+a problem for the *kernel*, so I'd like to guard against it in as lightweight a
+way as possible.
+
+...and arguably, the lightest-weight way is to require Systems that are
+concerned about this to *proxy* object creation calls.  Done?
+
+
+Implication: dangling List pointers
+-----------------------------------
+
+Consider Gate.  Gate contains at least one list of other objects.
+
+Say you want to destroy a Gate.  The in-kernel destruction operation *cannot*
+move all the objects out of the Gate's list, because that would be linear in a
+load-dependent factor (number of objects that happen to be waiting).
+
+But if we *don't* remove the objects, they are left with potentially dangling
+pointers: to the `_container` inside Gate, and to their `_prev` and `_next`
+neighbors (one of which, somewhere on the chain, was inside Gate: the root
+itemoid).
+
+Note that this problem *may already exist*.  If I have a Gate, and I reboot that
+Gate, should it not clear the list of blocked objects?  Why should objects that
+blocked on a Gate's previous incarnation continue to wait on the new one,
+despite never having held a key to it?
+
+Options.  Off the top of my head:
+
+- *Require scavenging.*  Don't let these objects get destroyed while they have
+  things in their lists.  Provide reflective operations for the System to boot
+  list occupants out before destruction.  During this process, put the object in
+  an intermediate state that prevents new clients from entering the lists, so
+  that the clearing process is guaranteed to complete.  (Note that simply
+  revoking all client keys might suffice.)
+
+- *Guard list items with a generationed pointer.*  Add to the List::Item a
+  pointer to the Object and a generation.  Any access to the Item would be
+  guarded by a generation check.  If the generation is wrong, the Item unlinks
+  itself locally -- not writing its neighbors! -- and signals its caller to
+  perform any cleanup, e.g. resuming a Context.
+
+These each have tradeoffs.
+
+Requiring scavenging means that object deletion can fail and require the caller
+to do some work.  It's also not clear where to *put* the reflective API,
+particularly for Gates, though I could specify a brand pattern that causes Gates
+to become non-transparent and expose an API.  On the up-side, the System can
+reason about when anything blocked on the doomed object is awoken, because the
+System is doing it.
+
+Guarding the list items ensures that the kernel doesn't do anything dumb, but
+doesn't give any assurance about timeliness.  Since the objects waiting on queue
+are blocked, it may literally take *forever* before their bogus list items are
+noticed and they're awakened.
+
+...perhaps the right solution is actually a hybrid of the two:
+
+*Support scavenging, but if it isn't done, guard integrity with generationed
+pointers.*
+
+The list from the Gate's perspective should always be legitimate.  And, in fact,
+operations coming from the Gate don't really need to check the guards.
+
+So when *do* we need to check them?  Interesting.
+
+
+Note that these generationed pointers are not a perfect defense: the generation
+could roll over and repeat.  The problem is the use of interior pointers.  Maybe
+I can design a better list.
+
+The only real way to prevent dangling pointers is to require lists to be
+completely torn down before the root object can be destroyed.  (Objects *in* the
+list can be trivially removed from it in constant time on destruction.)
+
+I could implement this and loosen it later, but it really feels like policy, and
+it would be lovely to avoid it.
+
+
+Memory Object Internals
+-----------------------
+
+A memory object needs to record:
+
+- A base address.
+- A size.
+
+Do we need any more than that?
+
+Do we need to record whether the memory is "special," like peripheral registers?
+If we don't, a program could ask the kernel to create a kernel object in a
+peripheral's registers.  There's some possibility of a confused deputy situation
+there, but if the program holds a key to the memory, it could already manipulate
+it directly.
+
+Do we need to distinguish read-only memory?  So far this isn't critical to
+kernel behavior.
+
+
+Assume that keys to a memory object always address the entire object, not a
+subset.  What needs to be stored in the brand?  Basically, the contents of the
+MPU RASR register, less size.  Possibly with some bits hijacked to indicate
+object permissions.
+
+
+If we require memory objects to adhere to MPU sizing and alignment rules --- and
+this is probably acceptable --- then the Object needs to store a packed bitfield
+containing
+- The top 27 bits of the address, and
+- The 5-bit log2 size of the region, minus 1.
+
+Nice.  This is compact enough that it could work with 64-bit generations
+(above), should I decide that 64-bit generations are a good idea.
+
+
+Summary of Proposed Changes (Action Items)
+------------------------------------------
+
+- Switch to head-body Object layout.
+
+- Implement Memory Objects; remove AddressRange.
+  - This is where I could start evaluating 64-bit generations.
+
+- Implement scavenging operations for objects with block lists.
+  - Context
+  - Gate
+  - Scheduler?  Reify the scheduler?
+
+- Implement "stub" objects that occupy empty table slots.
+  - This is about the point where the Null Object is going to feel really
+    redundant.
+
+- Implement object creation via stubs.
+
+- Implement object deletion / recycling.
+

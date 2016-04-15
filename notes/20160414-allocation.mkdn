@@ -1,0 +1,134 @@
+On Allocation
+=============
+
+I'm thinking again about object allocation and deallocation in the kernel.  I
+think it's important for two reasons.
+
+First, and more obviously, there will be applications that will not know their
+required set of objects in advance.
+
+Second, I think it might actually make the kernel simpler, by removing the need
+for the object map interpreter during initialization.
+
+
+The model I'd like to follow is essentially the same one I implemented in
+Potato, but with a few years more thought applied.
+
+- At startup, most of the RAM is wrapped up in one or more blocks of
+  undifferentiated memory.
+
+- These objects can be asked to split, merge, or become (in-place and after
+  revocation) other kinds of objects.
+
+- The "become" operation generates a "receipt" key, which will reverse the
+  operation: revoke keys to the new object and return undifferentiated memory.
+
+- Undifferentiated memory is different from "transparent" memory, which can be
+  mapped by applications.  Transparent memory requires *two* pieces of memory,
+  one for object bookkeping, and one that can be accessed directly.
+
+- Something like today's AddressRange still needs to exist, to model ROM and
+  peripheral registers.
+
+
+
+Undifferentiated Memory
+-----------------------
+
+These objects clearly need a better name, but I suspect calling them Stem
+Objects would confuse people without a bio background.
+
+These occupy a contiguous range of memory (RAM).  Unlike AddressRange, the
+object header and bookkeeping is *inside* the memory, and there is no need to
+record access rights.
+
+Applications cannot access the contents.
+
+Operations:
+
+- **Split.**  Divides one object into two.  All keys to the original object are
+  revoked; keys to each sub-object are issued in the reply.
+  - May fail if the object is below some minimum size.
+
+- **Merge.**  Combines two physically adjacent objects into one.  All keys to
+  both original objects are revoked, and a key to the combined object is issued
+  in the reply.
+  - Requires physical address adjacency.
+
+- **Locate.**  Determines the base address and length of an object, to support
+  Merge.
+
+- **Become.**  Transforms this object into a new object of another type (type
+  provided as an argument).  All keys are revoked and a key to the new object,
+  with brand chosen as an argument, issued in the reply.
+  - The reply also carries a Receipt Key.
+  - When creating a Transparent Memory Object (below) a second UMO is required.
+
+Open Question: do UMOs need to follow MPU size/alignment restrictions, given
+that they cannot be mapped?  i.e. must they be a power of two in size, naturally
+aligned?  There is no *technical* reason why this should be so, in which case
+the "split" operation would need to take a split point.
+
+But doing so might simplify the implementation.
+
+
+Receipt Keys
+------------
+
+Ordering undifferentiated memory to become something specific produces a
+*receipt key*.  This is a special key, tied to the object in question, that can
+be used to destroy it and get its resources back.
+
+In implementation terms, a receipt key is an Object Table key with a special
+brand.  The brand indicates the table index and generation.
+
+(TODO: this means that invalidating all keys for an object will invalidate the
+receipt key.)
+
+Receipt keys only support one operation:
+
+- **Exchange.**  Destroys an object and returns its resources, ready for reuse.
+  All keys to the object (including the receipt) are revoked.  The reply
+  includes either one or two keys to undifferentiated memory, and a data word
+  indicating how many are included.
+
+The system can conspire with the Object Table to forge receipts for arbitrary
+objects, ensuring that even unreachable objects can be reclaimed.  Some objects
+will not allow themselves to be destroyed in this way (particularly the Object
+Table itelf).
+
+
+
+Transparent Memory
+------------------
+
+Models a chunk of memory that is currently used for application storage, but
+(unlike memory described by AddressRange) can be returned to the kernel for
+storing kernel objects if desired.
+
+Creating a Transparent Memory Object requires *two* UMOs.  The first is small
+and is used for bookkeeping.  The second can be larger, and is the actual memory
+that can be accessed by the application.
+
+On creation, the contents of the *second* UMO are defensively zeroed.
+
+TMO keys can be stored into a Context's MPU Region Registers to expose memory
+directly to application code.
+
+Access rights to a TMO are recorded in the brand.
+
+Operations:
+
+- **Derive.**  Issues a new key to this TMO with privileges reduced: either
+  reducing read-write to read-only, or enabling execute prevention, or both.
+  Existing keys are not affected.
+
+
+
+On Minimality
+-------------
+
+I want to think explicitly about the minimality (or non-minimality) of this
+mechanism.
+
+
