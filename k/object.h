@@ -24,6 +24,8 @@ struct Sender;     // see: k/sender.h
 
 class Object {
 public:
+  static constexpr unsigned max_head_size = 16+8;  // TODO
+
   /*
    * Sets the object table index for this object, so that the object can find
    * itself and make keys.
@@ -111,6 +113,21 @@ protected:
 
 private:
   TableIndex _index;
+};
+
+template <typename T, unsigned size>
+struct ObjectSubclassChecks {
+  static_assert(sizeof(T) <= Object::max_head_size,
+      "Object subclass head too big");
+
+  static_assert(sizeof(typename T::Body) <= size,
+      "Object subclass body too big");
+};
+
+template <typename T>
+struct ObjectSubclassChecks<T, 0> {
+  static_assert(sizeof(T) <= Object::max_head_size,
+      "Object subclass head too big");
 };
 
 }  // namespace k

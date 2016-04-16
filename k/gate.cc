@@ -1,8 +1,12 @@
 #include "k/gate.h"
 
+#include "common/abi_sizes.h"
+
 #include "k/context.h"
 
 namespace k {
+
+template struct ObjectSubclassChecks<Gate, kabi::gate_size>;
 
 void Gate::deliver_from(Brand const & brand, Sender * sender) {
   if (auto partner = _body.receivers.take()) {

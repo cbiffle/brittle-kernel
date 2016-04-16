@@ -1,16 +1,6 @@
 #ifndef K_GATE_H
 #define K_GATE_H
 
-#include "common/abi_types.h"
-
-#include "k/object.h"
-#include "k/list.h"
-
-namespace k {
-
-struct Context;  // see: k/context.h
-struct BlockingSender;  // see: k/blocking_sender.h
-
 /*
  * A Gate is an Object that can emulate other objects by collaborating with
  * code running in one or more Contexts.
@@ -21,6 +11,17 @@ struct BlockingSender;  // see: k/blocking_sender.h
  *   to it.
  * - Otherwise, the sender is blocked until a receive happens.
  */
+
+#include "common/abi_types.h"
+
+#include "k/object.h"
+#include "k/list.h"
+
+namespace k {
+
+struct Context;  // see: k/context.h
+struct BlockingSender;  // see: k/blocking_sender.h
+
 class Gate final : public Object {
 public:
   struct Body {

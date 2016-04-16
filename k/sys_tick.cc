@@ -3,6 +3,8 @@
 #include "etl/armv7m/scb.h"
 #include "etl/armv7m/sys_tick.h"
 
+#include "common/abi_sizes.h"
+
 #include "k/reply_sender.h"
 
 using etl::armv7m::scb;
@@ -10,6 +12,8 @@ using etl::armv7m::Scb;
 using etl::armv7m::sys_tick;
 
 namespace k {
+
+template struct ObjectSubclassChecks<SysTick, kabi::sys_tick_size>;
 
 SysTick::SysTick(Body & body) : InterruptBase{body} {}
 

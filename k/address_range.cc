@@ -2,6 +2,7 @@
 
 #include "etl/armv7m/mpu.h"
 
+#include "common/abi_sizes.h"
 #include "common/message.h"
 #include "common/descriptor.h"
 
@@ -12,6 +13,8 @@
 using etl::armv7m::Mpu;
 
 namespace k {
+
+template struct ObjectSubclassChecks<AddressRange, kabi::address_range_size>;
 
 AddressRange::AddressRange(RangePtr<uint8_t> range)
   : _range{range} {}

@@ -3,6 +3,8 @@
 #include "etl/armv7m/nvic.h"
 #include "etl/assert.h"
 
+#include "common/abi_sizes.h"
+
 #include "k/reply_sender.h"
 
 using etl::armv7m::nvic;
@@ -108,6 +110,8 @@ void InterruptBase::on_blocked_delivery_failed(Exception, uint32_t) {
 /******************************************************************************
  * Interrupt
  */
+
+template struct ObjectSubclassChecks<Interrupt, kabi::interrupt_size>;
 
 void Interrupt::disable_interrupt() {
   nvic.disable_irq(get_identifier());

@@ -1,10 +1,13 @@
 #include "k/reply_gate.h"
 
+#include "common/abi_sizes.h"
+
 #include "k/context.h"
 #include "k/object_table.h"
 
 namespace k {
 
+template struct ObjectSubclassChecks<ReplyGate, kabi::reply_gate_size>;
 
 void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
   // Filter out messages bearing the wrong brand.

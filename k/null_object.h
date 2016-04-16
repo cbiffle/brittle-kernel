@@ -17,6 +17,9 @@ public:
   void deliver_from(Brand const &, Sender *) override;
 };
 
+static_assert(sizeof(NullObject) <= 16,
+    "Null Object too big");
+
 }  // namespace k
 
 #endif  // K_NULL_OBJECT_H

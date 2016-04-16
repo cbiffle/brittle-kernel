@@ -4,6 +4,7 @@
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 
+#include "common/abi_sizes.h"
 #include "common/message.h"
 #include "common/descriptor.h"
 
@@ -18,6 +19,8 @@
 using etl::armv7m::Word;
 
 namespace k {
+
+template struct ObjectSubclassChecks<Context, kabi::context_size>;
 
 static_assert(__builtin_offsetof(Context::Body, save) == 0,
     "Context::Body::save offset is wrong (should be zero, isn't)");
