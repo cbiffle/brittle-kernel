@@ -14,8 +14,6 @@ class AddressRangeTest_Small : public ::testing::Test {
 protected:
   AddressRange _range {
     {reinterpret_cast<uint8_t *>(256), 256},
-    false,
-    AddressRange::ReadOnly::no,
   };
 
   Region const _reg {
@@ -131,8 +129,6 @@ class AddressRangeTest_Stm32 : public ::testing::Test {
 protected:
   AddressRange _range {
     {reinterpret_cast<uint8_t *>(0x08004000), 1032192},
-    false,
-    AddressRange::ReadOnly::no,
   };
 
   ObjectTable::Entry _entries[1] {

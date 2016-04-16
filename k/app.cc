@@ -139,14 +139,17 @@ static void create_app_objects(Arena & arena) {
           auto begin = reinterpret_cast<uint8_t *>(*map++);
           auto end   = reinterpret_cast<uint8_t *>(*map++);
           auto prevent_execution = bool(*map++);
-          auto read_only =
-            static_cast<AddressRange::ReadOnly>(*map++);
+          auto read_only = *map++;
           auto range = RangePtr<uint8_t>{begin, end};
+
+          // TODO: the two parameter fields are now unused.
+          (void) prevent_execution;
+          (void) read_only;
 
           // TODO: check that this does not alias the kernel or reserved devs
 
           auto ar = new(arena.allocate(sizeof(AddressRange)))
-            AddressRange{range, prevent_execution, read_only};
+            AddressRange{range};
           object_table[i].ptr = ar;
           ar->set_index(i);
           break;

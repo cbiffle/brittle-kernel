@@ -13,12 +13,8 @@ using etl::armv7m::Mpu;
 
 namespace k {
 
-AddressRange::AddressRange(RangePtr<uint8_t> range,
-                           bool prevent_execution,
-                           ReadOnly read_only)
-  : _range{range},
-    _xn{prevent_execution},
-    _read_only{read_only} {}
+AddressRange::AddressRange(RangePtr<uint8_t> range)
+  : _range{range} {}
 
 Region AddressRange::get_region_for_brand(Brand brand) const {
   return { Region::Rbar(uint32_t(brand)), Region::Rasr(uint32_t(brand >> 32)) };
@@ -59,14 +55,6 @@ static bool priv_reads_allowed(Mpu::AccessPermissions ap) {
   return ap != Mpu::AccessPermissions::p_none_u_none;
 }
 
-static bool priv_writes_allowed(Mpu::AccessPermissions ap) {
-  return (unsigned(ap) & 0b100) != 0b100;
-}
-
-static bool unpriv_writes_allowed(Mpu::AccessPermissions ap) {
-  return ap == Mpu::AccessPermissions::p_write_u_write;
-}
-
 Maybe<Key> AddressRange::make_key(Brand brand) {
   auto region = get_region_for_brand(brand);
 
@@ -98,22 +86,6 @@ Maybe<Key> AddressRange::make_key(Brand brand) {
   if (!ap_valid(ap)) return nothing;
 
   if (!priv_reads_allowed(ap)) return nothing;  // must always be permitted
-
-  switch (_read_only) {
-    case ReadOnly::priv:
-      if (priv_writes_allowed(ap)) return nothing;
-      // fall through.
-
-    case ReadOnly::unpriv:
-      if (unpriv_writes_allowed(ap)) return nothing;
-      // fall through.
-    
-    case ReadOnly::no:
-      break;
-  }
-
-  // Check execute permission.
-  if (_xn && !region.rasr.get_xn()) return nothing;
 
   // TODO: should we allow the AddressRange to enforce anything about memory
   // ordering or cache policy?

@@ -17,15 +17,7 @@ struct Region;  // see: k/region.h
  */
 class AddressRange final : public Object {
 public:
-  enum class ReadOnly {
-    no,
-    unpriv,
-    priv,
-  };
-
-  AddressRange(RangePtr<uint8_t>,
-               bool prevent_execution,
-               ReadOnly);
+  AddressRange(RangePtr<uint8_t>);
 
   Region get_region_for_brand(Brand) const;
   static Brand get_brand_for_region(Region);
@@ -48,8 +40,6 @@ public:
 
 private:
   RangePtr<uint8_t> _range;
-  bool _xn;
-  ReadOnly _read_only;
 
   void do_inspect(Brand const &, Message const &, Keys &);
 };
