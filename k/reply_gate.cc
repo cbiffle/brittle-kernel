@@ -19,7 +19,7 @@ void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
   // Invalidate our object table entry, revoking all extant keys.
   if (++_expected_brand == 0) {
     // Also rev the generation to extend the counter's period.
-    object_table.invalidate(get_index());
+    object_table().invalidate(get_index());
   }
 
   // This type of gate refuses to block.  Either its owner is waiting to

@@ -8,10 +8,10 @@ using etl::armv7m::Mpu;
 
 namespace k {
 
-ObjectTable object_table;
-
 class AddressRangeTest_Small : public ::testing::Test {
 protected:
+  ObjectTable the_ot;
+
   AddressRange _range {
     {reinterpret_cast<uint8_t *>(256), 256},
   };
@@ -28,12 +28,13 @@ protected:
   };
 
   void SetUp() override {
-    object_table.set_entries(_entries);
+    set_object_table(&the_ot);
+    the_ot.set_entries(_entries);
     _range.set_index(0);
   }
 
   void TearDown() override {
-    object_table.reset_entries_for_test();
+    reset_object_table_for_test();
   }
 };
 
@@ -127,6 +128,8 @@ TEST_F(AddressRangeTest_Small, make_key_fail_bad_base) {
 
 class AddressRangeTest_Stm32 : public ::testing::Test {
 protected:
+  ObjectTable the_ot;
+
   AddressRange _range {
     {reinterpret_cast<uint8_t *>(0x08004000), 1032192},
   };
@@ -136,12 +139,13 @@ protected:
   };
 
   void SetUp() override {
-    object_table.set_entries(_entries);
+    set_object_table(&the_ot);
+    the_ot.set_entries(_entries);
     _range.set_index(0);
   }
 
   void TearDown() override {
-    object_table.reset_entries_for_test();
+    reset_object_table_for_test();
   }
 };
 

@@ -93,12 +93,6 @@ public:
   void set_entries(RangePtr<Entry>);
 
   /*
-   * Reverses the effect of 'set_entries'.  As the name implies, this is
-   * intended for use in unit tests only.
-   */
-  void reset_entries_for_test();
-
-  /*
    * Looks up an Entry by index.
    */
   Entry & operator[](TableIndex index) { return _objects[index]; }
@@ -122,7 +116,12 @@ private:
   void do_read_key(Brand const &, Message const &, Keys &);
 };
 
-extern ObjectTable object_table;
+/*
+ * Access to singleton instance, provided during initialization.
+ */
+ObjectTable & object_table();
+void set_object_table(ObjectTable *);
+void reset_object_table_for_test();
 
 }  // namespace k
 

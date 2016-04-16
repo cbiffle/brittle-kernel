@@ -64,25 +64,25 @@ static inline AppInfo const & get_app_info() {
 
 static constexpr unsigned well_known_object_count = 4;
 
-// This fulfills the prototype from object_table.h
-ObjectTable object_table;
-
+static ObjectTable the_ot;
 static NullObject null_object;
 static Context first_context;
 static ReplyGate first_context_reply;
 
 
 static void initialize_well_known_objects() {
-  object_table[0].ptr = &null_object;
+  set_object_table(&the_ot);
+
+  the_ot[0].ptr = &null_object;
   null_object.set_index(0);
 
-  object_table[1].ptr = &object_table;
-  object_table.set_index(1);
+  the_ot[1].ptr = &the_ot;
+  the_ot.set_index(1);
 
-  object_table[2].ptr = &first_context;
+  the_ot[2].ptr = &first_context;
   first_context.set_index(2);
 
-  object_table[3].ptr = &first_context_reply;
+  the_ot[3].ptr = &first_context_reply;
   first_context_reply.set_index(3);
   first_context.set_reply_gate_index(3);
 }
@@ -150,7 +150,7 @@ static void create_app_objects(Arena & arena) {
 
           auto ar = new(arena.allocate(sizeof(AddressRange)))
             AddressRange{range};
-          object_table[i].ptr = ar;
+          the_ot[i].ptr = ar;
           ar->set_index(i);
           break;
         }
@@ -161,7 +161,7 @@ static void create_app_objects(Arena & arena) {
           ETL_ASSERT(reply_gate_index < app.object_table_entry_count);
 
           auto c = new(arena.allocate(sizeof(Context))) Context;
-          object_table[i].ptr = c;
+          the_ot[i].ptr = c;
           c->set_index(i);
           c->set_reply_gate_index(reply_gate_index);
           break;
@@ -170,7 +170,7 @@ static void create_app_objects(Arena & arena) {
       case AppInfo::ObjectType::gate:
         {
           auto o = new(arena.allocate(sizeof(Gate))) Gate;
-          object_table[i].ptr = o;
+          the_ot[i].ptr = o;
           o->set_index(i);
           break;
         }
@@ -181,7 +181,7 @@ static void create_app_objects(Arena & arena) {
           ETL_ASSERT(irq < app.external_interrupt_count);
 
           auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{irq};
-          object_table[i].ptr = o;
+          the_ot[i].ptr = o;
           o->set_index(i);
           get_irq_redirection_table()[irq] = o;
           break;
@@ -190,7 +190,7 @@ static void create_app_objects(Arena & arena) {
       case AppInfo::ObjectType::reply_gate:
         {
           auto o = new(arena.allocate(sizeof(ReplyGate))) ReplyGate;
-          object_table[i].ptr = o;
+          the_ot[i].ptr = o;
           o->set_index(i);
           break;
         }
@@ -198,7 +198,7 @@ static void create_app_objects(Arena & arena) {
       case AppInfo::ObjectType::sys_tick:
         {
           auto o = new(arena.allocate(sizeof(SysTick))) SysTick;
-          object_table[i].ptr = o;
+          the_ot[i].ptr = o;
           o->set_index(i);
           set_sys_tick_redirector(o);
           break;
@@ -226,7 +226,7 @@ static void prepare_first_context() {
     auto brand = (Brand(grant.brand_hi) << 32) | grant.brand_lo;
     // Attempt to create a key.
     auto maybe_key =
-      object_table[grant.address_range_index].ptr->make_key(brand);
+      the_ot[grant.address_range_index].ptr->make_key(brand);
     // Attempt to load the corresponding memory region.  If key creation failed
     // the Maybe will assert here.  If the named object is not an AddressRange
     // it will be silently ignored later.
@@ -249,7 +249,7 @@ static void prepare_first_context() {
   }
 
   // Provide initial authority.
-  first_context.key(4) = object_table.make_key(0).ref();
+  first_context.key(4) = the_ot.make_key(0).ref();
 
   // Make it runnable.
   first_context.make_runnable();
@@ -276,14 +276,14 @@ static void initialize_app() {
   arena.reset();
 
   // Use the Arena to create the entry array for the object table itself.
-  object_table.set_entries({
+  the_ot.set_entries({
       static_cast<ObjectTable::Entry *>(
           arena.allocate(
             sizeof(ObjectTable::Entry) * app.object_table_entry_count)),
       app.object_table_entry_count,
       });
   for (unsigned i = 0; i < app.object_table_entry_count; ++i) {
-    object_table[i] = {0, nullptr};
+    the_ot[i] = {0, nullptr};
   }
 
   set_irq_redirection_table({

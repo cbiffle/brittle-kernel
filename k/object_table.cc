@@ -9,13 +9,26 @@
 
 namespace k {
 
+static ObjectTable * instance;
+
+ObjectTable & object_table() {
+  ETL_ASSERT(instance);
+  return *instance;
+}
+
+void set_object_table(ObjectTable * p) {
+  ETL_ASSERT(instance == nullptr);
+  ETL_ASSERT(p);
+  instance = p;
+}
+
+void reset_object_table_for_test() {
+  instance = nullptr;
+}
+
 void ObjectTable::set_entries(RangePtr<Entry> entries) {
   ETL_ASSERT(_objects.is_empty());
   _objects = entries;
-}
-
-void ObjectTable::reset_entries_for_test() {
-  _objects = {};
 }
 
 void ObjectTable::invalidate(TableIndex index) {

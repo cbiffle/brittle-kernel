@@ -232,7 +232,7 @@ void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
 }
 
 Key Context::make_reply_key() const {
-  auto maybe_key = object_table[_reply_gate_index].ptr->make_key(0);
+  auto maybe_key = object_table()[_reply_gate_index].ptr->make_key(0);
   if (maybe_key) return maybe_key.ref();
   return Key::null();
 }
