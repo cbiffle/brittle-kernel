@@ -7,7 +7,7 @@ namespace k {
 
 class SysTick final : public InterruptBase {
 public:
-  SysTick();
+  SysTick(Body &);
 
 private:
   void disable_interrupt() override;

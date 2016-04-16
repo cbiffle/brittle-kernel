@@ -13,22 +13,15 @@ namespace k {
  * InterruptBase
  */
 
-InterruptBase::InterruptBase(uint32_t identifier)
-  : _saved_brand{0},
-    _target{},
-    _sender_item{this},
-    _priority{0},
-    _identifier{identifier} {}
-
 void InterruptBase::trigger() {
   disable_interrupt();
-  if (_sender_item.is_linked()) {
+  if (_body.sender_item.is_linked()) {
     // We took an interrupt while we're still blocking to deliver a previous
     // one!  TODO: what shall we do in this case?  Well, "not crash" is a great
     // start.
     return;
   }
-  _target.deliver_from(this);
+  _body.target.deliver_from(this);
 }
 
 void InterruptBase::deliver_from(Brand const & brand, Sender * sender) {
@@ -63,7 +56,7 @@ void InterruptBase::do_set_target(Brand const &, Message const &, Keys & k) {
 
   ScopedReplySender reply_sender{reply};
 
-  _target = target;
+  _body.target = target;
 }
 
 void InterruptBase::do_enable(Brand const &, Message const & m, Keys & k) {
@@ -76,7 +69,7 @@ void InterruptBase::do_enable(Brand const &, Message const & m, Keys & k) {
 }
 
 Priority InterruptBase::get_priority() const {
-  return _priority;
+  return _body.priority;
 }
 
 Message InterruptBase::on_delivery_accepted(Keys & k) {
@@ -86,7 +79,7 @@ Message InterruptBase::on_delivery_accepted(Keys & k) {
   }
   return {
     Descriptor::zero().with_selector(1),
-    _identifier,
+    _body.identifier,
   };
 }
 
@@ -98,12 +91,12 @@ void InterruptBase::on_delivery_failed(Exception, uint32_t) {
 
 void InterruptBase::block_in_send(Brand const & brand,
                               List<BlockingSender> & list) {
-  _saved_brand = brand;
-  list.insert(&_sender_item);
+  _body.saved_brand = brand;
+  list.insert(&_body.sender_item);
 }
 
 Message InterruptBase::on_blocked_delivery_accepted(Brand & b, Keys & k) {
-  b = _saved_brand;
+  b = _body.saved_brand;
   return on_delivery_accepted(k);
 }
 
@@ -115,9 +108,6 @@ void InterruptBase::on_blocked_delivery_failed(Exception, uint32_t) {
 /******************************************************************************
  * Interrupt
  */
-
-Interrupt::Interrupt(uint32_t irq)
-  : InterruptBase{irq} {}
 
 void Interrupt::disable_interrupt() {
   nvic.disable_irq(get_identifier());

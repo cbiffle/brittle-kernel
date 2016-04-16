@@ -23,13 +23,19 @@ struct BlockingSender;  // see: k/blocking_sender.h
  */
 class Gate final : public Object {
 public:
+  struct Body {
+    List<BlockingSender> senders;
+    List<Context> receivers;
+  };
+
+  Gate(Body & body) : _body(body) {}
+
   void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;
   bool is_gate() const override;
 
 private:
-  List<BlockingSender> _senders;
-  List<Context> _receivers;
+  Body & _body;
 };
 
 }  // namespace k

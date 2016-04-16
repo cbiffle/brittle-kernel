@@ -11,8 +11,7 @@ using etl::armv7m::sys_tick;
 
 namespace k {
 
-SysTick::SysTick()
-  : InterruptBase{0} {}
+SysTick::SysTick(Body & body) : InterruptBase{body} {}
 
 void SysTick::disable_interrupt() {
   sys_tick.write_csr(sys_tick.read_csr().with_tickint(false));

@@ -16,6 +16,18 @@ namespace k {
  */
 class InterruptBase : public Object, public BlockingSender {
 public:
+  struct Body {
+    Brand saved_brand{0};
+    Key target{};
+    List<BlockingSender>::Item sender_item;
+    Priority priority{0};
+    uint32_t identifier;
+
+    Body(uint32_t id)
+      : sender_item{nullptr},
+        identifier{id} {}
+  };
+
   /*
    * Triggers this interrupt.  Should be called from an ISR.
    */
@@ -48,15 +60,13 @@ public:
   void on_blocked_delivery_failed(Exception, uint32_t = 0) override final;
 
 protected:
-  InterruptBase(uint32_t identifier);
-  uint32_t get_identifier() const { return _identifier; }
+  InterruptBase(Body & body) : _body(body) {
+    _body.sender_item.owner = this;
+  }
+  uint32_t get_identifier() const { return _body.identifier; }
 
 private:
-  Brand _saved_brand;
-  Key _target;
-  List<BlockingSender>::Item _sender_item;
-  Priority _priority;
-  uint32_t _identifier;
+  Body & _body;
 
   void do_set_target(Brand const &, Message const &, Keys &);
   void do_enable(Brand const &, Message const &, Keys &);
@@ -79,7 +89,7 @@ private:
  */
 class Interrupt final : public InterruptBase {
 public:
-  explicit Interrupt(uint32_t irq);
+  explicit Interrupt(Body & body) : InterruptBase{body} {}
 
 private:
   void disable_interrupt() override;

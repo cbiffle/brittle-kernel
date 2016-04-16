@@ -35,7 +35,12 @@ struct Sender;  // see: k/sender.h
 
 class ReplyGate final : public Object {
 public:
-  ReplyGate();
+  struct Body {
+    List<Context> receivers{};
+    Brand expected_brand{0};
+  };
+
+  ReplyGate(Body & body) : _body(body) {}
 
   /*
    * Implementation of Object
@@ -46,8 +51,7 @@ public:
   Maybe<Key> make_key(Brand) override;
 
 private:
-  List<Context> _receivers;
-  Brand _expected_brand;
+  Body & _body;
 };
 
 }  // namespace k

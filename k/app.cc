@@ -66,8 +66,10 @@ static constexpr unsigned well_known_object_count = 4;
 
 static ObjectTable the_ot;
 static NullObject null_object;
-static Context first_context;
-static ReplyGate first_context_reply;
+static Context::Body first_context_body;
+static Context first_context{first_context_body};
+static ReplyGate::Body first_context_reply_body;
+static ReplyGate first_context_reply{first_context_reply_body};
 
 
 static void initialize_well_known_objects() {
@@ -160,7 +162,8 @@ static void create_app_objects(Arena & arena) {
           auto reply_gate_index = *map++;
           ETL_ASSERT(reply_gate_index < app.object_table_entry_count);
 
-          auto c = new(arena.allocate(sizeof(Context))) Context;
+          auto b = new(arena.allocate(sizeof(Context::Body))) Context::Body;
+          auto c = new(arena.allocate(sizeof(Context))) Context{*b};
           the_ot[i].ptr = c;
           c->set_index(i);
           c->set_reply_gate_index(reply_gate_index);
@@ -169,7 +172,8 @@ static void create_app_objects(Arena & arena) {
 
       case AppInfo::ObjectType::gate:
         {
-          auto o = new(arena.allocate(sizeof(Gate))) Gate;
+          auto b = new(arena.allocate(sizeof(Gate::Body))) Gate::Body;
+          auto o = new(arena.allocate(sizeof(Gate))) Gate{*b};
           the_ot[i].ptr = o;
           o->set_index(i);
           break;
@@ -180,7 +184,9 @@ static void create_app_objects(Arena & arena) {
           auto irq = *map++;
           ETL_ASSERT(irq < app.external_interrupt_count);
 
-          auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{irq};
+          auto b = new(arena.allocate(sizeof(Interrupt::Body)))
+            Interrupt::Body{irq};
+          auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{*b};
           the_ot[i].ptr = o;
           o->set_index(i);
           get_irq_redirection_table()[irq] = o;
@@ -189,7 +195,9 @@ static void create_app_objects(Arena & arena) {
 
       case AppInfo::ObjectType::reply_gate:
         {
-          auto o = new(arena.allocate(sizeof(ReplyGate))) ReplyGate;
+          auto b = new(arena.allocate(sizeof(ReplyGate::Body)))
+            ReplyGate::Body;
+          auto o = new(arena.allocate(sizeof(ReplyGate))) ReplyGate{*b};
           the_ot[i].ptr = o;
           o->set_index(i);
           break;
@@ -197,7 +205,9 @@ static void create_app_objects(Arena & arena) {
 
       case AppInfo::ObjectType::sys_tick:
         {
-          auto o = new(arena.allocate(sizeof(SysTick))) SysTick;
+          auto b = new(arena.allocate(sizeof(SysTick::Body)))
+            SysTick::Body{0};
+          auto o = new(arena.allocate(sizeof(SysTick))) SysTick{*b};
           the_ot[i].ptr = o;
           o->set_index(i);
           set_sys_tick_redirector(o);

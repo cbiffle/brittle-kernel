@@ -1,6 +1,18 @@
 #ifndef K_CONTEXT_H
 #define K_CONTEXT_H
 
+/*
+ * A hardware execution context -- the kernel side of what an application
+ * might call a task.
+ *
+ * Contexts model only the unprivileged execution environment of the processor,
+ * plus some state needed by the kernel and scheduler.
+ *
+ * A context key gives authority to inspect and alter this machine state, *not*
+ * to communicate with the code it describes; that authority would be conferred
+ * by a gate key.
+ */
+
 #include "etl/armv7m/mpu.h"
 
 #include "common/abi_types.h"
@@ -19,20 +31,10 @@ namespace k {
 struct ScopedReplySender;  // see: k/reply_sender.h
 
 /*
- * A hardware execution context -- the kernel side of what an application
- * might call a task.
- *
- * Contexts model only the unprivileged execution environment of the processor,
- * plus some state needed by the kernel and scheduler.
- *
- * A context key gives authority to inspect and alter this machine state, *not*
- * to communicate with the code it describes; that authority would be conferred
- * by a gate key.
+ * Head portion of a Context object.
  */
 class Context final : public Object, public BlockingSender {
 public:
-  Context();
-
   enum class State {
     stopped = 0,
     runnable,
@@ -40,15 +42,52 @@ public:
     receiving,
   };
 
+  struct Body {
+    // Area for saving the context's callee-save registers.
+    SavedRegisters save{};
+
+    // Address of the top of the context's current stack.  When the task
+    // is stopped, the machine registers are pushed onto this stack.
+    StackRegisters * stack{nullptr};
+
+    // Keys held by the context.
+    Key keys[config::n_task_keys]{};
+
+    // List item used to link this context into typed lists of contexts.
+    // These are used for receiving messages and the run queue.
+    List<Context>::Item ctx_item{nullptr};
+
+    // List item used to link this context into lists of generic senders.
+    List<BlockingSender>::Item sender_item{nullptr};
+
+    Priority priority{0};
+    State state{State::stopped};
+
+    // Brand from the key that was used in the current send, saved for
+    // use later even if the key gets modified.
+    Brand saved_brand{0};
+
+    TableIndex reply_gate_index{0};
+
+    Key memory_regions[config::n_task_regions]{};
+  };
+
+  Context(Body &);
+
   /*************************************************************
    * Context-specific accessors for use inside the kernel.
    */
 
-  void set_reply_gate_index(TableIndex index) { _reply_gate_index = index; }
+  void set_reply_gate_index(TableIndex index) {
+    _body.reply_gate_index = index;
+  }
 
-  StackRegisters * stack() const { return _stack; }
-  void set_stack(StackRegisters * s) { _stack = s; }
-  Key & key(unsigned i) { return _keys[i]; }
+  StackRegisters * stack() const { return _body.stack; }
+  void set_stack(StackRegisters * s) { _body.stack = s; }
+  Key & key(unsigned i) { return _body.keys[i]; }
+  Key & memory_region(unsigned index) {
+    return _body.memory_regions[index];
+  }
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
@@ -59,8 +98,6 @@ public:
                    Message const &);
 
   void apply_to_mpu();
-
-  Key & memory_region(unsigned index) { return _memory_regions[index]; }
 
   /*
    * Context-specific analog to complete_send.  Notifies the Context of a
@@ -141,33 +178,7 @@ public:
   void deliver_from(Brand const &, Sender *) override;
 
 private:
-  // Address of the top of the context's current stack.  When the task
-  // is stopped, the machine registers are pushed onto this stack.
-  StackRegisters * _stack;
-
-  // Area for saving the context's callee-save registers.
-  SavedRegisters _save;
-
-  // Keys held by the context.
-  Key _keys[config::n_task_keys];
-
-  // List item used to link this context into typed lists of contexts.
-  // These are used for receiving messages and the run queue.
-  List<Context>::Item _ctx_item;
-
-  // List item used to link this context into lists of generic senders.
-  List<BlockingSender>::Item _sender_item;
-
-  Priority _priority;
-  State _state;
-
-  // Brand from the key that was used in the current send, saved for
-  // use later even if the key gets modified.
-  Brand _saved_brand;
-
-  TableIndex _reply_gate_index;
-
-  Key _memory_regions[config::n_task_regions];
+  Body & _body;
 
   Descriptor get_descriptor() const;
   Keys & get_message_keys();
