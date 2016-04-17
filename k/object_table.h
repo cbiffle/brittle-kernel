@@ -65,6 +65,8 @@
  *  3. Relatively small (128-bit) key representation.
  */
 
+#include <cstdint>
+
 #include "common/abi_types.h"
 
 #include "k/object.h"
@@ -74,10 +76,12 @@ namespace k {
 
 class ObjectTable final : public Object {
 public:
-  struct Entry {
-    // Address of the object occupying this slot, or nullptr if the slot is
-    // available.
-    Object * ptr;
+  struct alignas(Object) Entry {
+    uint8_t bytes[Object::max_head_size];
+
+    Object & as_object() {
+      return *reinterpret_cast<Object *>(this);
+    }
   };
 
   /*
@@ -89,9 +93,11 @@ public:
   void set_entries(RangePtr<Entry>);
 
   /*
-   * Looks up an Entry by index.
+   * Looks up an Object by index.
    */
-  Entry & operator[](TableIndex index) { return _objects[index]; }
+  Object & operator[](TableIndex index) {
+    return _objects[index].as_object();
+  }
 
   // Implementation of Object.
   void deliver_from(Brand const &, Sender *) override;

@@ -9,6 +9,7 @@
 #include "etl/armv7m/scb.h"
 
 #include "common/app_info.h"
+#include "common/abi_sizes.h"
 
 #include "k/address_range.h"
 #include "k/context.h"
@@ -64,29 +65,33 @@ static inline AppInfo const & get_app_info() {
 
 static constexpr unsigned well_known_object_count = 4;
 
-static ObjectTable the_ot;
-static NullObject null_object;
-static Context::Body first_context_body;
-static Context first_context{first_context_body};
-static ReplyGate::Body first_context_reply_body;
-static ReplyGate first_context_reply{first_context_reply_body};
+static Context * first_context;
 
+static void initialize_well_known_objects(
+    RangePtr<ObjectTable::Entry> entries,
+    Arena & arena) {
+  new(&entries[0]) NullObject;
 
-static void initialize_well_known_objects() {
-  set_object_table(&the_ot);
+  {
+    auto o = new(&entries[1]) ObjectTable;
+    set_object_table(o);
+    o->set_entries(entries);
+  }
 
-  the_ot[0].ptr = &null_object;
-  null_object.set_index(0);
+  {
+    auto b = new(arena.allocate(kabi::context_size)) Context::Body;
+    first_context = new(&entries[2]) Context{*b};
+  }
 
-  the_ot[1].ptr = &the_ot;
-  the_ot.set_index(1);
+  {
+    auto b = new(arena.allocate(kabi::reply_gate_size)) ReplyGate::Body;
+    new(&entries[3]) ReplyGate{*b};
+    first_context->set_reply_gate_index(3);
+  }
 
-  the_ot[2].ptr = &first_context;
-  first_context.set_index(2);
-
-  the_ot[3].ptr = &first_context_reply;
-  first_context_reply.set_index(3);
-  first_context.set_reply_gate_index(3);
+  for (unsigned i = 0; i < well_known_object_count; ++i) {
+    entries[i].as_object().set_index(i);
+  }
 }
 
 
@@ -128,7 +133,8 @@ static void initialize_irq_priorities() {
  * Interpretation of the object map from AppInfo.
  */
 
-static void create_app_objects(Arena & arena) {
+static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
+                               Arena & arena) {
   auto & app = get_app_info();
   auto map = app.object_map;
 
@@ -150,10 +156,8 @@ static void create_app_objects(Arena & arena) {
 
           // TODO: check that this does not alias the kernel or reserved devs
 
-          auto ar = new(arena.allocate(sizeof(AddressRange)))
-            AddressRange{range};
-          the_ot[i].ptr = ar;
-          ar->set_index(i);
+          auto o = new(&entries[i]) AddressRange{range};
+          o->set_index(i);
           break;
         }
 
@@ -163,8 +167,7 @@ static void create_app_objects(Arena & arena) {
           ETL_ASSERT(reply_gate_index < app.object_table_entry_count);
 
           auto b = new(arena.allocate(sizeof(Context::Body))) Context::Body;
-          auto c = new(arena.allocate(sizeof(Context))) Context{*b};
-          the_ot[i].ptr = c;
+          auto c = new(&entries[i]) Context{*b};
           c->set_index(i);
           c->set_reply_gate_index(reply_gate_index);
           break;
@@ -173,8 +176,7 @@ static void create_app_objects(Arena & arena) {
       case AppInfo::ObjectType::gate:
         {
           auto b = new(arena.allocate(sizeof(Gate::Body))) Gate::Body;
-          auto o = new(arena.allocate(sizeof(Gate))) Gate{*b};
-          the_ot[i].ptr = o;
+          auto o = new(&entries[i]) Gate{*b};
           o->set_index(i);
           break;
         }
@@ -186,8 +188,7 @@ static void create_app_objects(Arena & arena) {
 
           auto b = new(arena.allocate(sizeof(Interrupt::Body)))
             Interrupt::Body{irq};
-          auto o = new(arena.allocate(sizeof(Interrupt))) Interrupt{*b};
-          the_ot[i].ptr = o;
+          auto o = new(&entries[i]) Interrupt{*b};
           o->set_index(i);
           get_irq_redirection_table()[irq] = o;
           break;
@@ -197,8 +198,7 @@ static void create_app_objects(Arena & arena) {
         {
           auto b = new(arena.allocate(sizeof(ReplyGate::Body)))
             ReplyGate::Body;
-          auto o = new(arena.allocate(sizeof(ReplyGate))) ReplyGate{*b};
-          the_ot[i].ptr = o;
+          auto o = new(&entries[i]) ReplyGate{*b};
           o->set_index(i);
           break;
         }
@@ -207,8 +207,7 @@ static void create_app_objects(Arena & arena) {
         {
           auto b = new(arena.allocate(sizeof(SysTick::Body)))
             SysTick::Body{0};
-          auto o = new(arena.allocate(sizeof(SysTick))) SysTick{*b};
-          the_ot[i].ptr = o;
+          auto o = new(&entries[i]) SysTick{*b};
           o->set_index(i);
           set_sys_tick_redirector(o);
           break;
@@ -227,6 +226,7 @@ static void create_app_objects(Arena & arena) {
 
 static void prepare_first_context() {
   auto & app = get_app_info();
+  auto & ot = object_table();
 
   // Add memory grants.
   for (auto & grant : app.initial_task_grants) {
@@ -236,16 +236,16 @@ static void prepare_first_context() {
     auto brand = (Brand(grant.brand_hi) << 32) | grant.brand_lo;
     // Attempt to create a key.
     auto maybe_key =
-      the_ot[grant.address_range_index].ptr->make_key(brand);
+      ot[grant.address_range_index].make_key(brand);
     // Attempt to load the corresponding memory region.  If key creation failed
     // the Maybe will assert here.  If the named object is not an AddressRange
     // it will be silently ignored later.
-    first_context.memory_region(i) = maybe_key.ref();
+    first_context->memory_region(i) = maybe_key.ref();
   }
 
   // Go ahead and apply those grants so that we can access stack with
   // unprivileged stores.
-  first_context.apply_to_mpu();
+  first_context->apply_to_mpu();
 
   // Set up registers, some of which live in unprivileged stack memory.  If
   // the initial SP given by the app is not within its initial task grants,
@@ -255,14 +255,14 @@ static void prepare_first_context() {
     bool success = ustore(&s->psr, 1 << 24)
                 && ustore(&s->r15, app.initial_task_pc);
     ETL_ASSERT(success);
-    first_context.set_stack(s);
+    first_context->set_stack(s);
   }
 
   // Provide initial authority.
-  first_context.key(4) = the_ot.make_key(0).ref();
+  first_context->key(4) = ot.make_key(0).ref();
 
   // Make it runnable.
-  first_context.make_runnable();
+  first_context->make_runnable();
 }
 
 
@@ -285,17 +285,15 @@ static void initialize_app() {
 
   arena.reset();
 
-  // Use the Arena to create the entry array for the object table itself.
-  the_ot.set_entries({
+  // Use the Arena to create the object array.
+  auto entries = 
+    RangePtr<ObjectTable::Entry>{
       static_cast<ObjectTable::Entry *>(
           arena.allocate(
             sizeof(ObjectTable::Entry) * app.object_table_entry_count)),
-      app.object_table_entry_count,
-      });
-  for (unsigned i = 0; i < app.object_table_entry_count; ++i) {
-    the_ot[i] = {nullptr};
-  }
+      app.object_table_entry_count};
 
+  // Create the IRQ redirection table and initialize it to nulls.
   set_irq_redirection_table({
       static_cast<Interrupt * *>(
           arena.allocate(
@@ -306,8 +304,8 @@ static void initialize_app() {
     get_irq_redirection_table()[i] = nullptr;
   }
 
-  initialize_well_known_objects();
-  create_app_objects(arena);
+  initialize_well_known_objects(entries, arena);
+  create_app_objects(entries, arena);
   prepare_first_context();
 }
 
@@ -319,7 +317,7 @@ static void initialize_app() {
 __attribute__((noreturn))
 static void start_scheduler() {
   // Designate our first context as the scheduler's 'current' context.
-  current = &first_context;
+  current = first_context;
   current->apply_to_mpu();
 
   asm volatile (

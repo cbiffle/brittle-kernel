@@ -61,8 +61,7 @@ void ObjectTable::do_mint_key(Brand const &,
     reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
   } else {
     // Give the recipient a chance to reject the brand.
-    auto p = _objects[index].ptr ? _objects[index].ptr : _objects[0].ptr;
-    if (auto maybe_key = p->make_key(brand)) {
+    if (auto maybe_key = _objects[index].as_object().make_key(brand)) {
       reply_sender.set_key(1, maybe_key.ref());
     } else {
       reply_sender.get_message() = Message::failure(Exception::bad_brand);
