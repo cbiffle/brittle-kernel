@@ -7,7 +7,7 @@
 
 namespace k {
 
-Object::Object() : _index{0} {}
+Object::Object() : _generation{0}, _index{0} {}
 
 Maybe<Key> Object::make_key(Brand brand) {
   return { Key::filled(_index, brand) };

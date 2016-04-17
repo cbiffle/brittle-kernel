@@ -75,10 +75,6 @@ namespace k {
 class ObjectTable final : public Object {
 public:
   struct Entry {
-    // Distinguishes successive occupants of this entry.  Must match the
-    // generation field of a referencing key for the key to be considered
-    // valid.
-    Generation generation;
     // Address of the object occupying this slot, or nullptr if the slot is
     // available.
     Object * ptr;
@@ -96,15 +92,6 @@ public:
    * Looks up an Entry by index.
    */
   Entry & operator[](TableIndex index) { return _objects[index]; }
-
-  /*
-   * Invalidates all extant keys for the object at a given index.  The keys
-   * will be lazily revoked.  The execution time is not sensitive to the number
-   * of keys.
-   *
-   * Precondition: index is valid.
-   */
-  void invalidate(TableIndex index);
 
   // Implementation of Object.
   void deliver_from(Brand const &, Sender *) override;

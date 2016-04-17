@@ -31,10 +31,6 @@ void ObjectTable::set_entries(RangePtr<Entry> entries) {
   _objects = entries;
 }
 
-void ObjectTable::invalidate(TableIndex index) {
-  ++_objects[index].generation;
-}
-
 void ObjectTable::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);

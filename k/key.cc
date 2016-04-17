@@ -11,14 +11,15 @@ Key Key::filled(TableIndex index, Brand brand) {
   Key k;
 
   k._brand = brand;
-  k._generation = object_table()[index].generation;
+  auto p = object_table()[index].ptr;
+  k._generation = p ? p->get_generation() : 0;
   k._index = index;
   return k;
 }
 
 Object * Key::get() {
   auto const & te = object_table()[_index];
-  if (_generation == te.generation && te.ptr) {
+  if (te.ptr && _generation == te.ptr->get_generation()) {
     return te.ptr;
   } else {
     *this = null();

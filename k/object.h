@@ -38,6 +38,16 @@ public:
   TableIndex get_index() const { return _index; }
 
   /*
+   * Sets the generation number for this object.
+   */
+  void set_generation(Generation g) { _generation = g; }
+
+  /*
+   * Gets the generation number for this object.
+   */
+  Generation get_generation() const { return _generation; }
+
+  /*
    * Generates a key to this object with the given brand, if the brand is
    * acceptable for this object.  The default implementation accepts all
    * brands.  Subclasses can implement this to be more selective.
@@ -112,6 +122,7 @@ protected:
   void do_badop(Message const &, Keys &);
 
 private:
+  Generation _generation;
   TableIndex _index;
 };
 

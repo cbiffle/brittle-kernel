@@ -293,7 +293,7 @@ static void initialize_app() {
       app.object_table_entry_count,
       });
   for (unsigned i = 0; i < app.object_table_entry_count; ++i) {
-    the_ot[i] = {0, nullptr};
+    the_ot[i] = {nullptr};
   }
 
   set_irq_redirection_table({

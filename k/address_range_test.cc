@@ -24,7 +24,7 @@ protected:
   Brand const _reg_brand{AddressRange::get_brand_for_region(_reg)};
 
   ObjectTable::Entry _entries[1] {
-    { 0, &_range },
+    { &_range },
   };
 
   void SetUp() override {
@@ -135,7 +135,7 @@ protected:
   };
 
   ObjectTable::Entry _entries[1] {
-    { 0, &_range },
+    { &_range },
   };
 
   void SetUp() override {
