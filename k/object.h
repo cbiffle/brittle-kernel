@@ -24,18 +24,7 @@ struct Sender;     // see: k/sender.h
 
 class Object {
 public:
-  static constexpr unsigned max_head_size = 16+8;  // TODO
-
-  /*
-   * Sets the object table index for this object, so that the object can find
-   * itself and make keys.
-   */
-  void set_index(TableIndex index) { _index = index; }
-
-  /*
-   * Gets the object table index for this object.
-   */
-  TableIndex get_index() const { return _index; }
+  static constexpr unsigned max_head_size = 16;
 
   /*
    * Sets the generation number for this object.
@@ -123,7 +112,6 @@ protected:
 
 private:
   Generation _generation;
-  TableIndex _index;
 };
 
 template <typename T, unsigned size>

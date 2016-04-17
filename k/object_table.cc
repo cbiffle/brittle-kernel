@@ -73,7 +73,7 @@ void ObjectTable::do_read_key(Brand const &,
                               Message const &,
                               Keys & keys) {
   auto & k = keys.keys[1];
-  auto index = k.get_index();
+  auto index = uint32_t(reinterpret_cast<Entry *>(k.get()) - _objects.base());
   auto brand = k.get_brand();
 
   ScopedReplySender reply_sender{keys.keys[0], {

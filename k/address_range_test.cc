@@ -22,10 +22,6 @@ protected:
     object_table().set_entries(_entries);
 
     new(&_entries[2]) AddressRange{get_actual_range()};
-
-    for (unsigned i = 0; i < etl::array_count(_entries); ++i) {
-      _entries[i].as_object().set_index(i);
-    }
   }
 
   void TearDown() override {

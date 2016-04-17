@@ -67,7 +67,7 @@ public:
     // use later even if the key gets modified.
     Brand saved_brand{0};
 
-    TableIndex reply_gate_index{0};
+    Object * reply_gate;
 
     Key memory_regions[config::n_task_regions]{};
   };
@@ -78,8 +78,8 @@ public:
    * Context-specific accessors for use inside the kernel.
    */
 
-  void set_reply_gate_index(TableIndex index) {
-    _body.reply_gate_index = index;
+  void set_reply_gate(Object * reply_gate) {
+    _body.reply_gate = reply_gate;
   }
 
   StackRegisters * stack() const { return _body.stack; }

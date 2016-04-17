@@ -15,20 +15,14 @@ class Key {
 public:
   /*
    * Static factory function for producing a key filled in with the
-   * given object table index and brand.
+   * given object and brand.
    */
-  static Key filled(TableIndex index, Brand brand);
+  static Key filled(Object *, Brand brand);
 
   /*
    * Static factory function for producing a null key.
    */
-  static constexpr Key null() { return {}; }
-
-  /*
-   * Gets the object table index for the object referenced by this
-   * key.
-   */
-  TableIndex get_index() const { return _index; }
+  static Key null();
 
   /*
    * Gets the brand stored within this key.
@@ -49,8 +43,8 @@ private:
   Brand _brand;
   // Distinguishes successive occupants of a single object table slot.
   Generation _generation;
-  // Index of the object table slot.
-  TableIndex _index;
+  // Object pointer.
+  Object * _ptr;
 };
 
 }  // namespace k

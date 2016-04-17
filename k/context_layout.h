@@ -7,7 +7,7 @@
  * that it can be used in both places.
  */
 
-#define K_CONTEXT_BODY_OFFSET 16
+#define K_CONTEXT_BODY_OFFSET 12
 
 #define K_CONTEXT_BODY_STACK_OFFSET 40
 

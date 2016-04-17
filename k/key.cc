@@ -7,23 +7,31 @@
 
 namespace k {
 
-Key Key::filled(TableIndex index, Brand brand) {
+Key Key::filled(Object * ptr, Brand brand) {
+  ETL_ASSERT(ptr);
+
   Key k;
 
   k._brand = brand;
-  k._generation = object_table()[index].get_generation();
-  k._index = index;
+  k._generation = ptr->get_generation();
+  k._ptr = ptr;
+  return k;
+}
+
+Key Key::null() {
+  Key k;
+
+  k._brand = 0;
+  k._generation = 0;
+  k._ptr = &object_table()[0];
   return k;
 }
 
 Object * Key::get() {
-  auto & o = object_table()[_index];
-  if (_generation == o.get_generation()) {
-    return &o;
-  } else {
+  if (_generation != _ptr->get_generation()) {
     *this = null();
-    return &object_table()[0];
   }
+  return _ptr;
 }
 
 void Key::deliver_from(Sender * sender) {

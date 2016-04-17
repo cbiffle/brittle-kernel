@@ -85,12 +85,8 @@ static void initialize_well_known_objects(
 
   {
     auto b = new(arena.allocate(kabi::reply_gate_size)) ReplyGate::Body;
-    new(&entries[3]) ReplyGate{*b};
-    first_context->set_reply_gate_index(3);
-  }
-
-  for (unsigned i = 0; i < well_known_object_count; ++i) {
-    entries[i].as_object().set_index(i);
+    auto o = new(&entries[3]) ReplyGate{*b};
+    first_context->set_reply_gate(o);
   }
 }
 
@@ -156,8 +152,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
 
           // TODO: check that this does not alias the kernel or reserved devs
 
-          auto o = new(&entries[i]) AddressRange{range};
-          o->set_index(i);
+          (void) new(&entries[i]) AddressRange{range};
           break;
         }
 
@@ -168,16 +163,14 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
 
           auto b = new(arena.allocate(sizeof(Context::Body))) Context::Body;
           auto c = new(&entries[i]) Context{*b};
-          c->set_index(i);
-          c->set_reply_gate_index(reply_gate_index);
+          c->set_reply_gate(&entries[reply_gate_index].as_object());
           break;
         }
 
       case AppInfo::ObjectType::gate:
         {
           auto b = new(arena.allocate(sizeof(Gate::Body))) Gate::Body;
-          auto o = new(&entries[i]) Gate{*b};
-          o->set_index(i);
+          (void) new(&entries[i]) Gate{*b};
           break;
         }
 
@@ -189,7 +182,6 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
           auto b = new(arena.allocate(sizeof(Interrupt::Body)))
             Interrupt::Body{irq};
           auto o = new(&entries[i]) Interrupt{*b};
-          o->set_index(i);
           get_irq_redirection_table()[irq] = o;
           break;
         }
@@ -198,8 +190,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
         {
           auto b = new(arena.allocate(sizeof(ReplyGate::Body)))
             ReplyGate::Body;
-          auto o = new(&entries[i]) ReplyGate{*b};
-          o->set_index(i);
+          (void) new(&entries[i]) ReplyGate{*b};
           break;
         }
 
@@ -208,7 +199,6 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
           auto b = new(arena.allocate(sizeof(SysTick::Body)))
             SysTick::Body{0};
           auto o = new(&entries[i]) SysTick{*b};
-          o->set_index(i);
           set_sys_tick_redirector(o);
           break;
         }
