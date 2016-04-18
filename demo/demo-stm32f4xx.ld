@@ -44,7 +44,7 @@ SECTIONS {
   } >rom
 
   PROVIDE(_app_rom_start = ADDR(.text));
-  PROVIDE(_app_rom_end = ORIGIN(rom) + LENGTH(rom));
+  PROVIDE(_app_rom_l2_half_size = 13);
 
   .kernel_ram : {
     KEEP(*(.__kernel__.stack))
@@ -75,5 +75,5 @@ SECTIONS {
   } >sram112
 
   PROVIDE(_app_ram_start = ORIGIN(sram112));
-  PROVIDE(_app_ram_end = ORIGIN(sram112) + LENGTH(sram112));
+  PROVIDE(_app_ram_l2_half_size = 16);
 }

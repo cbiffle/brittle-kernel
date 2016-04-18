@@ -63,17 +63,6 @@ c_binary('p2range_test',
   ],
 )
 
-c_binary('memory_test',
-  environment = 'native',
-  sources = [
-    'memory_test.cc',
-  ],
-  deps = [
-    ':k_portable',
-    '//3p/gtest',
-  ],
-)
-
 c_library('assert_fail_test',
   sources = [
     'assert_fail_test.cc',

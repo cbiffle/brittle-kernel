@@ -27,8 +27,8 @@ extern "C" {
   extern uint32_t _donated_ram_begin, _donated_ram_end;
   extern uint32_t _demo_initial_stack;
 
-  extern uint32_t _app_rom_start, _app_rom_end;
-  extern uint32_t _app_ram_start, _app_ram_end;
+  extern uint32_t _app_rom_start, _app_rom_l2_half_size;
+  extern uint32_t _app_ram_start, _app_ram_l2_half_size;
 }
 
 __attribute__((section(".app_info0")))
@@ -47,22 +47,14 @@ constexpr AppInfo app_info {
   .initial_task_grants = {
     {  // ROM
       .memory_index = 4,
-      .brand_hi = uint32_t(Rasr()
-          .with_ap(Mpu::AccessPermissions::p_read_u_read)
-          .with_size(13)  // 16kiB
-          .with_enable(true)),
-      .brand_lo = uint32_t(Rbar()
-          .with_addr_27(0x08004000 >> 5)),
+      .brand_lo = uint32_t(Rasr()
+          .with_ap(Mpu::AccessPermissions::p_read_u_read)) >> 8,
     },
     {  // RAM
       .memory_index = 5,
-      .brand_hi = uint32_t(Rasr()
+      .brand_lo = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_write_u_write)
-          .with_size(15)  // 64kiB
-          .with_xn(true)
-          .with_enable(true)),
-      .brand_lo = uint32_t(Rbar()
-          .with_addr_27(0x20000000 >> 5)),
+          .with_xn(true)) >> 8,
     },
   },
 
@@ -75,21 +67,15 @@ uint32_t const object_map[] {
   // 4: Memory describing application ROM.
   0,  // address range
   reinterpret_cast<uint32_t>(&_app_rom_start),  // begin
-  reinterpret_cast<uint32_t>(&_app_rom_end),  // end
-  0,  // allow execution
-  2,  // read-only.
+  reinterpret_cast<uint32_t>(&_app_rom_l2_half_size),
   // 5: Memory describing application RAM.
   0,  // address range
   reinterpret_cast<uint32_t>(&_app_ram_start),  // begin
-  reinterpret_cast<uint32_t>(&_app_ram_end),  // end
-  1,  // disallow execution
-  0,  // read-write
+  reinterpret_cast<uint32_t>(&_app_ram_l2_half_size),
   // 6: Memory describing the peripheral region.
   0,  // address range
   0x40000000,
-  0x60000000,
-  1,  // disallow execution
-  0,  // read-write
+  28,  // 2^(28+1) = 512MiB
   // 7: Driver client gate.
   2,
   // 8: IRQ gate.

@@ -140,19 +140,15 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
     switch (static_cast<AppInfo::ObjectType>(*map++)) {
       case AppInfo::ObjectType::memory:
         {
-          auto begin = reinterpret_cast<uint8_t *>(*map++);
-          auto end   = reinterpret_cast<uint8_t *>(*map++);
-          auto prevent_execution = bool(*map++);
-          auto read_only = *map++;
-          auto range = RangePtr<uint8_t>{begin, end};
+          auto base = *map++;
+          auto l2_half_size = *map++;
 
-          // TODO: the two parameter fields are now unused.
-          (void) prevent_execution;
-          (void) read_only;
+          auto maybe_range = P2Range::of(base, l2_half_size);
+          ETL_ASSERT(maybe_range);
 
           // TODO: check that this does not alias the kernel or reserved devs
 
-          (void) new(&entries[i]) Memory{range};
+          (void) new(&entries[i]) Memory{maybe_range.ref()};
           break;
         }
 
@@ -222,14 +218,12 @@ static void prepare_first_context() {
   for (auto & grant : app.initial_task_grants) {
     // Derive our loop index.
     auto i = &grant - &app.initial_task_grants[0];
-    // Reconstruct the brand from parts.
-    auto brand = (Brand(grant.brand_hi) << 32) | grant.brand_lo;
     // Attempt to create a key.
-    auto maybe_key =
-      ot[grant.memory_index].make_key(brand);
-    // Attempt to load the corresponding memory region.  If key creation failed
-    // the Maybe will assert here.  If the named object is not a Memory object
-    // it will be silently ignored later.
+    auto maybe_key = ot[grant.memory_index].make_key(grant.brand_lo);
+    // Require success.
+    ETL_ASSERT(maybe_key);
+    // Attempt to load the corresponding memory region.  If the named object is
+    // not a Memory object it will be silently ignored later.
     first_context->memory_region(i) = maybe_key.ref();
   }
 

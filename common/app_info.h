@@ -5,7 +5,7 @@
 
 #include "abi_types.h"
 
-static constexpr uint32_t current_abi_token = 0x5ca1ab1e;
+static constexpr uint32_t current_abi_token = 0xca11ab1e;
 
 /*
  * Describes the application's kernel interface.  An instance of this should be
@@ -49,11 +49,8 @@ struct AppInfo {
     // Object table index of the Memory object giving authority for this grant.
     // If zero, the grant will be ignored.
     uint32_t memory_index;
-    // Top 32 bits of the Memory key to mint, which gives the MPU RASR word for
-    // this region.
-    uint32_t brand_hi;
-    // Bottom 32 bits of the Memory key to mint, which gives the MPU RBAR word
-    // for this region.
+    // Bottom 32 bits of the Memory key to mint, which gives the MPU RASR
+    // attributes.
     uint32_t brand_lo;
   };
   // Table of memory grants for initial task.  (The number 4 here is arbitrary.)
@@ -67,9 +64,7 @@ struct AppInfo {
   enum class ObjectType : uint32_t {
     // Describes a kernel Memory object.  Parameters:
     // - Begin address.
-    // - End address.
-    // - Prevent execution (if nonzero).
-    // - Read-write (0), unprivileged read-only (1), read-only (2).
+    // - Size, log2, minus one.
     memory = 0,
 
     // Describes a kernel Context object.  Parameters:

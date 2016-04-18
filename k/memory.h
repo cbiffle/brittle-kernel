@@ -1,35 +1,32 @@
 #ifndef K_MEMORY_H
 #define K_MEMORY_H
 
+/*
+ * A Memory object describes a range of addresses and responds to the memory
+ * region protocol.  Keys to the Memory specify the properties of any memory
+ * region contained within its range.
+ */
+
 #include "k/key.h"
 #include "k/object.h"
-#include "k/range_ptr.h"
+#include "k/p2range.h"
 
 namespace k {
 
 struct Keys;  // see: k/keys.h
 struct Region;  // see: k/region.h
 
-/*
- * A Memory object describes a range of addresses and responds to the memory
- * region protocol.  Keys to the Memory specify the properties of any memory
- * region contained within its range.
- */
 class Memory final : public Object {
 public:
-  Memory(RangePtr<uint8_t>);
+  Memory(P2Range);
 
-  Region get_region_for_brand(Brand) const;
-  static Brand get_brand_for_region(Region);
-
-  void * get_region_begin(Brand) const;
-  void * get_region_end(Brand) const;
+  P2Range get_range() const { return _range; }
 
   /*
-   * Overridden to reject brands that would escalate privileges or leak outside
-   * our range.
+   * Translates a key to this Memory (described by its brand) into the actual
+   * settings that would be loaded into the MPU.
    */
-  Maybe<Key> make_key(Brand) override;
+  Region get_region_for_brand(Brand) const;
 
   void deliver_from(Brand const &, Sender *) override;
 
@@ -39,7 +36,7 @@ public:
   virtual bool is_memory() const override;
 
 private:
-  RangePtr<uint8_t> _range;
+  P2Range _range;
 
   void do_inspect(Brand const &, Message const &, Keys &);
 };
