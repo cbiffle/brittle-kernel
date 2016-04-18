@@ -102,6 +102,12 @@ public:
    */
   virtual bool is_gate() const;
 
+  /*
+   * Checks whether this Object is really a Slot.  The default implementation
+   * returns false.
+   */
+  virtual bool is_slot() const;
+
 protected:
   Object(Generation);
 

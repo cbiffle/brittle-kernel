@@ -5,6 +5,7 @@ c_library('k_portable',
     'null_object.cc',
     'object_table.cc',
     'reply_sender.cc',
+    'slot.cc',
   ],
   local = {
     'cxx_flags': ['-Wno-invalid-offsetof'],
