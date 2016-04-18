@@ -1,0 +1,30 @@
+Today's notes on allocation
+===========================
+
+Okay, the new object model is implemented.
+
+Questions about the design and operation of object destruction can be safely
+postponed to another day.  The next goal is to eliminate (or at least reduce)
+the "object map" by having apps just create their own damn objects.
+
+Things needed:
+
+- Modern "Memory object" behavior.
+  - Split-with-donation.
+  - Merge.
+  - Brands just confer rights, settings.
+- Empty table slot placeholder objects.
+  - And code to stuff them into every table entry.
+- Ability to create objects.
+  - Probably by messaging a Memory Object.
+  - Probably a right that can be removed.
+- Revised object map used primarily to define initial memory objects.
+
+
+Memory Object
+-------------
+
+By encoding the extent in the object, and the attributes in the key, I believe
+the object no longer needs to check brands.
+
+

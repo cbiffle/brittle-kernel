@@ -1,0 +1,73 @@
+More on Allocation
+==================
+
+(Moron Allocation?)
+
+To support object lifecycles we need new kinds of keys.
+
+- Memory keys that can turn into objects.
+
+- Keys giving authority to consume object table slots.
+
+- Keys referring to objects that can turn the objects back into memory.
+
+
+Holding a key to an object should not, *in general,* allow one to recycle it.
+For example, we don't want any old client of a server to be able to recycle the
+server's request gate.
+
+For that matter, we probably don't want the *server* to be able to recycle the
+request gate!
+
+In Potato and in earlier sketches of this allocator, I suggested "receipt keys"
+generated when an object is created, which allow its creator (or any other
+holder) to reclaim its resources.  Implications (for direct non-proxied kernel
+API):
+
+- The creator of an object can also destroy it.  This might be a policy
+  decision inappropriate for the kernel.
+
+- The holder of a receipt key can destroy an object and eat its resources
+  *without needing any other authority over the object.*  That's interesting.
+
+
+A Universal Destroy Verb
+------------------------
+
+Another option would be to add an orthogonal verb to all keys, "Destroy," and
+presumably an orthogonal brand bit to control it.  The initial key granted on
+object creation would allow destruction; presumably users could weaken the key
+to prevent it.
+
+I've considered and rejected this a few times, but I think it's worth
+reconsidering.  I can probably (TODO: check) afford an orthogonal brand bit on
+destructible objects (meaning: not memory objects, not the Object Table).
+
+This is relevant right now because the "receipt key" concept, as originally
+defined, doesn't work in a world of 64-bit generation numbers and 32-bit brands.
+I had imagined the implementation being a branded Object Table key, containing a
+slot index and generation.  Clearly a generation won't fit in a brand in this
+new proposed world.
+
+If receipt keys are instead specialized *object* keys, then they're equivalent
+to the orthogonal brand bit, with the exception that they could implement a
+specialized protocol.
+
+
+If destruction is part of object protocol, how do we destroy objects with no
+protocol?  I'm thinking specifically of gates.
+
+It is obviously useful for "destroy" commands to flow *through* gates in the
+general case, because this would be how we'd emulate destructible objects in
+test or proxy.
+
+So perhaps, as I've considered elsewhere recently, there needs to be a form of
+gate key which is opaque, and can perhaps only perform the following operations:
+
+- Destroy.
+- Generate transparent key (for send, receive, or both).
+
+(Inspecting and altering the block list is another potentially useful role.)
+
+
+
