@@ -15,7 +15,7 @@ Maybe<Key> Object::make_key(Brand brand) {
 void Object::deliver_to(Context * ctx) {
 }
 
-bool Object::is_address_range() const {
+bool Object::is_memory() const {
   return false;
 }
 

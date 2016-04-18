@@ -11,7 +11,7 @@
 #include "common/app_info.h"
 #include "common/abi_sizes.h"
 
-#include "k/address_range.h"
+#include "k/memory.h"
 #include "k/context.h"
 #include "k/gate.h"
 #include "k/interrupt.h"
@@ -138,7 +138,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
        i < app.object_table_entry_count;
        ++i) {
     switch (static_cast<AppInfo::ObjectType>(*map++)) {
-      case AppInfo::ObjectType::address_range:
+      case AppInfo::ObjectType::memory:
         {
           auto begin = reinterpret_cast<uint8_t *>(*map++);
           auto end   = reinterpret_cast<uint8_t *>(*map++);
@@ -152,7 +152,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
 
           // TODO: check that this does not alias the kernel or reserved devs
 
-          (void) new(&entries[i]) AddressRange{range};
+          (void) new(&entries[i]) Memory{range};
           break;
         }
 
@@ -226,9 +226,9 @@ static void prepare_first_context() {
     auto brand = (Brand(grant.brand_hi) << 32) | grant.brand_lo;
     // Attempt to create a key.
     auto maybe_key =
-      ot[grant.address_range_index].make_key(brand);
+      ot[grant.memory_index].make_key(brand);
     // Attempt to load the corresponding memory region.  If key creation failed
-    // the Maybe will assert here.  If the named object is not an AddressRange
+    // the Maybe will assert here.  If the named object is not a Memory object
     // it will be silently ignored later.
     first_context->memory_region(i) = maybe_key.ref();
   }

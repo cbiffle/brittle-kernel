@@ -1,4 +1,4 @@
-#include "k/address_range.h"
+#include "k/memory.h"
 
 #include "etl/armv7m/mpu.h"
 
@@ -14,25 +14,25 @@ using etl::armv7m::Mpu;
 
 namespace k {
 
-template struct ObjectSubclassChecks<AddressRange, kabi::address_range_size>;
+template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
 
-AddressRange::AddressRange(RangePtr<uint8_t> range)
+Memory::Memory(RangePtr<uint8_t> range)
   : _range{range} {}
 
-Region AddressRange::get_region_for_brand(Brand brand) const {
+Region Memory::get_region_for_brand(Brand brand) const {
   return { Region::Rbar(uint32_t(brand)), Region::Rasr(uint32_t(brand >> 32)) };
 }
 
-Brand AddressRange::get_brand_for_region(Region region) {
+Brand Memory::get_brand_for_region(Region region) {
   return Brand(uint32_t(region.rbar)) | (Brand(uint32_t(region.rasr)) << 32);
 }
 
-void * AddressRange::get_region_begin(Brand brand) const {
+void * Memory::get_region_begin(Brand brand) const {
   auto region = get_region_for_brand(brand);
   return reinterpret_cast<void *>(region.rbar.get_addr_27() << 5);
 }
 
-void * AddressRange::get_region_end(Brand brand) const {
+void * Memory::get_region_end(Brand brand) const {
   auto region = get_region_for_brand(brand);
   auto begin = region.rbar.get_addr_27() << 5;
   auto size = uintptr_t(1) << (region.rasr.get_size() + 1);
@@ -58,7 +58,7 @@ static bool priv_reads_allowed(Mpu::AccessPermissions ap) {
   return ap != Mpu::AccessPermissions::p_none_u_none;
 }
 
-Maybe<Key> AddressRange::make_key(Brand brand) {
+Maybe<Key> Memory::make_key(Brand brand) {
   auto region = get_region_for_brand(brand);
 
   // Any ones in reserved bit positions are suspicious.  Since the ETL API
@@ -90,18 +90,18 @@ Maybe<Key> AddressRange::make_key(Brand brand) {
 
   if (!priv_reads_allowed(ap)) return nothing;  // must always be permitted
 
-  // TODO: should we allow the AddressRange to enforce anything about memory
+  // TODO: should we allow the Memory to enforce anything about memory
   // ordering or cache policy?
 
   // Checks pass; defer to superclass implementation.
   return Object::make_key(brand);
 }
 
-bool AddressRange::is_address_range() const {
+bool Memory::is_memory() const {
   return true;
 }
 
-void AddressRange::deliver_from(Brand const & brand, Sender * sender) {
+void Memory::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
 
@@ -116,7 +116,7 @@ void AddressRange::deliver_from(Brand const & brand, Sender * sender) {
   }
 }
 
-void AddressRange::do_inspect(Brand const & brand,
+void Memory::do_inspect(Brand const & brand,
                               Message const &,
                               Keys & k) {
   ScopedReplySender reply_sender{k.keys[0], {

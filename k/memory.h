@@ -1,5 +1,5 @@
-#ifndef K_ADDRESS_RANGE_H
-#define K_ADDRESS_RANGE_H
+#ifndef K_MEMORY_H
+#define K_MEMORY_H
 
 #include "k/key.h"
 #include "k/object.h"
@@ -11,13 +11,13 @@ struct Keys;  // see: k/keys.h
 struct Region;  // see: k/region.h
 
 /*
- * An AddressRange describes a range of addresses and responds to the memory
- * region protocol.  Keys to the AddressRange specify the properties of any
- * memory region contained within its range.
+ * A Memory object describes a range of addresses and responds to the memory
+ * region protocol.  Keys to the Memory specify the properties of any memory
+ * region contained within its range.
  */
-class AddressRange final : public Object {
+class Memory final : public Object {
 public:
-  AddressRange(RangePtr<uint8_t>);
+  Memory(RangePtr<uint8_t>);
 
   Region get_region_for_brand(Brand) const;
   static Brand get_brand_for_region(Region);
@@ -34,9 +34,9 @@ public:
   void deliver_from(Brand const &, Sender *) override;
 
   /*
-   * Overridden to insist that this is, in fact, an AddressRange.
+   * Overridden to insist that this is, in fact, Memory.
    */
-  virtual bool is_address_range() const override;
+  virtual bool is_memory() const override;
 
 private:
   RangePtr<uint8_t> _range;
@@ -46,4 +46,4 @@ private:
 
 }  // namespace k
 
-#endif  // K_ADDRESS_RANGE_H
+#endif  // K_MEMORY_H

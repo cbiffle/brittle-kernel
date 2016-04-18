@@ -91,10 +91,10 @@ public:
   virtual void deliver_to(Context *);
 
   /*
-   * Checks whether this Object is really an AddressRange.  The default
-   * implementation returns false.
+   * Checks whether this Object is really a Memory.  The default implementation
+   * returns false.
    */
-  virtual bool is_address_range() const;
+  virtual bool is_memory() const;
 
   /*
    * Checks whether this Object is really a Gate.  The default implementation

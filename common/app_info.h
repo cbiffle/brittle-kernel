@@ -46,14 +46,14 @@ struct AppInfo {
 
   // Structure of a memory grant.
   struct MemGrant {
-    // Object table index of the AddressRange giving authority for this grant.
+    // Object table index of the Memory object giving authority for this grant.
     // If zero, the grant will be ignored.
-    uint32_t address_range_index;
-    // Top 32 bits of the AddressRange key to mint, which gives the MPU RASR
-    // word for this region.
+    uint32_t memory_index;
+    // Top 32 bits of the Memory key to mint, which gives the MPU RASR word for
+    // this region.
     uint32_t brand_hi;
-    // Bottom 32 bits of the AddressRange key to mint, which gives the MPU
-    // RBAR word for this region.
+    // Bottom 32 bits of the Memory key to mint, which gives the MPU RBAR word
+    // for this region.
     uint32_t brand_lo;
   };
   // Table of memory grants for initial task.  (The number 4 here is arbitrary.)
@@ -65,12 +65,12 @@ struct AppInfo {
   uint32_t object_map[];
 
   enum class ObjectType : uint32_t {
-    // Describes a kernel AddressRange object.  Parameters:
+    // Describes a kernel Memory object.  Parameters:
     // - Begin address.
     // - End address.
     // - Prevent execution (if nonzero).
     // - Read-write (0), unprivileged read-only (1), read-only (2).
-    address_range = 0,
+    memory = 0,
 
     // Describes a kernel Context object.  Parameters:
     // - Object table index of reply gate.

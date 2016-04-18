@@ -17,7 +17,7 @@ void Object::deliver_to(Context * ctx) {
   ctx->complete_receive(Exception::bad_operation);
 }
 
-bool Object::is_address_range() const {
+bool Object::is_memory() const {
   return false;
 }
 

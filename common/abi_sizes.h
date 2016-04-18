@@ -6,7 +6,7 @@
 namespace kabi {
 
 static constexpr unsigned
-  address_range_size = 0,
+  memory_size = 0,
   context_size = 512,
   gate_size = k::config::n_priorities * 16,
   interrupt_size = 32 + k::config::n_priorities * 8,

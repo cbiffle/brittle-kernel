@@ -1,7 +1,7 @@
 c_library('k_portable',
   sources = [
-    'address_range.cc',
     'key.cc',
+    'memory.cc',
     'null_object.cc',
     'object_table.cc',
     'reply_sender.cc',
@@ -53,10 +53,10 @@ c_library('k',
   },
 )
 
-c_binary('address_range_test',
+c_binary('memory_test',
   environment = 'native',
   sources = [
-    'address_range_test.cc',
+    'memory_test.cc',
   ],
   deps = [
     ':k_portable',

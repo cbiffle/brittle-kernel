@@ -8,7 +8,7 @@
 #include "common/message.h"
 #include "common/descriptor.h"
 
-#include "k/address_range.h"
+#include "k/memory.h"
 #include "k/context_layout.h"
 #include "k/object_table.h"
 #include "k/registers.h"
@@ -132,8 +132,8 @@ void Context::apply_to_mpu() {
     mpu.write_rnr(i);
     auto object = _body.memory_regions[i].get();
     // TODO: this cast pattern is sub-optimal.  Better to have a cast method.
-    if (object->is_address_range()) {
-      auto range = static_cast<AddressRange *>(object);
+    if (object->is_memory()) {
+      auto range = static_cast<Memory *>(object);
       auto region =
         range->get_region_for_brand(_body.memory_regions[i].get_brand());
       mpu.write_rbar(region.rbar);

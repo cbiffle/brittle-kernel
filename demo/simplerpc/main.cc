@@ -38,7 +38,7 @@ constexpr AppInfo app_info {
 
   .initial_task_grants = {
     {  // ROM
-      .address_range_index = 4,
+      .memory_index = 4,
       .brand_hi = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_read_u_read)
           .with_size(13)  // 16kiB
@@ -47,7 +47,7 @@ constexpr AppInfo app_info {
           .with_addr_27(0x08004000 >> 5)),
     },
     {  // RAM
-      .address_range_index = 5,
+      .memory_index = 5,
       .brand_hi = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_write_u_write)
           .with_size(15)  // 64kiB
@@ -64,13 +64,13 @@ constexpr AppInfo app_info {
 __attribute__((section(".app_info1")))
 __attribute__((used))
 uint32_t const object_map[] {
-  // 4: AddressRange describing application ROM.
+  // 4: Memory describing application ROM.
   0,  // address range
   reinterpret_cast<uint32_t>(&_app_rom_start),  // begin
   reinterpret_cast<uint32_t>(&_app_rom_end),  // end
   0,  // allow execution
   2,  // read-only.
-  // 5: AddressRange describing application RAM.
+  // 5: Memory describing application RAM.
   0,  // address range
   reinterpret_cast<uint32_t>(&_app_ram_start),  // begin
   reinterpret_cast<uint32_t>(&_app_ram_end),  // end
