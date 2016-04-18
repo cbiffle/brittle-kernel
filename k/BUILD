@@ -53,6 +53,16 @@ c_library('k',
   },
 )
 
+c_binary('p2range_test',
+  environment = 'native',
+  sources = [
+    'p2range_test.cc',
+  ],
+  deps = [
+    ':k_portable',
+  ],
+)
+
 c_binary('memory_test',
   environment = 'native',
   sources = [
