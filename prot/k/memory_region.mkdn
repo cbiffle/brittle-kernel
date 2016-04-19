@@ -1,25 +1,23 @@
 Memory Region Protocol
 ======================
 
-A memory region is a naturally aligned power-of-two-sized section of address
-space.  It bears some combination of:
-- Read/write execute permissions, and
-- The cache policy and memory ordering.
+A memory object is a naturally aligned power-of-two-sized section of address
+space.
 
-In an architecture-specific peculiarity, memory regions larger than 128 bytes
-can have each eighth of their address space individually enabled or disabled.
+A key to a memory object additionally carries attributes and implements the
+Memory Region Protocol, 
 
-Memory regions are treated here as "value objects."  A memory region key is
-effectively immutable, but operations on it can derive new keys with different
-properties.  These keys confer equal or lesser authority compared to their
-"parent" key.
+Keys to memory regions of 256 bytes and larger can have each eighth of their
+address space individually disabled.  Bytes disabled in this way remain members
+of the parent memory region object.
 
 
 Inspect Region (0)
 ------------------
 
-Returns the actual ARMv7-M MPU values that would be loaded if this page were
-added to an address space.  This encoding is awkward but honest.
+Returns the actual ARMv7-M MPU values that would be loaded if this region were
+assigned to a Context's MPU Region Registers.  This encoding is awkward but
+honest.
 
 Arguments:
 - d0: descriptor
@@ -30,28 +28,57 @@ Results:
 - d2: Region Attribute and Size Register contents
 
 
-Split Page (1)
---------------
+Change Attributes (1)
+---------------------
 
-Derives two new memory region keys, representing the bottom and top halves of
-this memory region.  Other attributes (read/write/execute permissions,
-cacheability, etc.) are unchanged.
+Derives a new key with different attributes, given by a replacement value for
+the Region Attribute and Size Register (RASR).
 
-As always, the original key is not altered.
+For this operation to succeed, the new value must imply equal or weaker access
+than the old one, and must not enable any subregions that were previously
+disabled.
+
+The size and enable fields, and any bits reserved in the ARMv7-M spec, are
+ignored.
+
+Arguments:
+- d0: descriptor
+- d1: new RASR value.
+
+Results:
+- d0: success descriptor
+- k1: new key
+
+Exceptions:
+- `k.bad_argument` if the RASR value would increase access.
+
+
+Split Region (2)
+----------------
+
+Breaks a region into two: the bottom and top halves.  The two halves are the
+same size, and are thus still correctly aligned.
 
 Splitting is impossible in the following circumstances:
 
  1. The memory region is already the architecture's minimum size (32 bytes).
 
- 2. The memory region is 256 bytes in size and has subregions disabled, since
-    the resulting 128-byte memory regions cannot have subregions disabled.
+ 2. The invoked key has any subregion disable bits set.
 
-Any areas of the original memory region rendered inaccessible by subregion
-disable bits will remain inaccessible in the derived keys, by expanding each
-disabled region to affect two adjacent (and half-sized) subregions.
+Splitting a memory region creates one net new object, and so the operation
+requires donation of a Slot key; the other object uses the slot originally used
+by the target.  Both the Slot key and the target are consumed.
+
+The two keys returned in the reply represent the only extant keys to each half.
+
+Both returned keys have the same memory attributes (access permissions,
+cacheability, etc.) as the original.
+
+TODO: splitting should be controlled by a bit in the brand.
 
 Arguments:
 - d0: descriptor
+- k1: slot key being donated.
 
 Results:
 - d0: success descriptor
@@ -59,45 +86,9 @@ Results:
 - k2: top half
 
 Exceptions:
-- `k.region_too_small` if the region cannot be split.
+- `k.bad_operation` if the region cannot be split for size reasons.
+- `k.bad_state` if the region has subregion disable bits set.
+- `k.bad_kind` if the provided key is not a Slot key.
 
 
-Disable Subregions (2)
-----------------------
 
-Derives a new memory region key with some subregions (possibly all!) disabled.
-The given disable mask is bitwise-ORed with the original disable mask, so if
-all the requested subregions are already disabled, the new key is identical.
-
-As always, the original key is not altered.
-
-This operation will be refused if the memory region is 128 bytes or smaller.
-
-Arguments:
-- d0: descriptor
-- d1: disable mask (in low 8 bits)
-
-Results:
-- d0: success descriptor
-- k1: new key
-
-
-Drop Privileges (3)
--------------------
-
-Derives a new memory region key with certain privileges missing, controlled by
-the arguments.  If the existing key didn't have the permissions in question,
-the new key is identical.
-
-As always, the original key is not altered.
-
-Arguments:
-- d0: descriptor
-- d1: privileges to drop bitmask
-  - 0: execute
-  - 1: write
-  - 2: read
-
-Results:
-- d0: success code
-- k1: new key

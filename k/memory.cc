@@ -42,6 +42,10 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       do_inspect(brand, m, k);
       break;
 
+    case 1:
+      do_change(brand, m, k);
+      break;
+
     default:
       do_badop(m, k);
       break;
@@ -58,6 +62,72 @@ void Memory::do_inspect(Brand const & brand,
     uint32_t(reg.rbar),
     uint32_t(reg.rasr),
   }};
+}
+
+static bool ap_is_unpredictable(Mpu::AccessPermissions ap) {
+  // Per table B3-15 in ARMv7-M ARM
+  return uint32_t(ap) > 0b111 || uint32_t(ap) == 0b100;
+}
+
+enum class Access { none, read, write };
+struct SplitAccess { Access priv, unpriv; };
+
+static SplitAccess decode_ap(Mpu::AccessPermissions ap) {
+#define CASE(p, u) \
+  case Mpu::AccessPermissions::p_##p##_u_##u: \
+    return { Access::p, Access::u };
+
+  switch (ap) {
+    CASE(none, none)
+    CASE(read, none)
+    CASE(read, read)
+    CASE(write, none)
+    CASE(write, read)
+    CASE(write, write)
+
+    default:
+      // This case should have been prevented by a call to ap_is_unpredictable,
+      // above.
+      ETL_ASSERT(false);
+  }
+#undef CASE
+}
+
+static bool ap_is_stronger(Mpu::AccessPermissions a, Mpu::AccessPermissions b) {
+  auto da = decode_ap(a);
+  auto db = decode_ap(b);
+
+  return da.priv > db.priv || da.unpriv > db.unpriv;
+}
+
+void Memory::do_change(Brand const & brand,
+                       Message const & m,
+                       Keys & k) {
+  ScopedReplySender reply_sender{k.keys[0]};
+
+  auto rasr_dirty = Region::Rasr(m.d1);
+
+  // Copy the defined and relevant fields into a new value.  This is equivalent
+  // to a very wordy bitmask.
+  auto rasr = Region::Rasr()
+    .with_xn(rasr_dirty.get_xn())
+    .with_ap(rasr_dirty.get_ap())
+    .with_tex(rasr_dirty.get_tex())
+    .with_s(rasr_dirty.get_s())
+    .with_c(rasr_dirty.get_c())
+    .with_b(rasr_dirty.get_b())
+    .with_srd(rasr_dirty.get_srd());
+
+  auto current = get_region_for_brand(brand).rasr;
+
+  if (ap_is_unpredictable(rasr.get_ap())
+      || ap_is_stronger(rasr.get_ap(), current.get_ap())) {
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    return;
+  }
+
+  auto new_brand = uint32_t(rasr) >> 8;
+  reply_sender.set_key(1, make_key(new_brand).ref());
 }
 
 }  // namespace k

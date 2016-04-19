@@ -65,6 +65,11 @@ enum class Exception : uint64_t {
    * a key.
    */
   bad_brand = 0x71decab8530ce0eb,
+
+  /*
+   * An argument (data word) you provided is not acceptable for the operation.
+   */
+  bad_argument = 0x05d87accc034ac82,
 };
 
 #endif  // COMMON_EXCEPTIONS_H

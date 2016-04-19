@@ -39,6 +39,7 @@ private:
   P2Range _range;
 
   void do_inspect(Brand const &, Message const &, Keys &);
+  void do_change(Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k
