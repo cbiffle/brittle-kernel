@@ -26,6 +26,8 @@ void reset_object_table_for_test() {
   instance = nullptr;
 }
 
+ObjectTable::ObjectTable(Generation g) : Object{g} {}
+
 void ObjectTable::set_entries(RangePtr<Entry> entries) {
   ETL_ASSERT(_objects.is_empty());
   _objects = entries;

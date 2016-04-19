@@ -18,7 +18,7 @@ struct Region;  // see: k/region.h
 
 class Memory final : public Object {
 public:
-  Memory(P2Range);
+  Memory(Generation, P2Range);
 
   P2Range get_range() const { return _range; }
 

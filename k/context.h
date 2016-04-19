@@ -72,7 +72,7 @@ public:
     Key memory_regions[config::n_task_regions]{};
   };
 
-  Context(Body &);
+  Context(Generation g, Body &);
 
   /*************************************************************
    * Context-specific accessors for use inside the kernel.

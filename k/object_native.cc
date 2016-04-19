@@ -6,7 +6,7 @@
 
 namespace k {
 
-Object::Object() : _generation{0} {}
+Object::Object(Generation g) : _generation{g} {}
 
 Maybe<Key> Object::make_key(Brand brand) {
   return { Key::filled(this, brand) };

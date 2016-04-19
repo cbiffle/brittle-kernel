@@ -33,8 +33,9 @@ static_assert(K_CONTEXT_BODY_STACK_OFFSET ==
  * Context-specific stuff
  */
 
-Context::Context(Body & body)
-  : _body(body) {
+Context::Context(Generation g, Body & body)
+  : Object{g},
+    _body(body) {
   body.ctx_item.owner = this;
   body.sender_item.owner = this;
 }

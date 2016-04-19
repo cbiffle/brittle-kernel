@@ -70,22 +70,22 @@ static Context * first_context;
 static void initialize_well_known_objects(
     RangePtr<ObjectTable::Entry> entries,
     Arena & arena) {
-  new(&entries[0]) NullObject;
+  new(&entries[0]) NullObject{0};
 
   {
-    auto o = new(&entries[1]) ObjectTable;
+    auto o = new(&entries[1]) ObjectTable{0};
     set_object_table(o);
     o->set_entries(entries);
   }
 
   {
     auto b = new(arena.allocate(kabi::context_size)) Context::Body;
-    first_context = new(&entries[2]) Context{*b};
+    first_context = new(&entries[2]) Context{0, *b};
   }
 
   {
     auto b = new(arena.allocate(kabi::reply_gate_size)) ReplyGate::Body;
-    auto o = new(&entries[3]) ReplyGate{*b};
+    auto o = new(&entries[3]) ReplyGate{0, *b};
     first_context->set_reply_gate(o);
   }
 }
@@ -148,7 +148,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
 
           // TODO: check that this does not alias the kernel or reserved devs
 
-          (void) new(&entries[i]) Memory{maybe_range.ref()};
+          (void) new(&entries[i]) Memory{0, maybe_range.ref()};
           break;
         }
 
@@ -158,7 +158,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
           ETL_ASSERT(reply_gate_index < app.object_table_entry_count);
 
           auto b = new(arena.allocate(sizeof(Context::Body))) Context::Body;
-          auto c = new(&entries[i]) Context{*b};
+          auto c = new(&entries[i]) Context{0, *b};
           c->set_reply_gate(&entries[reply_gate_index].as_object());
           break;
         }
@@ -166,7 +166,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
       case AppInfo::ObjectType::gate:
         {
           auto b = new(arena.allocate(sizeof(Gate::Body))) Gate::Body;
-          (void) new(&entries[i]) Gate{*b};
+          (void) new(&entries[i]) Gate{0, *b};
           break;
         }
 
@@ -177,7 +177,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
 
           auto b = new(arena.allocate(sizeof(Interrupt::Body)))
             Interrupt::Body{irq};
-          auto o = new(&entries[i]) Interrupt{*b};
+          auto o = new(&entries[i]) Interrupt{0, *b};
           get_irq_redirection_table()[irq] = o;
           break;
         }
@@ -186,7 +186,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
         {
           auto b = new(arena.allocate(sizeof(ReplyGate::Body)))
             ReplyGate::Body;
-          (void) new(&entries[i]) ReplyGate{*b};
+          (void) new(&entries[i]) ReplyGate{0, *b};
           break;
         }
 
@@ -194,7 +194,7 @@ static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
         {
           auto b = new(arena.allocate(sizeof(SysTick::Body)))
             SysTick::Body{0};
-          auto o = new(&entries[i]) SysTick{*b};
+          auto o = new(&entries[i]) SysTick{0, *b};
           set_sys_tick_redirector(o);
           break;
         }

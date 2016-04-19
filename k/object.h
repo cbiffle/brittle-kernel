@@ -103,7 +103,7 @@ public:
   virtual bool is_gate() const;
 
 protected:
-  Object();
+  Object(Generation);
 
   /*
    * Common implementation for refusing a bad selector.

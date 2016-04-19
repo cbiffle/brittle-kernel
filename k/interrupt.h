@@ -60,7 +60,7 @@ public:
   void on_blocked_delivery_failed(Exception, uint32_t = 0) override final;
 
 protected:
-  InterruptBase(Body & body) : _body(body) {
+  InterruptBase(Generation g, Body & body) : Object{g}, _body(body) {
     _body.sender_item.owner = this;
   }
   uint32_t get_identifier() const { return _body.identifier; }
@@ -89,7 +89,7 @@ private:
  */
 class Interrupt final : public InterruptBase {
 public:
-  explicit Interrupt(Body & body) : InterruptBase{body} {}
+  explicit Interrupt(Generation g, Body & body) : InterruptBase{g, body} {}
 
 private:
   void disable_interrupt() override;

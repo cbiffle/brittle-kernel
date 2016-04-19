@@ -40,7 +40,7 @@ public:
     Brand expected_brand{0};
   };
 
-  ReplyGate(Body & body) : _body(body) {}
+  ReplyGate(Generation g, Body & body) : Object{g}, _body(body) {}
 
   /*
    * Implementation of Object

@@ -76,6 +76,8 @@ namespace k {
 
 class ObjectTable final : public Object {
 public:
+  ObjectTable(Generation);
+
   struct alignas(Object) Entry {
     uint8_t bytes[Object::max_head_size];
 

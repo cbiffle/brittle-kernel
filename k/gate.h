@@ -29,7 +29,7 @@ public:
     List<Context> receivers;
   };
 
-  Gate(Body & body) : _body(body) {}
+  Gate(Generation g, Body & body) : Object{g}, _body(body) {}
 
   void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;

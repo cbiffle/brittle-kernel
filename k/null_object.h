@@ -14,6 +14,7 @@ namespace k {
  */
 class NullObject final : public Object {
 public:
+  NullObject(Generation);
   void deliver_from(Brand const &, Sender *) override;
 };
 

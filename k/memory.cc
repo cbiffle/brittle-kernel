@@ -16,8 +16,8 @@ namespace k {
 
 template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
 
-Memory::Memory(P2Range range)
-  : _range{range} {}
+Memory::Memory(Generation g, P2Range range)
+  : Object{g}, _range{range} {}
 
 Region Memory::get_region_for_brand(Brand brand) const {
   return {

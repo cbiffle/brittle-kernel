@@ -15,7 +15,7 @@ namespace k {
 
 template struct ObjectSubclassChecks<SysTick, kabi::sys_tick_size>;
 
-SysTick::SysTick(Body & body) : InterruptBase{body} {}
+SysTick::SysTick(Generation g, Body & body) : InterruptBase{g, body} {}
 
 void SysTick::disable_interrupt() {
   sys_tick.write_csr(sys_tick.read_csr().with_tickint(false));
