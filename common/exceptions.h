@@ -70,6 +70,11 @@ enum class Exception : uint64_t {
    * An argument (data word) you provided is not acceptable for the operation.
    */
   bad_argument = 0x05d87accc034ac82,
+
+  /*
+   * A key provided as an argument to the operation is the wrong kind of key.
+   */
+  bad_kind = 0x2cd5ea64cc3bfcd6,
 };
 
 #endif  // COMMON_EXCEPTIONS_H

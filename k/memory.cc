@@ -7,6 +7,7 @@
 #include "common/descriptor.h"
 
 #include "k/sender.h"
+#include "k/slot.h"
 #include "k/region.h"
 #include "k/reply_sender.h"
 
@@ -44,6 +45,10 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
 
     case 1:
       do_change(brand, m, k);
+      break;
+
+    case 2:
+      do_split(brand, m, k);
       break;
 
     default:
@@ -130,6 +135,61 @@ void Memory::do_change(Brand const & brand,
 
   auto new_brand = uint32_t(rasr) >> 8;
   reply_sender.set_key(1, make_key(new_brand).ref());
+}
+
+void Memory::do_split(Brand const & brand,
+                      Message const & m,
+                      Keys & k) {
+  ScopedReplySender reply_sender{k.keys[0]};
+
+  auto & donation_key = k.keys[1];
+
+  if (get_region_for_brand(brand).rasr.get_srd()) {
+    // Can't split, some subregions are disabled.
+    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    return;
+  }
+
+  auto maybe_bottom = _range.bottom();
+  auto maybe_top = _range.top();
+
+  if (!maybe_bottom || !maybe_top) {
+    // Can't split, too small.
+    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    return;
+  }
+
+  auto & bottom = maybe_bottom.ref();
+  auto & top = maybe_top.ref();
+
+  auto objptr = donation_key.get();
+  if (!objptr->is_slot()) {
+    // Can't split, donation was of wrong type.
+    reply_sender.get_message() = Message::failure(Exception::bad_kind);
+    return;
+  }
+
+  // Note that, since the object pointer is_slot, it does not alias this.
+
+  // Commit point
+
+  // Invalidate all existing keys to this object.
+  set_generation(get_generation() + 1);
+  // Shrink this object to the bottom of the range.
+  _range = bottom;
+  // Provide a key to the resulting shrunk version.
+  reply_sender.set_key(1, make_key(brand).ref());
+
+  // Rewrite the donated slot object.
+  // Record the generation so we can +1 it.
+  auto other_generation = objptr->get_generation();
+  // Ensure that Slot's destructor is run (currently meaningless, but good
+  // practice).
+  static_cast<Slot *>(objptr)->~Slot();
+  // Create the Memory object, implicitly revoking keys to the Slot.
+  auto memptr = new(objptr) Memory{other_generation + 1, top};
+  // Provide a key.
+  reply_sender.set_key(2, memptr->make_key(brand).ref());
 }
 
 }  // namespace k

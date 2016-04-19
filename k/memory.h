@@ -40,6 +40,7 @@ private:
 
   void do_inspect(Brand const &, Message const &, Keys &);
   void do_change(Brand const &, Message const &, Keys &);
+  void do_split(Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k
