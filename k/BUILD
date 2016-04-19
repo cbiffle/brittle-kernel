@@ -18,7 +18,7 @@ c_library('k_portable',
   ],
 ).extend_when(lambda e: e['arch'] == 'native',
   sources = [
-    'object_native.cc',
+    'testutil/object_native.cc',
   ],
   deps = [
     ':assert_fail_test',
@@ -65,7 +65,7 @@ c_binary('p2range_test',
 
 c_library('assert_fail_test',
   sources = [
-    'assert_fail_test.cc',
+    'testutil/assert_fail_test.cc',
   ],
   deps = [
     '//3p/gtest',
