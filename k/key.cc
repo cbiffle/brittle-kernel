@@ -28,7 +28,7 @@ Key Key::null() {
 }
 
 Object * Key::get() {
-  if (_generation != _ptr->get_generation()) {
+  if (!_ptr || _generation != _ptr->get_generation()) {
     *this = null();
   }
   return _ptr;
