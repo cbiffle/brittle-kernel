@@ -53,6 +53,18 @@ c_library('k',
   },
 )
 
+c_binary('memory_test',
+  environment = 'native',
+  sources = [
+    'memory_test.cc',
+  ],
+  deps = [
+    ':k_portable',
+    ':spy',
+    '//3p/gtest',
+  ],
+)
+
 c_binary('p2range_test',
   environment = 'native',
   sources = [
@@ -69,6 +81,15 @@ c_library('assert_fail_test',
   ],
   deps = [
     '//3p/gtest',
+  ],
+)
+
+c_library('spy',
+  sources = [
+    'testutil/spy.cc',
+  ],
+  deps = [
+    ':k_portable',
   ],
 )
 

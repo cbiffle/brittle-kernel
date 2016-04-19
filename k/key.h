@@ -29,6 +29,8 @@ public:
    */
   Brand get_brand() const { return _brand; }
 
+  Generation get_generation() const { return _generation; }
+
   Object * get();
 
   /*

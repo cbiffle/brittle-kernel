@@ -121,7 +121,9 @@ void Memory::do_change(Brand const & brand,
   auto current = get_region_for_brand(brand).rasr;
 
   if (ap_is_unpredictable(rasr.get_ap())
-      || ap_is_stronger(rasr.get_ap(), current.get_ap())) {
+      || ap_is_stronger(rasr.get_ap(), current.get_ap())
+      || (current.get_srd() & ~rasr.get_srd())
+      || (_range.l2_size() < 8 && rasr.get_srd())) {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
     return;
   }
