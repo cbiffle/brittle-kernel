@@ -42,7 +42,9 @@ void do_deferred_switch_from_irq() {
   if (switch_pending) {
     switch_pending = false;
 
+#ifndef HOSTED_KERNEL_BUILD
     scb.write_icsr(Scb::icsr_value_t().with_pendsvset(true));
+#endif
   }
 }
 
