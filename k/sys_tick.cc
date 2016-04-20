@@ -5,6 +5,7 @@
 
 #include "common/abi_sizes.h"
 
+#include "k/irq_redirector.h"
 #include "k/reply_sender.h"
 
 using etl::armv7m::scb;
@@ -15,7 +16,10 @@ namespace k {
 
 template struct ObjectSubclassChecks<SysTick, kabi::sys_tick_size>;
 
-SysTick::SysTick(Generation g, Body & body) : InterruptBase{g, body} {}
+SysTick::SysTick(Generation g, Body & body)
+  : InterruptBase{g, body} {
+  set_sys_tick_redirector(this);
+}
 
 void SysTick::disable_interrupt() {
 #ifndef HOSTED_KERNEL_BUILD

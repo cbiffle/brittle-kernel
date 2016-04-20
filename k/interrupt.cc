@@ -5,6 +5,7 @@
 
 #include "common/abi_sizes.h"
 
+#include "k/irq_redirector.h"
 #include "k/reply_sender.h"
 
 using etl::armv7m::nvic;
@@ -112,6 +113,11 @@ void InterruptBase::on_blocked_delivery_failed(Exception, uint32_t) {
  */
 
 template struct ObjectSubclassChecks<Interrupt, kabi::interrupt_size>;
+
+Interrupt::Interrupt(Generation g, Body & body)
+  : InterruptBase{g, body} {
+  get_irq_redirection_table()[get_identifier()] = this;
+}
 
 void Interrupt::disable_interrupt() {
 #ifndef HOSTED_KERNEL_BUILD

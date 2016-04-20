@@ -89,7 +89,7 @@ private:
  */
 class Interrupt final : public InterruptBase {
 public:
-  explicit Interrupt(Generation g, Body & body) : InterruptBase{g, body} {}
+  Interrupt(Generation g, Body & body);
 
 private:
   void disable_interrupt() override;
