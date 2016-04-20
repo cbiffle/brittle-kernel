@@ -55,7 +55,7 @@ void ObjectTable::do_mint_key(Brand const &,
                               Message const & args,
                               Keys & keys) {
   auto index = args.d1;
-  auto brand = args.d2 | (Brand(args.d3) << 32);
+  auto brand = args.d2;
 
   ScopedReplySender reply_sender{keys.keys[0]};
 
@@ -81,8 +81,7 @@ void ObjectTable::do_read_key(Brand const &,
   ScopedReplySender reply_sender{keys.keys[0], {
     Descriptor::zero(),
     index,
-    uint32_t(brand),
-    uint32_t(brand >> 32),
+    brand,
   }};
 }
 

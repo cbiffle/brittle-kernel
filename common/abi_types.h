@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-using Brand = std::uint64_t;
+using Brand = std::uint32_t;
 using Generation = std::uint32_t;
 using Priority = std::uint32_t;
 using Selector = std::uint16_t;

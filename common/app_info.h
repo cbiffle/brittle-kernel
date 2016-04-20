@@ -52,9 +52,8 @@ struct AppInfo {
     // If zero, the grant will be ignored.  Otherwise, this needs to be between
     // 4 and 4 + memory_map_count.
     uint32_t memory_index;
-    // Bottom 32 bits of the Memory key to mint, which gives the MPU RASR
-    // attributes.
-    uint32_t brand_lo;
+    // Brand of the Memory key to mint, which gives the MPU RASR attributes.
+    uint32_t brand;
   };
   // Table of memory grants for initial task.  (The number 4 here is arbitrary.)
   MemGrant initial_task_grants[4];

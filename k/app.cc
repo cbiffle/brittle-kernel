@@ -182,7 +182,7 @@ static void prepare_first_context() {
     // Derive our loop index.
     auto i = &grant - &app.initial_task_grants[0];
     // Attempt to create a key.
-    auto maybe_key = ot[grant.memory_index].make_key(grant.brand_lo);
+    auto maybe_key = ot[grant.memory_index].make_key(grant.brand);
     // Require success.
     ETL_ASSERT(maybe_key);
     // Attempt to load the corresponding memory region.  If the named object is

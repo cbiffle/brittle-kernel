@@ -18,8 +18,7 @@ Objects have an opportunity to veto the provided brand.  This allows some brand 
 Arguments:
 - d0: descriptor
 - d1: object index in table
-- d2: brand low bits
-- d3: brand high bits
+- d2: brand
 
 Results:
 - d0: success descriptor
@@ -44,5 +43,4 @@ Arguments:
 Results:
 - d0: success descriptor
 - d1: table index
-- d2: brand low bits
-- d3: brand high bits
+- d2: brand

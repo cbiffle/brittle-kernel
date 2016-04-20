@@ -48,12 +48,12 @@ constexpr AppInfo app_info {
   .initial_task_grants = {
     {  // ROM
       .memory_index = 4,
-      .brand_lo = uint32_t(Rasr()
+      .brand = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_read_u_read)) >> 8,
     },
     {  // RAM
       .memory_index = 5,
-      .brand_lo = uint32_t(Rasr()
+      .brand = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_write_u_write)
           .with_xn(true)) >> 8,
     },
