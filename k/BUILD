@@ -20,13 +20,18 @@ c_library('k_portable',
 ).extend_when(lambda e: e['arch'] == 'target',
   sources = [
     'object.cc',
+    'unprivileged.cc',
+    'unprivileged.S',
   ],
   deps = [
     '//etl:assert_loop'
   ],
 ).extend_when(lambda e: e['arch'] == 'native',
   sources = [
+    'testutil/mpu_fake.cc',
     'testutil/object_native.cc',
+    'testutil/sys_tick_fake.cc',
+    'testutil/unprivileged_fake.cc',
   ],
   deps = [
     ':assert_fail_test',
@@ -43,8 +48,6 @@ c_library('k',
     'main.cc',
     'mm_fault.cc',
     'traps.cc',
-    'unprivileged.cc',
-    'unprivileged.S',
   ],
   deps = [
     ':k_portable',
