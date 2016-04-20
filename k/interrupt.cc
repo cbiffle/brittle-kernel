@@ -114,15 +114,21 @@ void InterruptBase::on_blocked_delivery_failed(Exception, uint32_t) {
 template struct ObjectSubclassChecks<Interrupt, kabi::interrupt_size>;
 
 void Interrupt::disable_interrupt() {
+#ifndef HOSTED_KERNEL_BUILD
   nvic.disable_irq(get_identifier());
+#endif
 }
 
 void Interrupt::enable_interrupt() {
+#ifndef HOSTED_KERNEL_BUILD
   nvic.enable_irq(get_identifier());
+#endif
 }
 
 void Interrupt::clear_pending_interrupt() {
+#ifndef HOSTED_KERNEL_BUILD
   nvic.clear_pending_irq(get_identifier());
+#endif
 }
 
 }  // namespace k

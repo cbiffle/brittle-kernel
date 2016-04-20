@@ -18,15 +18,21 @@ template struct ObjectSubclassChecks<SysTick, kabi::sys_tick_size>;
 SysTick::SysTick(Generation g, Body & body) : InterruptBase{g, body} {}
 
 void SysTick::disable_interrupt() {
+#ifndef HOSTED_KERNEL_BUILD
   sys_tick.write_csr(sys_tick.read_csr().with_tickint(false));
+#endif
 }
 
 void SysTick::enable_interrupt() {
+#ifndef HOSTED_KERNEL_BUILD
   sys_tick.write_csr(sys_tick.read_csr().with_tickint(true));
+#endif
 }
 
 void SysTick::clear_pending_interrupt() {
+#ifndef HOSTED_KERNEL_BUILD
   scb.write_icsr(Scb::icsr_value_t{}.with_pendstclr(true));
+#endif
 }
 
 void SysTick::do_extension(Selector s,
@@ -80,6 +86,7 @@ void SysTick::do_write_register(Brand const &, Message const & m, Keys & k) {
 
 #define STREG(num, name) case num: sys_tick.write_ ## name(m.d2); break;
 
+#ifndef HOSTED_KERNEL_BUILD
   switch (m.d1) {
     STREG(0, csr)
     STREG(1, rvr)
@@ -90,6 +97,7 @@ void SysTick::do_write_register(Brand const &, Message const & m, Keys & k) {
       reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
       break;
   }
+#endif
 
 #undef STREG
 }
