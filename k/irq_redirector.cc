@@ -13,6 +13,10 @@ void set_irq_redirection_table(RangePtr<Interrupt *> t) {
   redirection_table = t;
 }
 
+void reset_irq_redirection_table_for_test() {
+  redirection_table = {};
+}
+
 RangePtr<Interrupt *> get_irq_redirection_table() {
   return redirection_table;
 }
