@@ -6,10 +6,17 @@
 #include "common/message.h"
 #include "common/descriptor.h"
 
+#include "k/context.h"
+#include "k/gate.h"
+#include "k/interrupt.h"
+#include "k/object_table.h"
+#include "k/region.h"
+#include "k/reply_gate.h"
+#include "k/reply_sender.h"
+#include "k/scheduler.h"
 #include "k/sender.h"
 #include "k/slot.h"
-#include "k/region.h"
-#include "k/reply_sender.h"
+#include "k/sys_tick.h"
 
 using etl::armv7m::Mpu;
 
@@ -49,6 +56,10 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
 
     case 2:
       do_split(brand, m, k);
+      break;
+
+    case 3:
+      do_become(brand, m, k);
       break;
 
     default:
@@ -190,6 +201,115 @@ void Memory::do_split(Brand const & brand,
   auto memptr = new(objptr) Memory{other_generation + 1, top};
   // Provide a key.
   reply_sender.set_key(2, memptr->make_key(brand).ref());
+
+  // Update MPU, in case the split object was in the current Context's memory
+  // map.
+  current->apply_to_mpu();
+}
+
+enum class TypeCode {
+  context = 0,
+  gate = 1,
+  reply_gate = 2,
+  interrupt = 3,
+  sys_tick = 4,
+};
+
+static Maybe<TypeCode> extract_type_code(uint32_t arg) {
+  if (arg < 5) {
+    return static_cast<TypeCode>(arg);
+  } else {
+    return nothing;
+  }
+}
+
+static unsigned l2_size_for_type_code(TypeCode tc) {
+  switch (tc) {
+    case TypeCode::context: return kabi::context_l2_size;
+    case TypeCode::gate: return kabi::gate_l2_size;
+    case TypeCode::reply_gate: return kabi::reply_gate_l2_size;
+    case TypeCode::interrupt: return kabi::interrupt_l2_size;
+    case TypeCode::sys_tick: return kabi::sys_tick_l2_size;
+    default:
+      return 0;
+  }
+}
+
+void Memory::do_become(Brand const & brand,
+                       Message const & m,
+                       Keys & k) {
+  ScopedReplySender reply_sender{k.keys[0]};
+
+  if (get_region_for_brand(brand).rasr.get_srd()) {
+    // Can't transmogrify, some subregions are disabled.
+    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    return;
+  }
+
+  auto maybe_type_code = extract_type_code(m.d1);
+  if (!maybe_type_code) {
+    // Can't transmogrify, target object type not recognized.
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    return;
+  }
+
+  auto type_code = maybe_type_code.ref();
+  auto l2_size = l2_size_for_type_code(type_code);
+
+  if (l2_size != _range.l2_size()) {
+    // Can't transmogrify, size is wrong.
+    reply_sender.get_message() = Message::failure(Exception::bad_operation, l2_size);
+    return;
+  }
+
+  // Commit point
+  
+  auto new_generation = get_generation() + 1;
+
+  // Allocate the type-specific body in the memory we control, and the new
+  // object over the slot.
+  Object * newobj;
+  switch (type_code) {
+    case TypeCode::context:
+      {
+        auto b = new(reinterpret_cast<void *>(_range.base()))
+          Context::Body{&object_table()[m.d2]};
+        newobj = new(this) Context{new_generation, *b};
+        break;
+      }
+    case TypeCode::gate:
+      {
+        auto b = new(reinterpret_cast<void *>(_range.base())) Gate::Body;
+        newobj = new(this) Gate{new_generation, *b};
+        break;
+      }
+    case TypeCode::reply_gate:
+      {
+        auto b = new(reinterpret_cast<void *>(_range.base())) ReplyGate::Body;
+        newobj = new(this) ReplyGate{new_generation, *b};
+        break;
+      }
+    case TypeCode::interrupt:
+      {
+        auto b = new(reinterpret_cast<void *>(_range.base()))
+          Interrupt::Body{m.d2};
+        newobj = new(this) Interrupt{new_generation, *b};
+        break;
+      }
+    case TypeCode::sys_tick:
+      {
+        auto b = new(reinterpret_cast<void *>(_range.base()))
+          SysTick::Body{m.d2};
+        newobj = new(this) SysTick{new_generation, *b};
+        break;
+      }
+  }
+  // Provide a key to the new object.
+  reply_sender.set_key(1, newobj->make_key(0).ref());  // TODO brand?
+
+  // Update MPU, in case the transmogrified object was in the current Context's
+  // memory map.
+  current->apply_to_mpu();
 }
 
 }  // namespace k

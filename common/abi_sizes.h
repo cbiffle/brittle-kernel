@@ -13,6 +13,26 @@ static constexpr unsigned
   reply_gate_size = 8 + k::config::n_priorities * 8,
   sys_tick_size = interrupt_size;
 
+constexpr unsigned log2floor(unsigned x) {
+  return (x < 2) ? 0
+                 : 1 + log2floor(x >> 1);
+}
+
+constexpr unsigned log2ceil(unsigned x) {
+  return (x == 1) ? 0 : log2floor(x - 1) + 1;
+}
+
+constexpr unsigned allocsize(unsigned x) {
+  return log2ceil(x) < 5 ? 5 : log2ceil(x);
+}
+
+static constexpr unsigned
+  memory_l2_size = allocsize(memory_size),
+  context_l2_size = allocsize(context_size),
+  gate_l2_size = allocsize(gate_size),
+  interrupt_l2_size = allocsize(interrupt_size),
+  reply_gate_l2_size = allocsize(reply_gate_size),
+  sys_tick_l2_size = allocsize(sys_tick_size);
 
 }  // namespace kabi
 

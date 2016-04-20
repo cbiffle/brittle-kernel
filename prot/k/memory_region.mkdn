@@ -86,9 +86,43 @@ Results:
 - k2: top half
 
 Exceptions:
-- `k.bad_operation` if the region cannot be split for size reasons.
-- `k.bad_state` if the region has subregion disable bits set.
+- `k.bad_operation` if the region cannot be split for size reasons, or because
+  the subregion disable bits are set.
 - `k.bad_kind` if the provided key is not a Slot key.
 
 
+Become Object (3)
+-----------------
 
+Destroys this memory object, using the memory it occupied to create a new
+object together with a donated slot key (also destroyed).
+
+This object must be exactly the right size for the requested type of object; see
+below for sizes.
+
+Sizes are defined in terms of the configuration-time constant P: number of
+priority levels.
+
+Returns the sole extant key to the new object.  The new key's brand is the
+type-specific "default brand" for the object type in question.
+
+TODO: this should be a permission bit.
+
+Arguments:
+- d0: descriptor
+- d1: desired object type (size)
+  - 0: context (512)
+  - 1: gate (16P)
+  - 2: reply gate (8 + 8P)
+  - 3: interrupt (32 + 8P)
+  - 4: systick (32 + 8P)
+
+Results:
+- d0: success descriptor
+- k1: key to new object.
+
+Exceptions:
+- `k.bad_argument` if the object type code is unrecognized.
+- `k.bad_operation` if the memory key being used has subregion disable bits set,
+  or this object is the wrong size for the requested type.
+- `k.bad_kind` if the donated key is not a slot key.
