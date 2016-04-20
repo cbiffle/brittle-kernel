@@ -1,4 +1,6 @@
-#include "k/irq_redirector.h"
+#include "k/irq_entry.h"
+
+#include "etl/attribute_macros.h"
 
 namespace k {
 
