@@ -19,8 +19,8 @@ extern "C" {
   extern uint32_t _donated_ram_begin, _donated_ram_end;
   extern uint32_t _demo_initial_stack;
 
-  extern uint32_t _app_rom_start, _app_rom_l2_half_size;
-  extern uint32_t _app_ram_start, _app_ram_l2_half_size;
+  extern uint32_t _app_rom_start, _app_rom_end;
+  extern uint32_t _app_ram_start, _app_ram_end;
 }
 
 __attribute__((section(".app_info0")))
@@ -28,7 +28,8 @@ __attribute__((used))
 constexpr AppInfo app_info {
   .abi_token = current_abi_token,
 
-  .object_table_entry_count = 6,
+  .memory_map_count = 2,
+  .extra_slot_count = 0,
   .external_interrupt_count = 0,
 
   .donated_ram_begin = reinterpret_cast<uint32_t>(&_donated_ram_begin),
@@ -50,20 +51,22 @@ constexpr AppInfo app_info {
     },
   },
 
-  .object_map = {},
+  .memory_map = {},
 };
 
 __attribute__((section(".app_info1")))
 __attribute__((used))
-constexpr uint32_t object_map[] {
-  // 4: Memory describing application ROM.
-  0,  // address range
-  reinterpret_cast<uint32_t>(&_app_rom_start),  // begin
-  reinterpret_cast<uint32_t>(&_app_rom_l2_half_size),
-  // 5: Memory describing application RAM.
-  0,  // address range
-  reinterpret_cast<uint32_t>(&_app_ram_start),  // begin
-  reinterpret_cast<uint32_t>(&_app_ram_l2_half_size),
+constexpr AppInfo::MemoryMapEntry memory_map[] {
+  {
+    // 4: Memory describing application ROM.
+    reinterpret_cast<uint32_t>(&_app_rom_start),
+    reinterpret_cast<uint32_t>(&_app_rom_end),
+  },
+  {
+    // 5: Memory describing application RAM.
+    reinterpret_cast<uint32_t>(&_app_ram_start),
+    reinterpret_cast<uint32_t>(&_app_ram_end),
+  },
 };
 
 

@@ -1,8 +1,7 @@
 MEMORY {
   rom (rx)      : ORIGIN = 0x08000000, LENGTH = 1024K
   ccm (rwx)     : ORIGIN = 0x10000000, LENGTH =   64K
-  sram112 (rwx) : ORIGIN = 0x20000000, LENGTH =  112K
-  sram16  (rwx) : ORIGIN = 0x2001c000, LENGTH =   16K
+  sram128 (rwx) : ORIGIN = 0x20000000, LENGTH =  128K
 }
 
 ENTRY(etl_armv7m_reset_handler)
@@ -20,6 +19,8 @@ SECTIONS {
   } >ccm AT>rom
 
   .text ORIGIN(rom) + 16384 : {
+    PROVIDE(_app_rom_start = .);
+
     *(.text*)
     . = ALIGN(4);
     *(.rodata*)
@@ -43,8 +44,10 @@ SECTIONS {
     _init_array_end = .;
   } >rom
 
-  PROVIDE(_app_rom_start = ADDR(.text));
-  PROVIDE(_app_rom_l2_half_size = 13);
+  .app_rom_align (NOLOAD) : {
+    . = ORIGIN(rom) + 32K;
+    PROVIDE(_app_rom_end = .);
+  } > rom
 
   .kernel_ram : {
     KEEP(*(.__kernel__.stack))
@@ -55,13 +58,14 @@ SECTIONS {
   PROVIDE(_donated_ram_end = ORIGIN(ccm) + LENGTH(ccm));
 
   .stack : {
+    PROVIDE(_app_ram_start = .);
     . += 512;
     PROVIDE(_demo_initial_stack = .);
-  } >sram112
+  } >sram128
 
   .data : {
     *(.data*)
-  } >sram112 AT>rom
+  } >sram128 AT>rom
 
   PROVIDE(_data_init_image_start = LOADADDR(.data));
   PROVIDE(_data_start = ADDR(.data));
@@ -72,8 +76,10 @@ SECTIONS {
     *(.bss*)
     . = ALIGN(4);
     PROVIDE(_bss_end = .);
-  } >sram112
+  } >sram128
 
-  PROVIDE(_app_ram_start = ORIGIN(sram112));
-  PROVIDE(_app_ram_l2_half_size = 16);
+  .app_ram_align (NOLOAD) : {
+    . = ORIGIN(sram128) + 128K;
+    PROVIDE(_app_ram_end = .);
+  } > sram128
 }

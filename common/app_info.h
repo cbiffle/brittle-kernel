@@ -20,10 +20,12 @@ struct AppInfo {
   // of the AppInfo.  If the ABI token is wrong, initialization fails.
   uint32_t abi_token;
 
-  // Number of object table entries.  Must be at least 4 for the kernel's
-  // well-known objects.  Any objects beyond 4 are described by the object_map
-  // at the end of the block.
-  uint32_t object_table_entry_count;
+  // Number of memory objects predefined by the memory map following this block.
+  uint32_t memory_map_count;
+  // Number of extra free object table slots desired.  The number of slots in
+  // the object table will be given by:
+  //   4 + memory_map_count + extra_slot_count;
+  uint32_t extra_slot_count;
 
   // Number of external interrupts that may be handled.  This determines the
   // size of the redirector table used to convert interrupts into messages.
@@ -47,7 +49,8 @@ struct AppInfo {
   // Structure of a memory grant.
   struct MemGrant {
     // Object table index of the Memory object giving authority for this grant.
-    // If zero, the grant will be ignored.
+    // If zero, the grant will be ignored.  Otherwise, this needs to be between
+    // 4 and 4 + memory_map_count.
     uint32_t memory_index;
     // Bottom 32 bits of the Memory key to mint, which gives the MPU RASR
     // attributes.
@@ -56,34 +59,17 @@ struct AppInfo {
   // Table of memory grants for initial task.  (The number 4 here is arbitrary.)
   MemGrant initial_task_grants[4];
 
-  // The object map.  This describes kernel objects needed by the application.
-  // Each entry is a sequence of 32-bit words; the first is an ObjectType value
-  // (below), possibly followed by type-specific parameter words.
-  uint32_t object_map[];
-
-  enum class ObjectType : uint32_t {
-    // Describes a kernel Memory object.  Parameters:
-    // - Begin address.
-    // - Size, log2, minus one.
-    memory = 0,
-
-    // Describes a kernel Context object.  Parameters:
-    // - Object table index of reply gate.
-    context,
-
-    // Describes a kernel Gate object.  No parameters.
-    gate,
-
-    // Describes a kernel Interrupt object.  Parameters:
-    // - IRQ number.
-    interrupt,
-
-    // Describes a kernel ReplyGate object.  No parameters.
-    reply_gate,
-
-    // Describes a kernel SysTick object.  No parameters.
-    sys_tick,
+  // An entry in the Memory Map (below).
+  struct MemoryMapEntry {
+    // Base address of memory map entry.
+    uint32_t base;
+    // End address of memory map entry.
+    uint32_t end;
   };
+
+  // The memory map, giving the set of Memory Objects that should be
+  // manufactured by the kernel before starting the initial context.
+  MemoryMapEntry memory_map[];
 };
 
 #endif  // COMMON_APP_INFO_H

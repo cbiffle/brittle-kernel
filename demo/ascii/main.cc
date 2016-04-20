@@ -27,8 +27,8 @@ extern "C" {
   extern uint32_t _donated_ram_begin, _donated_ram_end;
   extern uint32_t _demo_initial_stack;
 
-  extern uint32_t _app_rom_start, _app_rom_l2_half_size;
-  extern uint32_t _app_ram_start, _app_ram_l2_half_size;
+  extern uint32_t _app_rom_start, _app_rom_end;
+  extern uint32_t _app_ram_start, _app_ram_end;
 }
 
 __attribute__((section(".app_info0")))
@@ -36,7 +36,8 @@ __attribute__((used))
 constexpr AppInfo app_info {
   .abi_token = current_abi_token,
 
-  .object_table_entry_count = 14,
+  .memory_map_count = 3,
+  .extra_slot_count = 7,
   .external_interrupt_count = uint32_t(etl::stm32f4xx::Interrupt::usart2) + 1,
 
   .donated_ram_begin = reinterpret_cast<uint32_t>(&_donated_ram_begin),
@@ -58,41 +59,27 @@ constexpr AppInfo app_info {
     },
   },
 
-  .object_map = {},
+  .memory_map = {},
 };
 
 __attribute__((section(".app_info1")))
 __attribute__((used))
-uint32_t const object_map[] {
-  // 4: Memory describing application ROM.
-  0,  // address range
-  reinterpret_cast<uint32_t>(&_app_rom_start),  // begin
-  reinterpret_cast<uint32_t>(&_app_rom_l2_half_size),
-  // 5: Memory describing application RAM.
-  0,  // address range
-  reinterpret_cast<uint32_t>(&_app_ram_start),  // begin
-  reinterpret_cast<uint32_t>(&_app_ram_l2_half_size),
-  // 6: Memory describing the peripheral region.
-  0,  // address range
-  0x40000000,
-  28,  // 2^(28+1) = 512MiB
-  // 7: Driver client gate.
-  2,
-  // 8: IRQ gate.
-  2,
-  // 9: IRQ sender.
-  3,
-  uint32_t(etl::stm32f4xx::Interrupt::usart2),
-  // 10: Client context.
-  1,
-  11,
-  // 11: Client context reply gate.
-  4,
-  // 12: Idle context.
-  1,
-  13,
-  // 13: Idle context reply gate.
-  4,
+constexpr AppInfo::MemoryMapEntry memory_map[] {
+  {
+    // 4: Memory describing application ROM.
+    reinterpret_cast<uint32_t>(&_app_rom_start),
+    reinterpret_cast<uint32_t>(&_app_rom_end),
+  },
+  {
+    // 5: Memory describing application RAM.
+    reinterpret_cast<uint32_t>(&_app_ram_start),
+    reinterpret_cast<uint32_t>(&_app_ram_end),
+  },
+  {
+    // 6: Memory describing the peripheral region.
+    0x40000000,
+    0x60000000,
+  },
 };
 
 /*******************************************************************************

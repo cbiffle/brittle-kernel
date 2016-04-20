@@ -22,6 +22,7 @@
 #include "k/reply_gate.h"
 #include "k/range_ptr.h"
 #include "k/scheduler.h"
+#include "k/slot.h"
 #include "k/sys_tick.h"
 #include "k/unprivileged.h"
 
@@ -126,82 +127,44 @@ static void initialize_irq_priorities() {
 }
 
 /*******************************************************************************
- * Interpretation of the object map from AppInfo.
+ * Interpretation of the memory map from AppInfo.
  */
 
-static void create_app_objects(RangePtr<ObjectTable::Entry> entries,
-                               Arena & arena) {
+static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
   auto & app = get_app_info();
-  auto map = app.object_map;
+  auto map = app.memory_map;
 
-  for (unsigned i = well_known_object_count;
-       i < app.object_table_entry_count;
-       ++i) {
-    switch (static_cast<AppInfo::ObjectType>(*map++)) {
-      case AppInfo::ObjectType::memory:
-        {
-          auto base = *map++;
-          auto l2_half_size = *map++;
+  for (unsigned i = 0; i < app.memory_map_count; ++i) {
+    // Compute half of the region size, because we use that, and it fits in 32
+    // bits.
+    auto half_end = map[i].end == 0 ? (1u << 31) : (map[i].end >> 1);
+    auto half_size = half_end - (map[i].base >> 1);
 
-          auto maybe_range = P2Range::of(base, l2_half_size);
-          ETL_ASSERT(maybe_range);
+    // That better be a power of two (zero doesn't count).
+    ETL_ASSERT(half_size);
+    ETL_ASSERT((half_size & (half_size - 1)) == 0);
 
-          // TODO: check that this does not alias the kernel or reserved devs
-
-          (void) new(&entries[i]) Memory{0, maybe_range.ref()};
-          break;
-        }
-
-      case AppInfo::ObjectType::context:
-        {
-          auto reply_gate_index = *map++;
-          ETL_ASSERT(reply_gate_index < app.object_table_entry_count);
-
-          auto b = new(arena.allocate(sizeof(Context::Body))) Context::Body;
-          auto c = new(&entries[i]) Context{0, *b};
-          c->set_reply_gate(&entries[reply_gate_index].as_object());
-          break;
-        }
-
-      case AppInfo::ObjectType::gate:
-        {
-          auto b = new(arena.allocate(sizeof(Gate::Body))) Gate::Body;
-          (void) new(&entries[i]) Gate{0, *b};
-          break;
-        }
-
-      case AppInfo::ObjectType::interrupt:
-        {
-          auto irq = *map++;
-          ETL_ASSERT(irq < app.external_interrupt_count);
-
-          auto b = new(arena.allocate(sizeof(Interrupt::Body)))
-            Interrupt::Body{irq};
-          auto o = new(&entries[i]) Interrupt{0, *b};
-          get_irq_redirection_table()[irq] = o;
-          break;
-        }
-
-      case AppInfo::ObjectType::reply_gate:
-        {
-          auto b = new(arena.allocate(sizeof(ReplyGate::Body)))
-            ReplyGate::Body;
-          (void) new(&entries[i]) ReplyGate{0, *b};
-          break;
-        }
-
-      case AppInfo::ObjectType::sys_tick:
-        {
-          auto b = new(arena.allocate(sizeof(SysTick::Body)))
-            SysTick::Body{0};
-          auto o = new(&entries[i]) SysTick{0, *b};
-          set_sys_tick_redirector(o);
-          break;
-        }
-
-      default:
-        ETL_ASSERT(false);
+    // Which power of two is it?
+    unsigned l2_half_size;
+    for (l2_half_size = 0; l2_half_size < 32; ++l2_half_size) {
+      if (half_size == (1u << l2_half_size)) break;
     }
+
+    auto maybe_range = P2Range::of(map[i].base, l2_half_size);
+    ETL_ASSERT(maybe_range);
+
+    // TODO: check that this does not alias the kernel or reserved devs
+
+    (void) new(&entries[well_known_object_count + i])
+      Memory{0, maybe_range.ref()};
+  }
+}
+
+static void fill_extra_slots(RangePtr<ObjectTable::Entry> entries,
+                             unsigned first_index,
+                             unsigned count) {
+  for (unsigned i = 0; i < count; ++i) {
+    (void) new(&entries[first_index + i]) Slot{0};
   }
 }
 
@@ -255,8 +218,8 @@ static void prepare_first_context() {
  */
 
 /*
- * Assign donated RAM to all the kernel objects requested by the application,
- * and initialize them.
+ * Consume donated RAM for the fixed kernel objects, and fill in the object
+ * table.
  */
 static void initialize_app() {
   auto & app = get_app_info();
@@ -269,13 +232,14 @@ static void initialize_app() {
 
   arena.reset();
 
+  auto table_size = 4 + app.memory_map_count + app.extra_slot_count;
+
   // Use the Arena to create the object array.
   auto entries = 
     RangePtr<ObjectTable::Entry>{
       static_cast<ObjectTable::Entry *>(
-          arena.allocate(
-            sizeof(ObjectTable::Entry) * app.object_table_entry_count)),
-      app.object_table_entry_count};
+          arena.allocate(sizeof(ObjectTable::Entry) * table_size)),
+      table_size};
 
   // Create the IRQ redirection table and initialize it to nulls.
   set_irq_redirection_table({
@@ -289,7 +253,8 @@ static void initialize_app() {
   }
 
   initialize_well_known_objects(entries, arena);
-  create_app_objects(entries, arena);
+  create_memory_objects(entries);
+  fill_extra_slots(entries, 4 + app.memory_map_count, app.extra_slot_count);
   prepare_first_context();
 }
 
