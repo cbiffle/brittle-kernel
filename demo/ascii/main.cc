@@ -6,6 +6,7 @@
 #include "etl/data/range_ptr.h"
 #include "etl/stm32f4xx/interrupts.h"
 #include "etl/armv7m/implicit_crt0.h"
+#include "etl/armv7m/exception_table.h"
 
 #include "common/app_info.h"
 
@@ -43,7 +44,7 @@ constexpr AppInfo app_info {
   .donated_ram_begin = reinterpret_cast<uint32_t>(&_donated_ram_begin),
   .donated_ram_end = reinterpret_cast<uint32_t>(&_donated_ram_end),
   .initial_task_sp = reinterpret_cast<uint32_t>(&_demo_initial_stack),
-  .initial_task_pc = reinterpret_cast<uint32_t>(&main),
+  .initial_task_pc = reinterpret_cast<uint32_t>(&etl_armv7m_reset_handler),
 
   .initial_task_grants = {
     {  // ROM
