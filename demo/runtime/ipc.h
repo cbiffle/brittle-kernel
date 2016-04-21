@@ -11,6 +11,8 @@ ReceivedMessage ipc(Message const &);
 
 ETL_INLINE
 void copy_key(unsigned to, unsigned from) {
+  if (to == from) return;
+
   auto d = Descriptor::zero()
     .with_sysnum(1)
     .with_source(from)
