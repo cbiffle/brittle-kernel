@@ -70,6 +70,8 @@ public:
     Object * reply_gate;
 
     Key memory_regions[config::n_task_regions]{};
+
+    Body(Object * g) : reply_gate{g} {}
   };
 
   Context(Generation g, Body &);
@@ -77,10 +79,6 @@ public:
   /*************************************************************
    * Context-specific accessors for use inside the kernel.
    */
-
-  void set_reply_gate(Object * reply_gate) {
-    _body.reply_gate = reply_gate;
-  }
 
   StackRegisters * stack() const { return _body.stack; }
   void set_stack(StackRegisters * s) { _body.stack = s; }
