@@ -14,13 +14,6 @@ object, and extract brands.
   extend, and limit the Object Table API if any of it is exposed to low
   assurance application components.  See :ref:`Rule 6 (enough rope) <rule6>`.
 
-Initialization Properties
--------------------------
-
-There is a single instance of the Object Table, created during the
-:ref:`boot-process`.  Applications cannot control its initialization.
-
-
 Branding
 --------
 

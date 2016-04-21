@@ -1,15 +1,14 @@
-.. _kernel-object-reference:
+.. _kor:
 
 Kernel Object Reference
 =======================
 
 .. toctree::
 
-  address-range
   context
   gate
   interrupt
+  memory
   null
   object-table
   reply-gate
-  sys-tick

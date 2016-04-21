@@ -11,8 +11,7 @@ Manual Root
 
    intro
    parts
-   system-model
-   obj/index
-   boot
+   arch/index
+   kor/index
    serial-demo
    freertos

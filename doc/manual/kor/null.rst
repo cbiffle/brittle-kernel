@@ -7,12 +7,6 @@ The null object is the target of revoked keys.  It refuses all IPC with
 exceptions.
 
 
-Initialization Properties
--------------------------
-
-None.
-
-
 Branding
 --------
 

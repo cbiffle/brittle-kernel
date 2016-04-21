@@ -3,12 +3,6 @@
 Context
 =======
 
-Initialization Properties
--------------------------
-
-- Object Table index of reply gate
-
-
 Branding
 --------
 
@@ -20,6 +14,8 @@ Methods
 
 Read Register (0)
 ~~~~~~~~~~~~~~~~~
+
+.. warning:: This method is deprecated.
 
 Reads a register, by index, from this context.  Register indices are interpreted
 as follows:
@@ -48,6 +44,8 @@ Exceptions
 
 Write Register (1)
 ~~~~~~~~~~~~~~~~~~
+
+.. warning:: This method is deprecated.
 
 Writes a register, by index, in this context.  Register indices are interpreted
 as follows:
@@ -156,8 +154,8 @@ The change takes effect when this context next becomes current, unless it is
 already current (i.e. it is modifying itself), in which case it takes effect
 immediately, before the reply is sent.
 
-Real memory region keys (to Address Range objects) can be loaded directly into
-the region registers.  Any other type of key will be treated as a null key and
+Real memory region keys (to Memory objects) can be loaded directly into the
+region registers.  Any other type of key will be treated as a null key and
 confer no authority.
 
 .. note:: This is probably going to change; bogus keys should be rejected.

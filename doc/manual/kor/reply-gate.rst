@@ -9,12 +9,6 @@ call-style IPC from Contexts.
 Each Context has an associated Reply Gate.
 
 
-Initialization Properties
--------------------------
-
-None.
-
-
 Branding
 --------
 

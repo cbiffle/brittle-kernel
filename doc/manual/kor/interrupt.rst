@@ -20,12 +20,6 @@ interrupt was disabled, or leaving them enabled so they will be processed
 immediately.
 
 
-Initialization Properties
--------------------------
-
-- External interrupt number
-
-
 Branding
 --------
 

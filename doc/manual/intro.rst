@@ -1,11 +1,11 @@
 Introduction
 ============
 
-Status
-------
-
-Brittle is immature.  It has been used in some demos.  Parts of the design are
-still in flux.
+.. warning::
+  Brittle is immature.  It has been used in some demos, but not for anything
+  "real."  Parts of the design are still in flux.  I'll try to call attention
+  to the particularly unstable parts in this document using boxes like this
+  one.
 
 
 What Brittle Is
@@ -59,7 +59,9 @@ The system layer also insulates applications from the details of the hardware,
 because the Brittle kernel itself is *explicitly not portable*.  Its design is
 ARMv7-M-specific, and exposes ARMv7-M-specific APIs and abstractions.
 Applications that wish to run on other types of processors should be written to
-a portable abstraction layer, provided outside the kernel by the system.  (I
-don't consider Brittle's non-portability to be a problem, because the entire
-kernel sources are significantly smaller than the architecture-specific support
-code for a single CPU in most kernels.)
+a portable abstraction layer, provided outside the kernel by the system.
+
+.. note::
+  I don't consider Brittle's non-portability to be a problem, because the
+  entire kernel sources (at <2500 lines) are significantly smaller than the
+  architecture-specific support code for a single CPU in most kernels.
