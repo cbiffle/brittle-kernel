@@ -49,13 +49,16 @@ SECTIONS {
     PROVIDE(_app_rom_end = .);
   } > rom
 
-  .kernel_ram : {
+  .kernel_ram (NOLOAD) : {
     KEEP(*(.__kernel__.stack))
     KEEP(*(.__kernel__.bss))
   } >ccm
 
-  PROVIDE(_donated_ram_begin = ADDR(.kernel_ram) + SIZEOF(.kernel_ram));
-  PROVIDE(_donated_ram_end = ORIGIN(ccm) + LENGTH(ccm));
+  .donated_ram (NOLOAD) : {
+    PROVIDE(_donated_ram_begin = .);
+    KEEP(*(.donated_ram*))
+    PROVIDE(_donated_ram_end = .);
+  } >ccm
 
   .stack : {
     PROVIDE(_app_ram_start = .);

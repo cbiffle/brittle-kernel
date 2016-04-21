@@ -69,6 +69,8 @@ constexpr AppInfo::MemoryMapEntry memory_map[] {
   },
 };
 
+__attribute__((section(".donated_ram")))
+uint8_t kernel_donation[768];
 
 static constexpr unsigned
   oi_object_table = 1;
