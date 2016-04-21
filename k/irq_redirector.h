@@ -6,15 +6,11 @@
 namespace k {
 
 class Interrupt;  // see: k/interrupt.h
-class SysTick;  // see: k/sys_tick.h
 
 void set_irq_redirection_table(RangePtr<Interrupt *>);
 void reset_irq_redirection_table_for_test();
 
 RangePtr<Interrupt *> get_irq_redirection_table();
-
-void set_sys_tick_redirector(SysTick *);
-SysTick * get_sys_tick_redirector();
 
 }  // namespace k
 

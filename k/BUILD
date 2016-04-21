@@ -12,7 +12,6 @@ c_library('k_portable',
     'reply_sender.cc',
     'scheduler.cc',
     'slot.cc',
-    'sys_tick.cc',
   ],
   local = {
     'cxx_flags': ['-Wno-invalid-offsetof'],

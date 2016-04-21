@@ -10,8 +10,7 @@ static constexpr unsigned
   context_size = 512,
   gate_size = k::config::n_priorities * 16,
   interrupt_size = 32 + k::config::n_priorities * 8,
-  reply_gate_size = 8 + k::config::n_priorities * 8,
-  sys_tick_size = interrupt_size;
+  reply_gate_size = 8 + k::config::n_priorities * 8;
 
 constexpr unsigned log2floor(unsigned x) {
   return (x < 2) ? 0
@@ -31,8 +30,7 @@ static constexpr unsigned
   context_l2_size = allocsize(context_size),
   gate_l2_size = allocsize(gate_size),
   interrupt_l2_size = allocsize(interrupt_size),
-  reply_gate_l2_size = allocsize(reply_gate_size),
-  sys_tick_l2_size = allocsize(sys_tick_size);
+  reply_gate_l2_size = allocsize(reply_gate_size);
 
 }  // namespace kabi
 

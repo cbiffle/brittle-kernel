@@ -16,7 +16,6 @@
 #include "k/scheduler.h"
 #include "k/sender.h"
 #include "k/slot.h"
-#include "k/sys_tick.h"
 
 using etl::armv7m::Mpu;
 
@@ -220,7 +219,6 @@ enum class TypeCode {
   gate = 1,
   reply_gate = 2,
   interrupt = 3,
-  sys_tick = 4,
 };
 
 static Maybe<TypeCode> extract_type_code(uint32_t arg) {
@@ -237,7 +235,6 @@ static unsigned l2_size_for_type_code(TypeCode tc) {
     case TypeCode::gate: return kabi::gate_l2_size;
     case TypeCode::reply_gate: return kabi::reply_gate_l2_size;
     case TypeCode::interrupt: return kabi::interrupt_l2_size;
-    case TypeCode::sys_tick: return kabi::sys_tick_l2_size;
     default:
       return 0;
   }
@@ -302,13 +299,6 @@ void Memory::do_become(Brand const & brand,
         auto b = new(reinterpret_cast<void *>(_range.base()))
           Interrupt::Body{m.d2};
         newobj = new(this) Interrupt{new_generation, *b};
-        break;
-      }
-    case TypeCode::sys_tick:
-      {
-        auto b = new(reinterpret_cast<void *>(_range.base()))
-          SysTick::Body{m.d2};
-        newobj = new(this) SysTick{new_generation, *b};
         break;
       }
   }

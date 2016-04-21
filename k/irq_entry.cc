@@ -7,7 +7,6 @@
 #include "k/interrupt.h"
 #include "k/irq_redirector.h"
 #include "k/scheduler.h"
-#include "k/sys_tick.h"
 
 namespace k {
 
@@ -16,13 +15,10 @@ void irq_redirector() {
 
   auto exception_number = etl::armv7m::get_ipsr() & 0x1FF;
 
-  InterruptBase * handler;
-  if (exception_number >= 16) {
+  Interrupt * handler;
+  if (exception_number >= 15) {
     // External interrupt.
-    handler = get_irq_redirection_table()[exception_number - 16];
-  } else if (exception_number == 15) {
-    // SysTick.
-    handler = get_sys_tick_redirector();
+    handler = get_irq_redirection_table()[exception_number - 15];
   } else {
     // Some other fault, errantly routed here.
     ETL_ASSERT(false);

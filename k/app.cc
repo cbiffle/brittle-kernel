@@ -23,7 +23,6 @@
 #include "k/range_ptr.h"
 #include "k/scheduler.h"
 #include "k/slot.h"
-#include "k/sys_tick.h"
 #include "k/unprivileged.h"
 
 using etl::armv7m::Byte;
@@ -239,13 +238,14 @@ static void initialize_app() {
       table_size};
 
   // Create the IRQ redirection table and initialize it to nulls.
+  auto irq_count = app.external_interrupt_count + 1;  // for SysTick
   set_irq_redirection_table({
       static_cast<Interrupt * *>(
           arena.allocate(
-            sizeof(Interrupt *) * app.external_interrupt_count)),
-      app.external_interrupt_count,
+            sizeof(Interrupt *) * irq_count)),
+      irq_count,
       });
-  for (unsigned i = 0; i < app.external_interrupt_count; ++i) {
+  for (unsigned i = 0; i < irq_count; ++i) {
     get_irq_redirection_table()[i] = nullptr;
   }
 

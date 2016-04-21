@@ -559,7 +559,8 @@ TEST_F(MemoryTest_BecomeInterrupt, ok) {
   ASSERT_EQ(0, k.get_brand())
     << "returned key must have zero brand";
 
-  ASSERT_EQ(&object(), irq_table[1])
+  // Note that table offset is 1+ interrupt number because of systick.
+  ASSERT_EQ(&object(), irq_table[2])
     << "interrupt should have wired itself into the table";
 }
 

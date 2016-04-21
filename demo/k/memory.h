@@ -12,7 +12,6 @@ enum class ObjectType : uint32_t {
   gate,
   reply_gate,
   interrupt,
-  sys_tick,
 };
 
 void become(unsigned k, ObjectType, unsigned arg);
