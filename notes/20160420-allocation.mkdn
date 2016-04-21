@@ -1,0 +1,84 @@
+
+Can we just assert that the default brand for all objects is zero?  Does that
+work?
+
+Currently interrupts take a construction parameter.  This is probably bad.
+
+
+Okay, I might have things working -- now how am I going to use them?
+
+Applications come to life executing in some RAM.  This is defined by the
+AppInfo block.  I tend to put the stack at the base of said RAM, so the
+application is compact at the bottom.
+
+In the simplest case, the application wakes up with a single large block of RAM
+-- on the STM32F4 that might be 128kiB in the AHB SRAM.  And at that point it's
+quite thoroughly hosed, since it cannot split that block without revoking the
+keys it's using to access it!
+
+I had at one point toyed with the idea of a "split" that didn't revoke keys.
+Everyone would just mysteriously see their memory get smaller.  I think that's
+probably needed here.
+
+Other options:
+- Designate a RAM area somewhere else for the initial context.
+
+
+So imagine that the app starts with a single 128kiB RAM key.  We'd split it once
+and then allocate objects in the top half.  Should probably allocate them
+preferentially toward the top, to retain the largest contiguous app-accessible
+RAM region.
+
+
+More generally, we're going to get requests for memory regions of N bytes.
+We'll want to find the smallest region of that size or greater, and either use
+it or split it.  (If multiple regions satisfy, the one with the highest address
+should be used to minimize fragmentation.)
+
+This will consume object table slots, and the splitting process will tend to
+produce more memory objects.  Whenever we turn a memory object into something
+else, it will remain in the same slot.  So we can't really reason about any
+properties of adjacent object table slots.
+
+We could use the memory objects themselves for bookkeeping, if I add read/write
+operations, or if I'm willing to map/unmap them on the fly.  I could maintain a
+freelist for every power-of-two size.  The head would be an object table index.
+To traverse the list, map the specified object and access its first word for
+the next index.  Zero can mean end-of-list since it's always the null object.
+
+(Or use IPC to retrieve its first word, if I enable that.)
+
+This is nice because it doesn't require capability storage -- as the system I
+can forge capabilities as needed.
+
+This would be easiest if I had memory accessor operations that treated the base
+address as zero.  That way I could traverse the list without tracking base
+addresses.  Since none of these operations exist yet, this may guide their
+design.
+
+
+Concretely.
+
+I need to track:
+
+- Free object table slots.  (Because I currently have no way of inspecting them.  Should probably add one.)
+
+- "Free" memory objects, meaning those I have not handed out yet.
+  - Some non-free memory objects get converted into other object types.
+  - Some stay as memory.
+
+Target API is something like malloc.
+
+Object table slots are somewhat limited in number.  Might be an opportunity to
+use a bit set.  Since we're outside of the kernel I could even use
+`std::bitset`.
+
+Seems like I need a general object table slot allocator.
+
+
+Next I need a memory allocator.  I'm inclined to use the approach I outlined
+above:
+
+- Maintain one freelist per pow2 size.
+- Use object table indices as link pointers.
+
