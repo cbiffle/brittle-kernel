@@ -62,6 +62,14 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       do_become(brand, m, k);
       break;
 
+    case 4:
+      do_peek(brand, m, k);
+      break;
+
+    case 5:
+      do_poke(brand, m, k);
+      break;
+
     default:
       do_badop(m, k);
       break;
@@ -310,6 +318,35 @@ void Memory::do_become(Brand const & brand,
   // Update MPU, in case the transmogrified object was in the current Context's
   // memory map.
   current->apply_to_mpu();
+}
+
+void Memory::do_peek(Brand const & brand, Message const & m, Keys & k) {
+  ScopedReplySender reply_sender{k.keys[0]};
+
+  auto offset = m.d1;
+  auto size_in_words = _range.half_size() / 2;
+
+  if (offset >= size_in_words) {
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    return;
+  }
+
+  reply_sender.get_message().d1 =
+    reinterpret_cast<uint32_t const *>(_range.base())[offset];
+}
+
+void Memory::do_poke(Brand const & brand, Message const & m, Keys & k) {
+  ScopedReplySender reply_sender{k.keys[0]};
+
+  auto offset = m.d1;
+  auto size_in_words = _range.half_size() / 2;
+
+  if (offset >= size_in_words) {
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    return;
+  }
+
+  reinterpret_cast<uint32_t *>(_range.base())[offset] = m.d2;
 }
 
 }  // namespace k

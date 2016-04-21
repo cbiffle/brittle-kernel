@@ -126,3 +126,41 @@ Exceptions:
 - `k.bad_operation` if the memory key being used has subregion disable bits set,
   or this object is the wrong size for the requested type.
 - `k.bad_kind` if the donated key is not a slot key.
+
+
+Peek (4)
+--------
+
+Reads a word of data from this object's memory.  For the purposes of this
+operation, this memory region is addressed as an array of words, with indices
+starting at zero.
+
+Arguments:
+- d0: descriptor
+- d1: offset
+
+Results:
+- d0: success descriptor
+- d1: word of data
+
+Exceptions:
+- `k.bad_argument` if the offset is out of range.
+
+
+Poke (5)
+--------
+
+Writes a word of data into this object's memory.  For the purposes of this
+operation, this memory region is addressed as an array of words, with indices
+starting at zero.
+
+Arguments:
+- d0: descriptor
+- d1: offset
+- d2: word of data
+
+Results:
+- d0: success descriptor
+
+Exceptions:
+- `k.bad_argument` if the offset is out of range.

@@ -42,6 +42,8 @@ private:
   void do_change(Brand const &, Message const &, Keys &);
   void do_split(Brand const &, Message const &, Keys &);
   void do_become(Brand const &, Message const &, Keys &);
+  void do_peek(Brand const &, Message const &, Keys &);
+  void do_poke(Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k
