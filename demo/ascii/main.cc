@@ -28,7 +28,7 @@ extern "C" {
   extern uint32_t _demo_initial_stack;
 
   extern uint32_t _app_rom_start, _app_rom_end;
-  extern uint32_t _app_ram_start, _app_ram_end;
+  extern uint32_t _app_ram0_start, _app_ram0_end;
 }
 
 __attribute__((section(".app_info0")))
@@ -72,8 +72,8 @@ constexpr AppInfo::MemoryMapEntry memory_map[] {
   },
   {
     // 5: Memory describing application RAM.
-    reinterpret_cast<uint32_t>(&_app_ram_start),
-    reinterpret_cast<uint32_t>(&_app_ram_end),
+    reinterpret_cast<uint32_t>(&_app_ram0_start),
+    reinterpret_cast<uint32_t>(&_app_ram0_end),
   },
   {
     // 6: Memory describing the peripheral region.

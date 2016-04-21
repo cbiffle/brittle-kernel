@@ -61,8 +61,8 @@ SECTIONS {
   } >ccm
 
   .stack : {
-    PROVIDE(_app_ram_start = .);
-    . += 512;
+    PROVIDE(_app_ram0_start = .);
+    . += 2048;
     PROVIDE(_demo_initial_stack = .);
   } >sram128
 
@@ -81,8 +81,14 @@ SECTIONS {
     PROVIDE(_bss_end = .);
   } >sram128
 
-  .app_ram_align (NOLOAD) : {
-    . = ORIGIN(sram128) + 128K;
-    PROVIDE(_app_ram_end = .);
+  .app_ram0_align (NOLOAD) : {
+    . = ORIGIN(sram128) + 64K;
+    PROVIDE(_app_ram0_end = .);
   } > sram128
+
+  .app_ram1 (NOLOAD) : {
+    PROVIDE(_app_ram1_start = .);
+    . = ORIGIN(sram128) + 128K;
+    PROVIDE(_app_ram1_end = .);
+  } >sram128
 }
