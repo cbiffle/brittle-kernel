@@ -38,7 +38,7 @@ keys refer to the same object, or to check the brand of a key.
 
 Arguments:
 - d0: descriptor
-- k0: key
+- k1: key
 
 Results:
 - d0: success descriptor
