@@ -2,6 +2,8 @@ Kernel
 ------
 
 Implement keyrings.  Consider factoring them out of Context; evaluate tradeoffs.
+Particularly evaluate tradeoffs vs. implementing a similar facility as an
+unprivileged process.
 
 Shift protocols to avoid selector zero, to make it harder to confuse innocent
 replies for commands.
@@ -9,11 +11,11 @@ replies for commands.
 Identify and implement any fast paths necessary in IPC.  Context-Gate-Context
 seems like a potential candidate, as does Context-ReplyGate-Context.
 
-Consider merging Gate and ReplyGate.
+Consider merging Gate and ReplyGate.  A move to 64-bit generations should make
+this less scary.
 
-Should the System be able to ask the Object Table about the *type* of a kernel
-object?  (i.e. "is this a gate or a context?")  This seems like it will be more
-critical once objects are created/destroyed at runtime.
+Implement a way to determine the kernel type of an object, either through the
+object table, or by asking it directly.
 
 Should the Null Object be distinct from the behavior of a revoked key?  e.g.
 should revoked keys escalate to a supervisor, like a fault, or throw a very
@@ -21,6 +23,18 @@ specific exception?
 
 If an interrupt is on a block queue, and is retargeted, it should re-fire to the
 new object.
+
+Implement a destruction permission using a brand bit, at least for Memory for
+now.
+
+Need a way to set, and subsequently replace, a Context's Reply Gate link using a
+message after construction.
+
+Would it make sense to disconnect the MPU key storage from Context, so that
+multiple Contexts could share one?  (It wouldn't share any space, right now,
+because it wouldn't save enough to knock Context beneath 256 bytes.)
+
+
 
 
 Restricting Gate Rights
@@ -65,18 +79,16 @@ One biggie would be ensuring that anyone blocked on a rebooted object gets
 resumed with a consistent exception.
 
 
-Support for allocation/deallocation
------------------------------------
+Support for deallocation
+------------------------
 
-It may be desirable to extend the kernel to support online allocation and
-deallocation of objects.  I've avoided it so far because it scares me.
-
-There may be cases in the existing design where allocation/deallocation could be
+There may be cases in the existing design where deallocation could be
 problematic, e.g. potential dangling pointers.  Find these, fix them.
 
 One would want to keep a particular eye out for raw object pointers.
 
-It may also be desirable to revoke keys during destructor execution.
+It may also be desirable to revoke keys during destructor execution, though the
+current object allocation paths always increment the generation anyway.
 
 
 Prioritization
@@ -85,6 +97,9 @@ Prioritization
 We'll want to be able to change the priority of prioritizable objects (Contexts
 and Interrupts being the big ones).  This may mean re-collating any lists that
 contain the objects.  Make sure this happens in the right places.
+
+I've put *some* work/thought into this on Context, but check it.  Tests would be
+good.
 
 
 Faulting
@@ -111,9 +126,3 @@ Non-Blocking receive
 
 Should a Context be able to request a non-blocking receive?  Should it be able
 to make the receive phase of a call non-blocking?
-
-
-AddressRange advanced validation
---------------------------------
-
-Should AddressRange check the memory ordering and cache policy bits of its keys?
