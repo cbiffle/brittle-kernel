@@ -1,0 +1,44 @@
+On Gates and Groups and Whatnot
+===============================
+
+This is the sort of thing that happens when I re-read the EROS/Coyotos docs.
+
+
+Why do we need ReplyGate?
+-------------------------
+
+Could we just use a specially marked Context key?
+
+The answer seems to be "no," because of invalidation.  The reply keys need to be
+invalidated after every use, without affecting Context keys -- and invalidation
+is not specific to a brand.
+
+If brands were 64 bits, we could potentially use *some* of those 64 bits as an
+"expected brand" like we do today.  (Not all.  At least one bit would need to
+distinguish reply keys from other keys.)  But I'm more excited about 64 bit
+generations than brands, and I can't have both without increasing the key size.
+So brands will stay 32 bits for a while, and ReplyGates will stay a distinct
+object type.
+
+That being said, the current ReplyGate object is probably too complicated.  It
+doesn't need a list of receivers, only a single Context reference.  Either that
+Context is waiting when a message arrives, or it isn't.
+
+
+Why do we need Gate?
+--------------------
+
+Could we, again, use special Context keys?
+
+Again, the answer seems to be "no," but for different reasons.
+
+The purpose of a Gate is to host the blocked sender list.  Gates being separate
+from Contexts ensures that a Context can receive from *multiple, independent,
+separately prioritized* block lists during its life.
+
+For maximum flexibility, the current Gate allows multiple Contexts to service it
+on the receive side, possibly simultaneously.  This is not *strictly* necessary,
+but I'm not much inclined to remove it at present.
+
+
+

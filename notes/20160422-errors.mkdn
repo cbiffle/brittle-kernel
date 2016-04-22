@@ -1,0 +1,12 @@
+There are almost certainly ways for the user to do stupid things with the
+current IPC interface to the kernel.  Off the top of my head:
+
+The way Contexts and ReplyGates are introduced is silly.  Object table indices
+are never an appropriate way of designating an object, unless you're talking to
+the object table.  The two objects should be able to exist separately, and be
+connected by loading a key into the Context.
+
+Creating an Interrupt object to service an out-of-range interrupt almost
+certainly triggers an assert.
+
+
