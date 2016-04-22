@@ -14,7 +14,7 @@ enum class ObjectType : uint32_t {
   interrupt,
 };
 
-void become(unsigned k, ObjectType, unsigned arg);
+void become(unsigned k, ObjectType, unsigned arg, unsigned arg_key = 0);
 
 uint32_t peek(unsigned k, uint32_t offset);
 void poke(unsigned k, uint32_t offset, uint32_t data);

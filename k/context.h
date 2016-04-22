@@ -29,6 +29,7 @@
 
 namespace k {
 
+struct ReplyGate;  // see: k/reply_gate.h
 struct ScopedReplySender;  // see: k/reply_sender.h
 
 /*
@@ -86,7 +87,7 @@ public:
     return _body.memory_regions[index];
   }
 
-  void set_reply_gate(Object & g) { _body.reply_gate = &g; }
+  void set_reply_gate(ReplyGate &);
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 

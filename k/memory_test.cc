@@ -37,6 +37,9 @@ protected:
   Context::Body _fake_context_body;
   Context _fake_context{0, _fake_context_body};
 
+  ReplyGate::Body _fake_reply_gate_body;
+  ReplyGate _fake_reply_gate{0, _fake_reply_gate_body};
+
   Spy _spy{0};
   ReplySender _sender;
 
@@ -359,6 +362,7 @@ protected:
 
 using MemoryTest_BecomeContext = MemoryTest_Become<kabi::context_l2_size>;
 TEST_F(MemoryTest_BecomeContext, ok) {
+  _sender.set_key(1, _fake_reply_gate.make_key(0).ref());
   auto & m = send_become(rw_rasr, 0);
 
   ASSERT_FALSE(m.d0.get_error())

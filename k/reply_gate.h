@@ -38,9 +38,13 @@ public:
   struct Body {
     List<Context> receivers{};
     Brand expected_brand{0};
+    Maybe<Context *> owner{nothing};
   };
 
   ReplyGate(Generation g, Body & body) : Object{g}, _body(body) {}
+
+  void set_owner(Context * c) { _body.owner = c; }
+  bool is_bound() const { return bool(_body.owner); }
 
   /*
    * Implementation of Object

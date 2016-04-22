@@ -273,10 +273,17 @@ void Memory::do_become(Brand const & brand,
   switch (type_code) {
     case TypeCode::context:
       {
+        auto & alleged_gate_key = k.keys[1];
+        auto alleged_gate_ptr = alleged_gate_key.get();
+        if (!alleged_gate_ptr->is_reply_gate()) {
+          reply_sender.get_message() = Message::failure(Exception::bad_kind);
+          return;
+        }
+
+        auto gate_ptr = static_cast<ReplyGate *>(alleged_gate_ptr);
         auto b = new(reinterpret_cast<void *>(_range.base())) Context::Body;
         auto c = new(this) Context{new_generation, *b};
-        // TODO: this is totally the wrong way to designate the ReplyGate!
-        c->set_reply_gate(object_table()[m.d2]);
+        c->set_reply_gate(*gate_ptr);
         newobj = c;
         break;
       }

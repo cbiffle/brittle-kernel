@@ -206,23 +206,28 @@ of the type-specific argument parameter are given below.
   * - Object Type
     - Type Code
     - Size
-    - Parameter Role
+    - Data Parameter
+    - Key Parameter
   * - Context
     - 0
     - 512
-    - Object table index of corresponding Reply Gate
+    - ---
+    - Key to unbound Reply Gate
   * - Gate
     - 1
     - 16P
+    - ---
     - ---
   * - Reply Gate
     - 2
     - 8 + 8P
     - ---
+    - ---
   * - Interrupt
     - 3
     - 32 + 8P
     - Vector number (-1 for SysTick)
+    - ---
 
 Call
 ####

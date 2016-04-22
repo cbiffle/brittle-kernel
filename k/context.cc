@@ -12,6 +12,7 @@
 #include "k/context_layout.h"
 #include "k/object_table.h"
 #include "k/registers.h"
+#include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 #include "k/unprivileged.h"
@@ -51,6 +52,12 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
   for (unsigned i = preserved; i < config::n_message_keys; ++i) {
     _body.keys[i] = Key::null();
   }
+}
+
+void Context::set_reply_gate(ReplyGate & g) {
+  ETL_ASSERT(!g.is_bound());
+  _body.reply_gate = &g;
+  g.set_owner(this);
 }
 
 Descriptor Context::get_descriptor() const {

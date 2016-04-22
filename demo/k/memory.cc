@@ -17,7 +17,9 @@ void split(unsigned k, unsigned slot_key,
   copy_key(top_key_out, 2);
 }
 
-void become(unsigned k, ObjectType ot, unsigned arg) {
+void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
+  if (arg_key) copy_key(1, arg_key);
+
   auto rm = ipc({
       Descriptor::call(3, k),
       uint32_t(ot),
