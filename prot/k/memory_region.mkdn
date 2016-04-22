@@ -125,7 +125,6 @@ Exceptions:
 - `k.bad_argument` if the object type code is unrecognized.
 - `k.bad_operation` if the memory key being used has subregion disable bits set,
   or this object is the wrong size for the requested type.
-- `k.bad_kind` if the donated key is not a slot key.
 
 
 Peek (4)
