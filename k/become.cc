@@ -77,6 +77,7 @@ void become(Memory & memory,
   switch (type_code) {
     case TypeCode::context:
       {
+        // Ensure that the key provided by the caller is an unbound reply gate.
         auto & alleged_gate_key = k.keys[1];
         auto alleged_gate_ptr = alleged_gate_key.get();
         if (!alleged_gate_ptr->is_reply_gate()) {
@@ -84,9 +85,14 @@ void become(Memory & memory,
           return;
         }
 
+        auto gate_ptr = static_cast<ReplyGate *>(alleged_gate_ptr);
+        if (gate_ptr->is_bound()) {
+          reply_sender.get_message() = Message::failure(Exception::bad_kind);
+          return;
+        }
+
         memory.~Memory();
 
-        auto gate_ptr = static_cast<ReplyGate *>(alleged_gate_ptr);
         auto b = new(reinterpret_cast<void *>(range.base())) Context::Body;
         auto c = new(&memory) Context{new_generation, *b};
         c->set_reply_gate(*gate_ptr);
