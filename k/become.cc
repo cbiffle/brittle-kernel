@@ -74,6 +74,8 @@ void become(Memory & memory,
   // 'memory' in any way, since we're going to start rewriting it shortly.
 
   Object * newobj;
+  auto bodymem = reinterpret_cast<void *>(range.base());
+
   switch (type_code) {
     case TypeCode::context:
       {
@@ -93,7 +95,7 @@ void become(Memory & memory,
 
         memory.~Memory();
 
-        auto b = new(reinterpret_cast<void *>(range.base())) Context::Body;
+        auto b = new(bodymem) Context::Body;
         auto c = new(&memory) Context{new_generation, *b};
         c->set_reply_gate(*gate_ptr);
         newobj = c;
@@ -103,7 +105,7 @@ void become(Memory & memory,
       {
         memory.~Memory();
 
-        auto b = new(reinterpret_cast<void *>(range.base())) Gate::Body;
+        auto b = new(bodymem) Gate::Body;
         newobj = new(&memory) Gate{new_generation, *b};
         break;
       }
@@ -111,7 +113,7 @@ void become(Memory & memory,
       {
         memory.~Memory();
 
-        auto b = new(reinterpret_cast<void *>(range.base())) ReplyGate::Body;
+        auto b = new(bodymem) ReplyGate::Body;
         newobj = new(&memory) ReplyGate{new_generation, *b};
         break;
       }
@@ -119,7 +121,7 @@ void become(Memory & memory,
       {
         memory.~Memory();
 
-        auto b = new(reinterpret_cast<void *>(range.base()))
+        auto b = new(bodymem)
           Interrupt::Body{m.d2};
         newobj = new(&memory) Interrupt{new_generation, *b};
         break;
