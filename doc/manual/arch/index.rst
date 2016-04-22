@@ -5,6 +5,7 @@ Kernel Architecture
 
   intro
   rules
+  parts
   objects
   ipc
   boot

@@ -98,6 +98,7 @@ Rules 1, 2, and 3 are common in third-generation microkernels such as seL4.
 The rest are unusual, and have caused Brittle to look pretty different from its
 peers.
 
+.. _kernel-scope:
 
 What's In a Kernel?
 -------------------

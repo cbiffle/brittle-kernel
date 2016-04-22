@@ -10,7 +10,6 @@ Manual Root
    :maxdepth: 4
 
    intro
-   parts
    arch/index
    kor/index
    serial-demo

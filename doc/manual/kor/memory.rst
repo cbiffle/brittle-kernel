@@ -198,7 +198,7 @@ brand.
 .. note:: Access to this operation will be eventually controlled by the brand.
 
 The type codes for each type of object, the required donation size, and the role
-of the type-specific argument parameter are given below.
+of the message fields/keys are given in the table below.
 
 .. list-table::
   :header-rows: 1
@@ -206,8 +206,8 @@ of the type-specific argument parameter are given below.
   * - Object Type
     - Type Code
     - Size
-    - Data Parameter
-    - Key Parameter
+    - Data Parameter 2
+    - Key Parameter 1
   * - Context
     - 0
     - 512
