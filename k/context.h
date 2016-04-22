@@ -21,6 +21,7 @@
 #include "k/config.h"
 #include "k/key.h"
 #include "k/list.h"
+#include "k/maybe.h"
 #include "k/object.h"
 #include "k/region.h"
 #include "k/registers.h"
@@ -67,11 +68,9 @@ public:
     // use later even if the key gets modified.
     Brand saved_brand{0};
 
-    Object * reply_gate;
+    Maybe<Object *> reply_gate{nothing};
 
     Key memory_regions[config::n_task_regions]{};
-
-    Body(Object * g) : reply_gate{g} {}
   };
 
   Context(Generation g, Body &);
@@ -86,6 +85,8 @@ public:
   Key & memory_region(unsigned index) {
     return _body.memory_regions[index];
   }
+
+  void set_reply_gate(Object & g) { _body.reply_gate = &g; }
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 

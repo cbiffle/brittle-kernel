@@ -231,8 +231,10 @@ void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
 }
 
 Key Context::make_reply_key() const {
-  auto maybe_key = _body.reply_gate->make_key(0);
-  if (maybe_key) return maybe_key.ref();
+  if (_body.reply_gate) {
+    auto maybe_key = _body.reply_gate.ref()->make_key(0);
+    if (maybe_key) return maybe_key.ref();
+  }
   return Key::null();
 }
 

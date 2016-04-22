@@ -273,9 +273,11 @@ void Memory::do_become(Brand const & brand,
   switch (type_code) {
     case TypeCode::context:
       {
-        auto b = new(reinterpret_cast<void *>(_range.base()))
-          Context::Body{&object_table()[m.d2]};
-        newobj = new(this) Context{new_generation, *b};
+        auto b = new(reinterpret_cast<void *>(_range.base())) Context::Body;
+        auto c = new(this) Context{new_generation, *b};
+        // TODO: this is totally the wrong way to designate the ReplyGate!
+        c->set_reply_gate(object_table()[m.d2]);
+        newobj = c;
         break;
       }
     case TypeCode::gate:

@@ -34,7 +34,7 @@ protected:
 
   ObjectTable::Entry _entries[4];
 
-  Context::Body _fake_context_body{&_entries[0].as_object()};
+  Context::Body _fake_context_body;
   Context _fake_context{0, _fake_context_body};
 
   Spy _spy{0};

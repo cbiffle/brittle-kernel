@@ -82,8 +82,9 @@ static void initialize_well_known_objects(
     auto gb = new(arena.allocate(kabi::reply_gate_size)) ReplyGate::Body;
     auto g = new(&entries[3]) ReplyGate{0, *gb};
 
-    auto b = new(arena.allocate(kabi::context_size)) Context::Body{g};
+    auto b = new(arena.allocate(kabi::context_size)) Context::Body;
     first_context = new(&entries[2]) Context{0, *b};
+    first_context->set_reply_gate(*g);
   }
 }
 
