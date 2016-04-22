@@ -33,7 +33,12 @@ void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
 }
 
 void ReplyGate::deliver_to(Context * context) {
-  context->block_in_receive(_body.receivers);
+  if (context == _body.owner) {
+    context->block_in_receive(_body.receivers);
+  } else {
+    // Who are you, and what are you doing?
+    context->complete_receive(Exception::bad_operation);
+  }
 }
 
 Maybe<Key> ReplyGate::make_key(Brand) {
