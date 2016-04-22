@@ -109,6 +109,13 @@ void Context::block_in_receive(List<Context> & list) {
   pend_switch();
 }
 
+void Context::block_in_reply() {
+  _body.ctx_item.unlink();
+  _body.state = State::receiving;
+
+  pend_switch();
+}
+
 void Context::complete_blocked_receive(Brand const & brand, Sender * sender) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;

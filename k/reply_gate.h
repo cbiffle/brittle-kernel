@@ -25,7 +25,6 @@
 #include "common/abi_types.h"
 
 #include "k/key.h"
-#include "k/list.h"
 #include "k/object.h"
 
 namespace k {
@@ -36,7 +35,6 @@ struct Sender;  // see: k/sender.h
 class ReplyGate final : public Object {
 public:
   struct Body {
-    List<Context> receivers{};
     Brand expected_brand{0};
     Maybe<Context *> owner{nothing};
   };

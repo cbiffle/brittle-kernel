@@ -10,8 +10,9 @@ namespace k {
 template struct ObjectSubclassChecks<ReplyGate, kabi::reply_gate_size>;
 
 void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
-  // Filter out messages bearing the wrong brand.
-  if (brand != _body.expected_brand) {
+  // Filter out messages bearing the wrong brand, or those that arrive before
+  // we're bound.
+  if (!is_bound() || brand != _body.expected_brand) {
     // Fail like a null object.
     sender->on_delivery_failed(Exception::bad_operation);
     return;
@@ -23,22 +24,20 @@ void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
     set_generation(get_generation() + 1);
   }
 
-  // This type of gate refuses to block.  Either its owner is waiting to
-  // receive, or you're doing something wrong and your message gets discarded.
-  if (auto partner = _body.receivers.take()) {
-    partner.ref()->complete_blocked_receive(brand, sender);
-  } else {
-    sender->on_delivery_failed(Exception::bad_operation);
+  auto owner = _body.owner.ref();  // Success guaranteed by is_bound check above
+  if (owner->is_awaiting_reply()) {
+    _body.owner.ref()->complete_blocked_receive(brand, sender);
   }
 }
 
 void ReplyGate::deliver_to(Context * context) {
-  if (context == _body.owner) {
-    context->block_in_receive(_body.receivers);
-  } else {
+  if (context != _body.owner) {
     // Who are you, and what are you doing?
     context->complete_receive(Exception::bad_operation);
+    return;
   }
+
+  context->block_in_reply();
 }
 
 Maybe<Key> ReplyGate::make_key(Brand) {

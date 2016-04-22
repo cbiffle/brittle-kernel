@@ -87,6 +87,15 @@ public:
     return _body.memory_regions[index];
   }
 
+  /*
+   * Checks whether this Context is waiting to receive, but is not on a block
+   * list.  This condition indicates that the Context is blocked on its bound
+   * Reply Gate.
+   */
+  bool is_awaiting_reply() const {
+    return _body.state == State::receiving && !_body.ctx_item.is_linked();
+  }
+
   void set_reply_gate(ReplyGate &);
 
   void nullify_exchanged_keys(unsigned preserved = 0);
@@ -120,6 +129,11 @@ public:
    * of either complete_blocked_receive or interrupt.
    */
   void block_in_receive(List<Context> &);
+
+  /*
+   * Analog of block_in_receive for particular use by ReplyGate.
+   */
+  void block_in_reply();
 
   /*
    * Takes a context out of receive state due to reception of a message from

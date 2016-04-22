@@ -10,7 +10,7 @@ static constexpr unsigned
   context_size = 512,
   gate_size = k::config::n_priorities * 16,
   interrupt_size = 32 + k::config::n_priorities * 8,
-  reply_gate_size = 16 + k::config::n_priorities * 8;
+  reply_gate_size = 16;
 
 constexpr unsigned log2floor(unsigned x) {
   return (x < 2) ? 0
