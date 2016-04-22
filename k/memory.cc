@@ -6,12 +6,9 @@
 #include "common/message.h"
 #include "common/descriptor.h"
 
+#include "k/become.h"
 #include "k/context.h"
-#include "k/gate.h"
-#include "k/interrupt.h"
-#include "k/object_table.h"
 #include "k/region.h"
-#include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 #include "k/sender.h"
@@ -210,32 +207,6 @@ void Memory::do_split(Brand const & brand,
   current->apply_to_mpu();
 }
 
-enum class TypeCode {
-  context = 0,
-  gate = 1,
-  reply_gate = 2,
-  interrupt = 3,
-};
-
-static Maybe<TypeCode> extract_type_code(uint32_t arg) {
-  if (arg < 5) {
-    return static_cast<TypeCode>(arg);
-  } else {
-    return nothing;
-  }
-}
-
-static unsigned l2_size_for_type_code(TypeCode tc) {
-  switch (tc) {
-    case TypeCode::context: return kabi::context_l2_size;
-    case TypeCode::gate: return kabi::gate_l2_size;
-    case TypeCode::reply_gate: return kabi::reply_gate_l2_size;
-    case TypeCode::interrupt: return kabi::interrupt_l2_size;
-    default:
-      return 0;
-  }
-}
-
 void Memory::do_become(Brand const & brand,
                        Message const & m,
                        Keys & k) {
@@ -247,72 +218,7 @@ void Memory::do_become(Brand const & brand,
     return;
   }
 
-  auto maybe_type_code = extract_type_code(m.d1);
-  if (!maybe_type_code) {
-    // Can't transmogrify, target object type not recognized.
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
-    return;
-  }
-
-  auto type_code = maybe_type_code.ref();
-  auto l2_size = l2_size_for_type_code(type_code);
-
-  if (l2_size != _range.l2_size()) {
-    // Can't transmogrify, size is wrong.
-    reply_sender.get_message() = Message::failure(Exception::bad_operation, l2_size);
-    return;
-  }
-
-  // Commit point
-  
-  auto new_generation = get_generation() + 1;
-
-  // Allocate the type-specific body in the memory we control, and the new
-  // object over the slot.
-  Object * newobj;
-  switch (type_code) {
-    case TypeCode::context:
-      {
-        auto & alleged_gate_key = k.keys[1];
-        auto alleged_gate_ptr = alleged_gate_key.get();
-        if (!alleged_gate_ptr->is_reply_gate()) {
-          reply_sender.get_message() = Message::failure(Exception::bad_kind);
-          return;
-        }
-
-        auto gate_ptr = static_cast<ReplyGate *>(alleged_gate_ptr);
-        auto b = new(reinterpret_cast<void *>(_range.base())) Context::Body;
-        auto c = new(this) Context{new_generation, *b};
-        c->set_reply_gate(*gate_ptr);
-        newobj = c;
-        break;
-      }
-    case TypeCode::gate:
-      {
-        auto b = new(reinterpret_cast<void *>(_range.base())) Gate::Body;
-        newobj = new(this) Gate{new_generation, *b};
-        break;
-      }
-    case TypeCode::reply_gate:
-      {
-        auto b = new(reinterpret_cast<void *>(_range.base())) ReplyGate::Body;
-        newobj = new(this) ReplyGate{new_generation, *b};
-        break;
-      }
-    case TypeCode::interrupt:
-      {
-        auto b = new(reinterpret_cast<void *>(_range.base()))
-          Interrupt::Body{m.d2};
-        newobj = new(this) Interrupt{new_generation, *b};
-        break;
-      }
-  }
-  // Provide a key to the new object.
-  reply_sender.set_key(1, newobj->make_key(0).ref());  // TODO brand?
-
-  // Update MPU, in case the transmogrified object was in the current Context's
-  // memory map.
-  current->apply_to_mpu();
+  become(*this, m, k, reply_sender.rs);
 }
 
 void Memory::do_peek(Brand const & brand, Message const & m, Keys & k) {

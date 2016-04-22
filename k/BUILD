@@ -1,5 +1,6 @@
 c_library('k_portable',
   sources = [
+    'become.cc',
     'context.cc',
     'gate.cc',
     'interrupt.cc',
