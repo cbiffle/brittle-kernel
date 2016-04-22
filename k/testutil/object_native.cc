@@ -23,6 +23,10 @@ bool Object::is_gate() const {
   return false;
 }
 
+bool Object::is_reply_gate() const {
+  return false;
+}
+
 bool Object::is_slot() const {
   return false;
 }

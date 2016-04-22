@@ -106,6 +106,12 @@ public:
   virtual bool is_gate() const;
 
   /*
+   * Checks whether this Object is really a ReplyGate.  The default
+   * implementation returns false.
+   */
+  virtual bool is_reply_gate() const;
+
+  /*
    * Checks whether this Object is really a Slot.  The default implementation
    * returns false.
    */

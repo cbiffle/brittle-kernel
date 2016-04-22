@@ -49,6 +49,7 @@ public:
   void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;
   Maybe<Key> make_key(Brand) override;
+  bool is_reply_gate() const override { return true; }
 
 private:
   Body & _body;
