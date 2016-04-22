@@ -15,8 +15,8 @@ Maybe<Key> Object::make_key(Brand brand) {
 void Object::deliver_to(Context * ctx) {
 }
 
-bool Object::is_memory() const {
-  return false;
+Region Object::get_region_for_brand(Brand) const {
+  return { Region::Rbar{}, Region::Rasr{} };
 }
 
 bool Object::is_gate() const {

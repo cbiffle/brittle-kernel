@@ -36,10 +36,6 @@ Region Memory::get_region_for_brand(Brand brand) const {
   };
 }
 
-bool Memory::is_memory() const {
-  return true;
-}
-
 void Memory::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);

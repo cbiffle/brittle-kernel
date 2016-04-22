@@ -15,6 +15,7 @@
 #include "k/key.h"
 #include "k/list.h"
 #include "k/maybe.h"
+#include "k/region.h"
 
 namespace k {
 
@@ -91,10 +92,12 @@ public:
   virtual void deliver_to(Context *);
 
   /*
-   * Checks whether this Object is really a Memory.  The default implementation
-   * returns false.
+   * Returns the MPU Region that should be loaded if a key to this object with
+   * the given brand is found in an MPU Region Register.  The default
+   * implementation for non-Memory objects returns zeroes, producing a disabled
+   * region.
    */
-  virtual bool is_memory() const;
+  virtual Region get_region_for_brand(Brand) const;
 
   /*
    * Checks whether this Object is really a Gate.  The default implementation

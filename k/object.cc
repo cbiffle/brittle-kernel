@@ -17,8 +17,8 @@ void Object::deliver_to(Context * ctx) {
   ctx->complete_receive(Exception::bad_operation);
 }
 
-bool Object::is_memory() const {
-  return false;
+Region Object::get_region_for_brand(Brand) const {
+  return { Region::Rbar{}, Region::Rasr{} };
 }
 
 bool Object::is_gate() const {

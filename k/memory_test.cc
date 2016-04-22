@@ -256,7 +256,7 @@ TEST_F(MemoryTest_Typical, split_ok) {
 
   ASSERT_EQ(1, memory().get_generation())
     << "target object should have its keys revoked";
-  ASSERT_TRUE(memory().is_memory())
+  ASSERT_TRUE(dynamic_cast<Memory *>(&memory()))
     << "target object should still be memory";
   ASSERT_EQ(p2range_under_test().base(), memory().get_range().base())
     << "target object base address should be unchanged";
@@ -271,7 +271,7 @@ TEST_F(MemoryTest_Typical, split_ok) {
   auto & newobj = slot();
   ASSERT_EQ(1, newobj.get_generation())
     << "new object should have its keys revoked";
-  ASSERT_TRUE(newobj.is_memory())
+  ASSERT_TRUE(dynamic_cast<Memory *>(&newobj))
     << "new object should be memory";
 
   auto & newmem = static_cast<Memory &>(newobj);

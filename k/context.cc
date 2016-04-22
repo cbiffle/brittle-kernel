@@ -132,17 +132,10 @@ void Context::apply_to_mpu() {
   for (unsigned i = 0; i < config::n_task_regions; ++i) {
     mpu.write_rnr(i);
     auto object = _body.memory_regions[i].get();
-    // TODO: this cast pattern is sub-optimal.  Better to have a cast method.
-    if (object->is_memory()) {
-      auto range = static_cast<Memory *>(object);
-      auto region =
-        range->get_region_for_brand(_body.memory_regions[i].get_brand());
-      mpu.write_rbar(region.rbar);
-      mpu.write_rasr(region.rasr);
-    } else {
-      mpu.write_rasr(0);
-      mpu.write_rbar(0);
-    }
+    auto region =
+        object->get_region_for_brand(_body.memory_regions[i].get_brand());
+    mpu.write_rbar(region.rbar);
+    mpu.write_rasr(region.rasr);
   }
 }
 

@@ -26,14 +26,9 @@ public:
    * Translates a key to this Memory (described by its brand) into the actual
    * settings that would be loaded into the MPU.
    */
-  Region get_region_for_brand(Brand) const;
+  Region get_region_for_brand(Brand) const override;
 
   void deliver_from(Brand const &, Sender *) override;
-
-  /*
-   * Overridden to insist that this is, in fact, Memory.
-   */
-  virtual bool is_memory() const override;
 
 private:
   P2Range _range;
