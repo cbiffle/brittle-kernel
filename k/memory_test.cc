@@ -29,10 +29,16 @@ using etl::armv7m::Mpu;
 
 class MemoryTest : public ::testing::Test {
 protected:
+  static constexpr Rasr rw_rasr =
+    Rasr().with_ap(Mpu::AccessPermissions::p_write_u_write);
+
   ObjectTable::Entry _entries[4];
 
   Context::Body _fake_context_body{&_entries[0].as_object()};
   Context _fake_context{0, _fake_context_body};
+
+  Spy _spy{0};
+  ReplySender _sender;
 
   void SetUp() override {
     new (&_entries[0]) NullObject{0};
@@ -67,8 +73,47 @@ protected:
     return _entries[3].as_object();
   }
 
+  Brand brand_from_rasr(Rasr v) {
+    return uint32_t(v) >> 8;
+  }
+
+  Message const & send_from_spy(Rasr rasr, Message m) {
+    _sender.get_message() = m;
+    _sender.set_key(0, _spy.make_key(0).ref());
+    memory().deliver_from(brand_from_rasr(rasr), &_sender);
+
+    EXPECT_EQ(1, _spy.count()) << "single reply should be sent";
+
+    return _spy.message().m;
+  }
+
   virtual P2Range p2range_under_test() = 0;
 };
+
+constexpr Rasr MemoryTest::rw_rasr;
+
+#define ASSERT_RETURNED_KEY_SHAPE(_obj, _brand, _index) \
+{ \
+  auto & __obj = (_obj); \
+  auto & __key = _spy.keys().keys[_index]; \
+  auto __brand = (_brand); \
+  ASSERT_EQ(__obj.get_generation(), __key.get_generation()) \
+    << "returned key " #_index " must have same generation as " #_obj; \
+  ASSERT_EQ(&__obj, __key.get()) \
+    << "returned key " #_index " must point to " #_obj; \
+  ASSERT_EQ(__brand, __key.get_brand()) \
+    << "returned key " #_index " must have brand " #_brand; \
+}
+
+#define ASSERT_RETURNED_EXCEPTION(_m, _e) \
+{ \
+  auto & __m = (_m); \
+  auto __e = (_e); \
+  ASSERT_TRUE(__m.d0.get_error()) \
+    << "operation should have failed"; \
+  ASSERT_EQ(uint64_t(__e), (uint64_t(__m.d2) << 32) | __m.d1) \
+    << "operation failed with wrong exception"; \
+}
 
 
 /*******************************************************************************
@@ -85,18 +130,8 @@ protected:
 };
 
 TEST_F(MemoryTest_Typical, inspect) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  auto & m = send_from_spy(rw_rasr, {Descriptor::call(0, 0)});
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(0, 0)}};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_EQ(0, uint32_t(m.d0))
     << "inspecting a key should always succeed";
 
@@ -109,143 +144,83 @@ TEST_F(MemoryTest_Typical, inspect) {
   ASSERT_EQ(0, rbar.get_region()) << "Region number field must not be set";
 
   auto rasr = Rasr(m.d2);
-  auto expected_rasr = initial_rasr.with_size(7).with_enable(true);
+  auto expected_rasr = rw_rasr.with_size(7).with_enable(true);
   ASSERT_EQ(uint32_t(expected_rasr), uint32_t(rasr))
     << "Revealed RASR should be initial RASR but with size and enable set";
 }
 
 TEST_F(MemoryTest_Typical, change_tex) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write)
-      .with_tex(0);
-  auto brand = uint32_t(initial_rasr) >> 8;
-
+  auto initial_rasr = rw_rasr.with_tex(0);
   auto target_rasr = initial_rasr.with_tex(3);
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(1, 0), uint32_t(target_rasr)}};
-  sender.set_key(0, spy.make_key(0).ref());
+  auto & m = send_from_spy(initial_rasr, {
+      Descriptor::call(1, 0),
+      uint32_t(target_rasr),
+      });
 
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_EQ(0, uint32_t(m.d0))
     << "altering TEX should always succeed";
 
-  auto & k = spy.keys().keys[1];
-  ASSERT_EQ(memory().get_generation(), k.get_generation())
-    << "returned key must have right generation";
-  ASSERT_EQ(&memory(), k.get())
-    << "returned key must point to object under test";
-  ASSERT_EQ(uint32_t(target_rasr) >> 8, k.get_brand())
-    << "returned key's brand must reflect new RASR";
+  ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(target_rasr), 1);
 }
 
 TEST_F(MemoryTest_Typical, change_disable_subregion) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write)
-      .with_srd(0x01);
-  auto brand = uint32_t(initial_rasr) >> 8;
-
+  auto initial_rasr = rw_rasr.with_srd(0x01);
   auto target_rasr = initial_rasr.with_srd(0x81);
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(1, 0), uint32_t(target_rasr)}};
-  sender.set_key(0, spy.make_key(0).ref());
+  auto & m = send_from_spy(initial_rasr, {
+      Descriptor::call(1, 0),
+      uint32_t(target_rasr),
+      });
 
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_EQ(0, uint32_t(m.d0))
     << "disabling a new subregion in a typical sized object should succeed";
 
-  auto & k = spy.keys().keys[1];
-  ASSERT_EQ(memory().get_generation(), k.get_generation())
-    << "returned key must have right generation";
-  ASSERT_EQ(&memory(), k.get())
-    << "returned key must point to object under test";
-  ASSERT_EQ(uint32_t(target_rasr) >> 8, k.get_brand())
-    << "returned key's brand must reflect new RASR";
+  ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(target_rasr), 1);
 }
 
 TEST_F(MemoryTest_Typical, change_enable_subregion) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write)
-      .with_srd(0x81);
-  auto brand = uint32_t(initial_rasr) >> 8;
-
+  auto initial_rasr = rw_rasr.with_srd(0x81);
   auto target_rasr = initial_rasr.with_srd(0x01);
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(1, 0), uint32_t(target_rasr)}};
-  sender.set_key(0, spy.make_key(0).ref());
+  auto & m = send_from_spy(initial_rasr, {
+      Descriptor::call(1, 0),
+      uint32_t(target_rasr),
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
+}
 
-  memory().deliver_from(brand, &sender);
+TEST_F(MemoryTest_Typical, change_increase_access) {
+  auto initial_rasr = Rasr()
+      .with_ap(Mpu::AccessPermissions::p_write_u_read);
 
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
-  ASSERT_TRUE(m.d0.get_error())
-    << "enabling a disabled subregion should fail";
-  ASSERT_EQ(uint64_t(Exception::bad_argument), (uint64_t(m.d2) << 32) | m.d1)
-    << "exception should be bad_argument";
+  auto target_rasr =
+    initial_rasr.with_ap(Mpu::AccessPermissions::p_write_u_write);
+
+  auto & m = send_from_spy(initial_rasr, {
+      Descriptor::call(1, 0),
+      uint32_t(target_rasr),
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
 }
 
 TEST_F(MemoryTest_Typical, split_without_donation) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
-
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(2, 0)}};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
-  ASSERT_TRUE(m.d0.get_error())
-    << "splitting without a slot key should fail";
-  ASSERT_EQ(uint64_t(Exception::bad_kind), (uint64_t(m.d2) << 32) | m.d1)
-    << "exception should be bad_kind";
+  auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_kind);
 }
 
 TEST_F(MemoryTest_Typical, split_srd_fail) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write)
-      .with_srd(0x01);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  auto initial_rasr = rw_rasr.with_srd(0x01);
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(2, 0)}};
-  sender.set_key(0, spy.make_key(0).ref());
-  sender.set_key(1, slot().make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
-  ASSERT_TRUE(m.d0.get_error())
-    << "splitting a region with SRD set should fail";
-  ASSERT_EQ(uint64_t(Exception::bad_operation), (uint64_t(m.d2) << 32) | m.d1)
-    << "exception should be bad_operation";
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(initial_rasr, {Descriptor::call(2, 0)});
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
 }
 
 TEST_F(MemoryTest_Typical, split_ok) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(2, 0)}};
-  sender.set_key(0, spy.make_key(0).ref());
-  sender.set_key(1, slot().make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_EQ(0, uint32_t(m.d0))
     << "splitting a typical-size object with a valid slot donation"
        " should succeed";
@@ -286,25 +261,13 @@ TEST_F(MemoryTest_Typical, split_ok) {
    * Check shape of bottom key.
    */
 
-  auto & bk = spy.keys().keys[1];
-  ASSERT_EQ(memory().get_generation(), bk.get_generation())
-    << "returned bottom key must have right generation";
-  ASSERT_EQ(&memory(), bk.get())
-    << "returned bottom key must point to object under test";
-  ASSERT_EQ(brand, bk.get_brand())
-    << "returned bottom key's brand must match original";
+  ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(rw_rasr), 1);
 
   /*
    * Check shape of top key.
    */
 
-  auto & tk = spy.keys().keys[2];
-  ASSERT_EQ(newmem.get_generation(), tk.get_generation())
-    << "returned top key must have right generation";
-  ASSERT_EQ(&newmem, tk.get())
-    << "returned top key must point to new object";
-  ASSERT_EQ(brand, tk.get_brand())
-    << "returned top key's brand must match original";
+  ASSERT_RETURNED_KEY_SHAPE(newmem, brand_from_rasr(rw_rasr), 2);
 }
 
 
@@ -320,25 +283,14 @@ protected:
 };
 
 TEST_F(MemoryTest_Small, change_disable_subregion) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write)
-      .with_srd(0x00);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  auto target_rasr = rw_rasr.with_srd(0x01);
 
-  auto target_rasr = initial_rasr.with_srd(0x01);
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(1, 0),
+      uint32_t(target_rasr),
+      });
 
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(1, 0), uint32_t(target_rasr)}};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
-  ASSERT_TRUE(m.d0.get_error())
-    << "disabling a subregion in an object < 256 bytes should be an error";
-  ASSERT_EQ(uint64_t(Exception::bad_argument), (uint64_t(m.d2) << 32) | m.d1)
-    << "exception should be bad_argument";
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
 }
 
 /*******************************************************************************
@@ -353,24 +305,10 @@ protected:
   }
 };
 
-TEST_F(MemoryTest_Tiny, split_ok) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
-
-  Spy spy{0};
-  ReplySender sender{{Descriptor::call(2, 0)}};
-  sender.set_key(0, spy.make_key(0).ref());
-  sender.set_key(1, slot().make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
-  ASSERT_TRUE(m.d0.get_error())
-    << "splitting a 32-byte region should fail";
-  ASSERT_EQ(uint64_t(Exception::bad_operation), (uint64_t(m.d2) << 32) | m.d1)
-    << "exception should be bad_operation";
+TEST_F(MemoryTest_Tiny, split_too_small) {
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
 }
 
 
@@ -409,25 +347,20 @@ protected:
   P2Range p2range_under_test() override {
     return P2Range::of(reinterpret_cast<uint32_t>(buffer), l2_half_size).ref();
   }
+
+  Message const & send_become(Rasr rasr, unsigned tc, unsigned x = 0) {
+    return send_from_spy(rasr, {
+        Descriptor::call(3, 0),
+        tc,
+        x,
+        });
+  }
 };
 
 using MemoryTest_BecomeContext = MemoryTest_Become<kabi::context_l2_size>;
 TEST_F(MemoryTest_BecomeContext, ok) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  auto & m = send_become(rw_rasr, 0);
 
-  Spy spy{0};
-  ReplySender sender{{
-    Descriptor::call(3, 0),
-    0,  // make a context
-  }};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_FALSE(m.d0.get_error())
     << "this memory should be able to become a context; exception: "
     << std::hex
@@ -439,32 +372,13 @@ TEST_F(MemoryTest_BecomeContext, ok) {
   ASSERT_TRUE(dynamic_cast<Context *>(&object()))
     << "The consumed memory should be a context now.";
 
-  auto & k = spy.keys().keys[1];
-  ASSERT_EQ(object().get_generation(), k.get_generation())
-    << "returned key must have right generation";
-  ASSERT_EQ(&object(), k.get())
-    << "returned key must point to new object";
-  ASSERT_EQ(0, k.get_brand())
-    << "returned key must have zero brand";
+  ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
 }
 
 using MemoryTest_BecomeGate = MemoryTest_Become<kabi::gate_l2_size>;
 TEST_F(MemoryTest_BecomeGate, ok) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  auto & m = send_become(rw_rasr, 1);
 
-  Spy spy{0};
-  ReplySender sender{{
-    Descriptor::call(3, 0),
-    1,  // make a gate
-  }};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_FALSE(m.d0.get_error())
     << "this memory should be able to become a gate; exception: "
     << std::hex
@@ -476,32 +390,13 @@ TEST_F(MemoryTest_BecomeGate, ok) {
   ASSERT_TRUE(dynamic_cast<Gate *>(&object()))
     << "The consumed memory should be a gate now.";
 
-  auto & k = spy.keys().keys[1];
-  ASSERT_EQ(object().get_generation(), k.get_generation())
-    << "returned key must have right generation";
-  ASSERT_EQ(&object(), k.get())
-    << "returned key must point to new object";
-  ASSERT_EQ(0, k.get_brand())
-    << "returned key must have zero brand";
+  ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
 }
 
 using MemoryTest_BecomeReplyGate = MemoryTest_Become<kabi::reply_gate_l2_size>;
 TEST_F(MemoryTest_BecomeReplyGate, ok) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  auto & m = send_become(rw_rasr, 2);
 
-  Spy spy{0};
-  ReplySender sender{{
-    Descriptor::call(3, 0),
-    2,  // make a reply_gate
-  }};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_FALSE(m.d0.get_error())
     << "this memory should be able to become a reply gate; exception: "
     << std::hex
@@ -513,33 +408,14 @@ TEST_F(MemoryTest_BecomeReplyGate, ok) {
   ASSERT_TRUE(dynamic_cast<ReplyGate *>(&object()))
     << "The consumed memory should be a reply gate now.";
 
-  auto & k = spy.keys().keys[1];
-  ASSERT_EQ(object().get_generation(), k.get_generation())
-    << "returned key must have right generation";
-  ASSERT_EQ(&object(), k.get())
-    << "returned key must point to new object";
-  ASSERT_EQ(0, k.get_brand())
-    << "returned key must have zero brand";
+  ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
 }
 
 using MemoryTest_BecomeInterrupt = MemoryTest_Become<kabi::interrupt_l2_size>;
 TEST_F(MemoryTest_BecomeInterrupt, ok) {
-  auto initial_rasr = Rasr()
-      .with_ap(Mpu::AccessPermissions::p_write_u_write);
-  auto brand = uint32_t(initial_rasr) >> 8;
+  static constexpr unsigned irq_number = 1;
+  auto & m = send_become(rw_rasr, 3, irq_number);
 
-  Spy spy{0};
-  ReplySender sender{{
-    Descriptor::call(3, 0),
-    3,  // make an interrupt
-    1,  // interrupt number 1
-  }};
-  sender.set_key(0, spy.make_key(0).ref());
-
-  memory().deliver_from(brand, &sender);
-
-  ASSERT_EQ(1, spy.count()) << "single reply should be sent";
-  auto & m = spy.message().m;
   ASSERT_FALSE(m.d0.get_error())
     << "this memory should be able to become an interrupt; exception: "
     << std::hex
@@ -551,16 +427,10 @@ TEST_F(MemoryTest_BecomeInterrupt, ok) {
   ASSERT_TRUE(dynamic_cast<Interrupt *>(&object()))
     << "The consumed memory should be an interrupt now.";
 
-  auto & k = spy.keys().keys[1];
-  ASSERT_EQ(object().get_generation(), k.get_generation())
-    << "returned key must have right generation";
-  ASSERT_EQ(&object(), k.get())
-    << "returned key must point to new object";
-  ASSERT_EQ(0, k.get_brand())
-    << "returned key must have zero brand";
+  ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
 
   // Note that table offset is 1+ interrupt number because of systick.
-  ASSERT_EQ(&object(), irq_table[2])
+  ASSERT_EQ(&object(), irq_table[irq_number + 1])
     << "interrupt should have wired itself into the table";
 }
 
