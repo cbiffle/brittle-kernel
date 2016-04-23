@@ -101,9 +101,11 @@ void Interrupt::block_in_send(Brand const & brand,
   list.insert(&_body.sender_item);
 }
 
-Message Interrupt::on_blocked_delivery_accepted(Brand & b, Keys & k) {
-  b = _body.saved_brand;
-  return on_delivery_accepted(k);
+ReceivedMessage Interrupt::on_blocked_delivery_accepted(Keys & k) {
+  return {
+    .m = on_delivery_accepted(k),
+    .brand = _body.saved_brand,
+  };
 }
 
 void Interrupt::on_blocked_delivery_failed(Exception, uint32_t) {

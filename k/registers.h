@@ -25,10 +25,7 @@ union SavedRegisters {
     uint32_t basepri;
   } named;
 
-  struct {
-    Message m;
-    Brand b;
-  } sys;
+  ReceivedMessage sys;
 
   SavedRegisters() : raw{} {}
 };

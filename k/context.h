@@ -178,7 +178,7 @@ public:
    */
 
   Priority get_priority() const override;
-  Message on_blocked_delivery_accepted(Brand &, Keys &) override;
+  ReceivedMessage on_blocked_delivery_accepted(Keys &) override;
   void on_blocked_delivery_failed(Exception, uint32_t = 0) override;
 
 

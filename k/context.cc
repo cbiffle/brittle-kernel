@@ -82,8 +82,7 @@ void Context::do_copy_key(Descriptor d) {
 }
 
 void Context::complete_receive(BlockingSender * sender) {
-  _body.save.sys.m = sender->on_blocked_delivery_accepted(_body.save.sys.b,
-                                                          get_message_keys());
+  _body.save.sys = sender->on_blocked_delivery_accepted(get_message_keys());
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
@@ -110,7 +109,7 @@ void Context::block_in_reply() {
 void Context::complete_blocked_receive(Brand const & brand, Sender * sender) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
-  _body.save.sys.b = brand;
+  _body.save.sys.brand = brand;
 
   pend_switch();
 
@@ -212,13 +211,15 @@ void Context::block_in_send(Brand const & brand, List<BlockingSender> & list) {
   }
 }
 
-Message Context::on_blocked_delivery_accepted(Brand & b, Keys & k) {
+ReceivedMessage Context::on_blocked_delivery_accepted(Keys & k) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
 
-  b = _body.saved_brand;
   pend_switch();
-  return on_delivery_accepted(k);
+  return {
+    .m = on_delivery_accepted(k),
+    .brand = _body.saved_brand,
+  };
 }
 
 void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {

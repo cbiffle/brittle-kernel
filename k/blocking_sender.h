@@ -35,7 +35,7 @@ public:
    * This ends the blocking send protocol.  If the sender needs to atomically
    * transition to receive state, it should do so here.
    */
-  virtual Message on_blocked_delivery_accepted(Brand &, Keys &) = 0;
+  virtual ReceivedMessage on_blocked_delivery_accepted(Keys &) = 0;
 
   /*
    * Indicates that delivery of the blocked message has failed.

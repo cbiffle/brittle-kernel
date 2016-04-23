@@ -58,7 +58,7 @@ public:
    * Implementation of BlockingSender
    */
   Priority get_priority() const override final;
-  Message on_blocked_delivery_accepted(Brand &, Keys &) override final;
+  ReceivedMessage on_blocked_delivery_accepted(Keys &) override final;
   void on_blocked_delivery_failed(Exception, uint32_t = 0) override final;
 
 private:
