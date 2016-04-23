@@ -97,7 +97,7 @@ Reply
 Exceptions
 ##########
 
-- ``k.index_out_of_range`` if the key index is not valid.
+- ``k.bad_argument`` if the key index is not valid.
 
 
 Write Key Register (3)
@@ -121,7 +121,7 @@ Reply
 Exceptions
 ##########
 
-- ``k.index_out_of_range`` if the key index is not valid.
+- ``k.bad_argument`` if the key index is not valid.
 
 
 Read MPU Region Register (4)
@@ -145,7 +145,7 @@ Reply
 Exceptions
 ##########
 
-- ``k.index_out_of_range`` if the region index is not valid for this Context.
+- ``k.bad_argument`` if the region index is not valid for this Context.
 
 
 Write MPU Region Register (5)
@@ -179,7 +179,7 @@ Reply
 Exceptions
 ##########
 
-- ``k.index_out_of_range`` if the region register index is not valid for this
+- ``k.bad_argument`` if the region register index is not valid for this
   Context.
 
 

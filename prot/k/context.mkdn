@@ -66,7 +66,7 @@ Results:
 - k1: key from context.
 
 Exceptions:
-- `k.index_out_of_range`
+- `k.bad_argument` if the key index is out of range.
 
 
 Write Key (3)
@@ -83,7 +83,7 @@ Results:
 - d0: success descriptor.
 
 Exceptions:
-- `k.index_out_of_range`
+- `k.bad_argument` if the key index is out of range.
 
 
 Read MPU Region (4)
@@ -100,7 +100,7 @@ Results:
 - k1: region key
 
 Exceptions:
-- `k.index_out_of_range`
+- `k.bad_argument` if the region index is out of range.
 
 
 Write MPU Region (5)
@@ -124,7 +124,7 @@ Results:
 - d0: success descriptor
 
 Exceptions:
-- `k.index_out_of_range`
+- `k.bad_argument` if the region index is out of range.
 
 
 Set Runnable (6)

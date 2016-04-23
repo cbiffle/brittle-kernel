@@ -328,7 +328,7 @@ void Context::do_read_key(ScopedReplySender & reply_sender,
   auto r = arg.d1;
 
   if (r >= config::n_task_keys) {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   } else {
     reply_sender.set_key(1, key(r));
   }
@@ -340,12 +340,10 @@ void Context::do_write_key(ScopedReplySender & reply_sender,
                            Keys & k) {
   auto r = arg.d1;
 
-  auto & new_key = k.keys[1];
-
   if (r >= config::n_task_keys) {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   } else {
-    key(r) = new_key;
+    key(r) = k.keys[1];
   }
 }
 
@@ -358,7 +356,7 @@ void Context::do_read_region(ScopedReplySender & reply_sender,
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _body.memory_regions[n]);
   } else {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
 }
 
@@ -367,12 +365,11 @@ void Context::do_write_region(ScopedReplySender & reply_sender,
                               Message const & arg,
                               Keys & k) {
   auto n = arg.d1;
-  auto & object_key = k.keys[1];
 
   if (n < config::n_task_regions) {
-    _body.memory_regions[n] = object_key;
+    _body.memory_regions[n] = k.keys[1];
   } else {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
 
   if (current == this) apply_to_mpu();
@@ -405,7 +402,7 @@ void Context::do_write_priority(ScopedReplySender & reply_sender,
     if (_body.ctx_item.is_linked()) _body.ctx_item.reinsert();
     if (_body.sender_item.is_linked()) _body.sender_item.reinsert();
   } else {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
 }
 
