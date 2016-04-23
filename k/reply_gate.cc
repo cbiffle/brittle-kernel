@@ -9,7 +9,7 @@ namespace k {
 
 template struct ObjectSubclassChecks<ReplyGate, kabi::reply_gate_size>;
 
-void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
+void ReplyGate::deliver_from(Brand brand, Sender * sender) {
   // Filter out messages bearing the wrong brand, or those that arrive before
   // we're bound.
   if (!is_bound() || brand != _body.expected_brand) {

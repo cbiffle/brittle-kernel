@@ -13,7 +13,7 @@ namespace k {
 class Slot final : public Object {
 public:
   Slot(Generation g) : Object{g} {}
-  void deliver_from(Brand const &, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
   bool is_slot() const override;
 };
 

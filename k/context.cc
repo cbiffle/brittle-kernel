@@ -106,7 +106,7 @@ void Context::block_in_reply() {
   pend_switch();
 }
 
-void Context::complete_blocked_receive(Brand const & brand, Sender * sender) {
+void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
   _body.save.sys.brand = brand;
@@ -195,7 +195,7 @@ void Context::on_delivery_failed(Exception e, uint32_t param) {
   nullify_exchanged_keys();
 }
 
-void Context::block_in_send(Brand const & brand, List<BlockingSender> & list) {
+void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
   ETL_ASSERT(this == current);
 
   if (get_descriptor().get_block()) {
@@ -244,11 +244,11 @@ Key Context::make_reply_key() const {
  */
 
 using IpcImpl = void (Context::*)(ScopedReplySender &,
-                                  Brand const &,
+                                  Brand,
                                   Message const &,
                                   Keys &);
 
-void Context::deliver_from(Brand const & brand, Sender * sender) {
+void Context::deliver_from(Brand brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
 
@@ -286,7 +286,7 @@ Maybe<uint32_t *> Context::lookup_register(unsigned r) {
 }
 
 void Context::do_read_register(ScopedReplySender & reply_sender,
-                               Brand const &,
+                               Brand,
                                Message const & arg,
                                Keys &) {
   if (auto raddr = lookup_register(arg.d1)) {
@@ -297,7 +297,7 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
 }
 
 void Context::do_write_register(ScopedReplySender & reply_sender,
-                                Brand const &,
+                                Brand,
                                 Message const & arg,
                                 Keys &) {
   if (auto raddr = lookup_register(arg.d1)) {
@@ -308,7 +308,7 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
 }
 
 void Context::do_read_key(ScopedReplySender & reply_sender,
-                          Brand const &,
+                          Brand,
                           Message const & arg,
                           Keys &) {
   auto r = arg.d1;
@@ -321,7 +321,7 @@ void Context::do_read_key(ScopedReplySender & reply_sender,
 }
 
 void Context::do_write_key(ScopedReplySender & reply_sender,
-                           Brand const &,
+                           Brand,
                            Message const & arg,
                            Keys & k) {
   auto r = arg.d1;
@@ -334,7 +334,7 @@ void Context::do_write_key(ScopedReplySender & reply_sender,
 }
 
 void Context::do_read_region(ScopedReplySender & reply_sender,
-                             Brand const &,
+                             Brand,
                              Message const & arg,
                              Keys &) {
   auto n = arg.d1;
@@ -347,7 +347,7 @@ void Context::do_read_region(ScopedReplySender & reply_sender,
 }
 
 void Context::do_write_region(ScopedReplySender & reply_sender,
-                              Brand const &,
+                              Brand,
                               Message const & arg,
                               Keys & k) {
   auto n = arg.d1;
@@ -362,7 +362,7 @@ void Context::do_write_region(ScopedReplySender & reply_sender,
 }
 
 void Context::do_make_runnable(ScopedReplySender &,
-                               Brand const &,
+                               Brand,
                                Message const &,
                                Keys &) {
   make_runnable();
@@ -370,14 +370,14 @@ void Context::do_make_runnable(ScopedReplySender &,
 }
 
 void Context::do_read_priority(ScopedReplySender & reply_sender,
-                               Brand const &,
+                               Brand,
                                Message const &,
                                Keys &) {
   reply_sender.get_message().d1 = _body.priority;
 }
 
 void Context::do_write_priority(ScopedReplySender & reply_sender,
-                                Brand const &,
+                                Brand,
                                 Message const & arg,
                                 Keys &) {
   auto priority = arg.d1;
@@ -393,7 +393,7 @@ void Context::do_write_priority(ScopedReplySender & reply_sender,
 }
 
 void Context::do_save_kernel_registers(ScopedReplySender & reply_sender,
-                                       Brand const &,
+                                       Brand,
                                        Message const & arg,
                                        Keys &) {
   uint32_t * dest = reinterpret_cast<uint32_t *>(arg.d1);
@@ -407,7 +407,7 @@ void Context::do_save_kernel_registers(ScopedReplySender & reply_sender,
 }
 
 void Context::do_restore_kernel_registers(ScopedReplySender & reply_sender,
-                                          Brand const &,
+                                          Brand,
                                           Message const & arg,
                                           Keys &) {
   uint32_t const * src = reinterpret_cast<uint32_t const *>(arg.d1);

@@ -64,7 +64,7 @@ public:
    * should call on_blocked_delivery_accepted in place of normal
    * on_delivery_accepted and finish the process above.
    */
-  virtual void deliver_from(Brand const &, Sender *) = 0;
+  virtual void deliver_from(Brand, Sender *) = 0;
 
   /*
    * The given Context wants to receive a message from this object.  This

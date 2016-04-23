@@ -102,13 +102,13 @@ public:
   }
 
   // Implementation of Object.
-  void deliver_from(Brand const &, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
 private:
   RangePtr<Entry> _objects;
 
-  void do_mint_key(Brand const &, Message const &, Keys &);
-  void do_read_key(Brand const &, Message const &, Keys &);
+  void do_mint_key(Brand, Message const &, Keys &);
+  void do_read_key(Brand, Message const &, Keys &);
 };
 
 /*

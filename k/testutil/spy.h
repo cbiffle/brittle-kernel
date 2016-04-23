@@ -23,7 +23,7 @@ public:
   Keys & keys() { return _keys; }
   unsigned count() const { return _count; }
 
-  void deliver_from(Brand const &, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
 private:
   ReceivedMessage _received;

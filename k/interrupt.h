@@ -45,14 +45,14 @@ public:
   /*
    * Handles a message in the interrupt control protocol.
    */
-  void deliver_from(Brand const &, Sender *) override final;
+  void deliver_from(Brand, Sender *) override final;
 
   /*
    * Implementation of Sender
    */
   Message on_delivery_accepted(Keys &) override final;
   void on_delivery_failed(Exception, uint32_t = 0) override final;
-  void block_in_send(Brand const &, List<BlockingSender> &) override final;
+  void block_in_send(Brand, List<BlockingSender> &) override final;
 
   /*
    * Implementation of BlockingSender
@@ -66,8 +66,8 @@ private:
 
   uint32_t get_identifier() const { return _body.identifier; }
 
-  void do_set_target(Brand const &, Message const &, Keys &);
-  void do_enable(Brand const &, Message const &, Keys &);
+  void do_set_target(Brand, Message const &, Keys &);
+  void do_enable(Brand, Message const &, Keys &);
 
   void disable_interrupt();
   void clear_pending_interrupt();

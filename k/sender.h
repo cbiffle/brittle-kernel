@@ -52,7 +52,7 @@ public:
    *
    * This ends the non-blocking send protocol.
    */
-  virtual void block_in_send(Brand const &, List<BlockingSender> &) = 0;
+  virtual void block_in_send(Brand, List<BlockingSender> &) = 0;
 };
 
 }  // namespace k

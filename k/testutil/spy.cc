@@ -4,7 +4,7 @@
 
 namespace k {
 
-void Spy::deliver_from(Brand const & brand, Sender * sender) {
+void Spy::deliver_from(Brand brand, Sender * sender) {
   ++_count;
 
   _received.brand = brand;

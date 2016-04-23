@@ -4,7 +4,7 @@
 
 namespace k {
 
-void Slot::deliver_from(Brand const &, Sender * sender) {
+void Slot::deliver_from(Brand, Sender * sender) {
   sender->on_delivery_failed(Exception::bad_operation);
 }
 

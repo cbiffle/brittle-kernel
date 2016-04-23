@@ -33,7 +33,7 @@ Region Memory::get_region_for_brand(Brand brand) const {
   };
 }
 
-void Memory::deliver_from(Brand const & brand, Sender * sender) {
+void Memory::deliver_from(Brand brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
 
@@ -68,7 +68,7 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
   }
 }
 
-void Memory::do_inspect(Brand const & brand,
+void Memory::do_inspect(Brand brand,
                         Message const &,
                         Keys & k) {
   auto reg = get_region_for_brand(brand);
@@ -116,7 +116,7 @@ static bool ap_is_stronger(Mpu::AccessPermissions a, Mpu::AccessPermissions b) {
   return da.priv > db.priv || da.unpriv > db.unpriv;
 }
 
-void Memory::do_change(Brand const & brand,
+void Memory::do_change(Brand brand,
                        Message const & m,
                        Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
@@ -148,7 +148,7 @@ void Memory::do_change(Brand const & brand,
   reply_sender.set_key(1, make_key(new_brand).ref());
 }
 
-void Memory::do_split(Brand const & brand,
+void Memory::do_split(Brand brand,
                       Message const & m,
                       Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
@@ -207,7 +207,7 @@ void Memory::do_split(Brand const & brand,
   current->apply_to_mpu();
 }
 
-void Memory::do_become(Brand const & brand,
+void Memory::do_become(Brand brand,
                        Message const & m,
                        Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
@@ -221,7 +221,7 @@ void Memory::do_become(Brand const & brand,
   become(*this, m, k, reply_sender.rs);
 }
 
-void Memory::do_peek(Brand const & brand, Message const & m, Keys & k) {
+void Memory::do_peek(Brand brand, Message const & m, Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
   auto offset = m.d1;
@@ -236,7 +236,7 @@ void Memory::do_peek(Brand const & brand, Message const & m, Keys & k) {
     reinterpret_cast<uint32_t const *>(_range.base())[offset];
 }
 
-void Memory::do_poke(Brand const & brand, Message const & m, Keys & k) {
+void Memory::do_poke(Brand brand, Message const & m, Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
   auto offset = m.d1;

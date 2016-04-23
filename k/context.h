@@ -136,7 +136,7 @@ public:
    * Takes a context out of receive state due to reception of a message from
    * the provided sender.  Analog of Sender::complete_blocked_send.
    */
-  void complete_blocked_receive(Brand const &, Sender *);
+  void complete_blocked_receive(Brand, Sender *);
 
   /*
    * Takes a context out of receive state due to an exception.  Analog of
@@ -170,7 +170,7 @@ public:
   /*
    * Overridden to support real blocking if permitted by task code.
    */
-  void block_in_send(Brand const &, List<BlockingSender> &) override;
+  void block_in_send(Brand, List<BlockingSender> &) override;
 
 
   /*************************************************************
@@ -186,7 +186,7 @@ public:
    * Implementation of Object.
    */
 
-  void deliver_from(Brand const &, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
 private:
   Body & _body;
@@ -197,24 +197,24 @@ private:
   Key make_reply_key() const;
 
   // Factors of deliver_from
-  void do_read_register(ScopedReplySender &, Brand const &, Message const &, Keys &);
-  void do_write_register(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_read_register(ScopedReplySender &, Brand, Message const &, Keys &);
+  void do_write_register(ScopedReplySender &, Brand, Message const &, Keys &);
 
-  void do_read_key(ScopedReplySender &, Brand const &, Message const &, Keys &);
-  void do_write_key(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_read_key(ScopedReplySender &, Brand, Message const &, Keys &);
+  void do_write_key(ScopedReplySender &, Brand, Message const &, Keys &);
 
-  void do_read_region(ScopedReplySender &, Brand const &, Message const &, Keys &);
-  void do_write_region(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_read_region(ScopedReplySender &, Brand, Message const &, Keys &);
+  void do_write_region(ScopedReplySender &, Brand, Message const &, Keys &);
 
-  void do_make_runnable(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_make_runnable(ScopedReplySender &, Brand, Message const &, Keys &);
 
-  void do_read_priority(ScopedReplySender &, Brand const &, Message const &, Keys &);
-  void do_write_priority(ScopedReplySender &, Brand const &, Message const &, Keys &);
+  void do_read_priority(ScopedReplySender &, Brand, Message const &, Keys &);
+  void do_write_priority(ScopedReplySender &, Brand, Message const &, Keys &);
 
-  void do_save_kernel_registers(ScopedReplySender &, Brand const &,
-      Message const &, Keys &);
-  void do_restore_kernel_registers(ScopedReplySender &, Brand const &,
-      Message const &, Keys &);
+  void do_save_kernel_registers(ScopedReplySender &, Brand, Message const &,
+      Keys &);
+  void do_restore_kernel_registers(ScopedReplySender &, Brand, Message const &,
+      Keys &);
 
   Maybe<uint32_t *> lookup_register(unsigned);
 };

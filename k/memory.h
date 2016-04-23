@@ -28,17 +28,17 @@ public:
    */
   Region get_region_for_brand(Brand) const override;
 
-  void deliver_from(Brand const &, Sender *) override;
+  void deliver_from(Brand, Sender *) override;
 
 private:
   P2Range _range;
 
-  void do_inspect(Brand const &, Message const &, Keys &);
-  void do_change(Brand const &, Message const &, Keys &);
-  void do_split(Brand const &, Message const &, Keys &);
-  void do_become(Brand const &, Message const &, Keys &);
-  void do_peek(Brand const &, Message const &, Keys &);
-  void do_poke(Brand const &, Message const &, Keys &);
+  void do_inspect(Brand, Message const &, Keys &);
+  void do_change(Brand, Message const &, Keys &);
+  void do_split(Brand, Message const &, Keys &);
+  void do_become(Brand, Message const &, Keys &);
+  void do_peek(Brand, Message const &, Keys &);
+  void do_poke(Brand, Message const &, Keys &);
 };
 
 }  // namespace k
