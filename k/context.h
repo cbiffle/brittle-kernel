@@ -219,8 +219,7 @@ private:
   void do_restore_kernel_registers(ScopedReplySender &, Brand const &,
       Message const &, Keys &);
 
-  struct RegisterLocation { uint32_t * addr; bool in_context; };
-  Maybe<RegisterLocation> lookup_register(unsigned);
+  Maybe<uint32_t *> lookup_register(unsigned);
 };
 
 }  // namespace k

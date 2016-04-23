@@ -1,6 +1,7 @@
 #include <cstdint>
 
 #include "etl/assert.h"
+#include "etl/armv7m/exception_frame.h"
 #include "etl/armv7m/instructions.h"
 #include "etl/armv7m/mpu.h"
 #include "etl/data/range_ptr.h"
@@ -197,34 +198,16 @@ static void copy_all_regions(unsigned from_k, unsigned to_k) {
 static void initialize_registers(unsigned k,
                                  RangePtr<uint32_t> stack,
                                  void (*entry)()) {
-  // Configure the stack pointer to the end of its range, less one exception
-  // frame.  We have to do this before the other registers, because some of the
-  // other registers get stored into the exception frame.
-  auto frame = &stack[stack.count() - 8];
+  using etl::armv7m::ExceptionFrame;
+
+  // Fill in the initial register values on the stack.
+  auto frame = reinterpret_cast<ExceptionFrame *>(&stack[stack.count() - 8]);
+  frame->r14 = 0xFFFFFFFF;  // catch unintentional exit from entry point
+  frame->r15 = reinterpret_cast<uint32_t>(entry);
+  frame->psr = 1 << 24;  // set thumb mode
+
+  // Load the stack pointer.
   context::set_register(k, 13, reinterpret_cast<uint32_t>(frame));
-
-  // Now, set the other machine registers.
-  for (unsigned i = 0; i < 17; ++i) {
-    uint32_t register_value;
-    switch (i) {
-      case 13:
-        continue;  // handled above.
-
-      case 15:
-        register_value = reinterpret_cast<uint32_t>(entry);
-        break;
-
-      case 16:
-        register_value = 1 << 24;  // set thumb mode
-        break;
-
-      default:
-        register_value = 0xDEADBEEF;
-        break;
-    }
-
-    context::set_register(k, i, register_value);
-  }
 }
 
 

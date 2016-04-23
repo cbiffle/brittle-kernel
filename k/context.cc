@@ -288,29 +288,11 @@ void Context::deliver_from(Brand const & brand, Sender * sender) {
   }
 }
 
-auto Context::lookup_register(unsigned r) -> Maybe<RegisterLocation> {
+Maybe<uint32_t *> Context::lookup_register(unsigned r) {
   switch (r) {
-#define EFR(n, name) \
-    case n: \
-      return {{ &_body.stack->name, false }};
-    EFR(0, r0)
-    EFR(1, r1)
-    EFR(2, r2)
-    EFR(3, r3)
-    EFR(12, r12)
-    EFR(14, r14)
-    EFR(15, r15)
-    EFR(16, psr)
-#undef EFR
-
-    case 4 ... 11:
-      return {{ &_body.save.raw[r - 4], true }};
-
-    case 13:
-      return {{ reinterpret_cast<uint32_t *>(&_body.stack), true }};
-
-    case 17:
-      return {{ &_body.save.named.basepri, true }};
+    case 4 ... 11: return &_body.save.raw[r - 4];
+    case 13:       return reinterpret_cast<uint32_t *>(&_body.stack);
+    case 17:       return &_body.save.named.basepri;
 
     default:
       return nothing;
@@ -321,25 +303,10 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
                                Brand const &,
                                Message const & arg,
                                Keys &) {
-  auto maybe_rloc = lookup_register(arg.d1);
-
-  if (!maybe_rloc) {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
-    return;
-  }
-
-  auto & rloc = maybe_rloc.ref();
-  if (rloc.in_context) {
-    reply_sender.get_message().d1 = *rloc.addr;
+  if (auto raddr = lookup_register(arg.d1)) {
+    reply_sender.get_message().d1 = *raddr.ref();
   } else {
-    apply_to_mpu();
-    auto maybe_value = uload(rloc.addr);
-    current->apply_to_mpu();
-    if (maybe_value) {
-      reply_sender.get_message().d1 = maybe_value.ref();
-    } else {
-      reply_sender.get_message() = Message::failure(Exception::fault);
-    }
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
 }
 
@@ -347,22 +314,10 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
                                 Brand const &,
                                 Message const & arg,
                                 Keys &) {
-  auto maybe_rloc = lookup_register(arg.d1);
-
-  if (!maybe_rloc) {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
-    return;
-  }
-
-  auto & rloc = maybe_rloc.ref();
-  if (rloc.in_context) {
-    *rloc.addr = arg.d2;
+  if (auto raddr = lookup_register(arg.d1)) {
+    *raddr.ref() = arg.d2;
   } else {
-    apply_to_mpu();
-    if (!ustore(rloc.addr, arg.d2)) {
-      reply_sender.get_message() = Message::failure(Exception::fault);
-    }
-    current->apply_to_mpu();
+    reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
 }
 

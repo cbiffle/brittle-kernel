@@ -17,11 +17,13 @@ Read Register (0)
 
 .. warning:: This method is deprecated.
 
-Reads a register, by index, from this context.  Register indices are interpreted
-as follows:
+Reads a register, by index, from this context.  Only the registers specified as
+"callee-save" by the ARM Procedure Call Standard are stored in the context;
+others are stored on the stack.  Valid register numbers for use with this
+operation are:
 
-- 0 - 15: general-purpose registers ``r0`` - ``r15``.
-- 16: program status register.
+- 4 - 11: general-purpose registers ``r4`` - ``r11``.
+- 13: stack pointer.
 - 17: ``BASEPRI``.
 
 Call
@@ -39,7 +41,7 @@ Reply
 Exceptions
 ##########
 
-- ``k.index_out_of_range`` if the register index is invalid.
+- ``k.bad_argument`` if the register index is invalid.
 
 
 Write Register (1)
@@ -47,11 +49,13 @@ Write Register (1)
 
 .. warning:: This method is deprecated.
 
-Writes a register, by index, in this context.  Register indices are interpreted
-as follows:
+Writes a register, by index, in this context.  Only the registers specified as
+"callee-save" by the ARM Procedure Call Standard are stored in the context;
+others are stored on the stack.  Valid register numbers for use with this
+operation are:
 
-- 0 - 15: general-purpose registers ``r0`` - ``r15``.
-- 16: program status register.
+- 4 - 11: general-purpose registers ``r4`` - ``r11``.
+- 13: stack pointer.
 - 17: ``BASEPRI``.
 
 Call
@@ -69,7 +73,7 @@ Reply
 Exceptions
 ##########
 
-- ``k.index_out_of_range`` if the register index is invalid.
+- ``k.bad_argument`` if the register index is invalid.
 
 
 Read Key Register (2)

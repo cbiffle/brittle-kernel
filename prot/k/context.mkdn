@@ -11,10 +11,12 @@ system invariants (although not kernel ones).
 Read Register (0)
 -----------------
 
-Reads a register, by index, from the context.
+Reads a register, by index, from the context.  Only registers stored in the
+Context can be read in this way.  Currently available registers are:
 
-Register indices are inherently platform-specific; see the example list for
-ARMv7-M below.
+- 4 - 11: general-purpose registers r4 - r11.
+- 13: stack pointer.
+- 17: BASEPRI.
 
 Arguments:
 - d0: descriptor
@@ -25,26 +27,18 @@ Results:
 - d1: register contents.
 
 Exceptions:
-- `k.index_out_of_range`
-
-
-### Example register list for ARMv7-M
-
-- 0 - 15: general-purpose registers r0 - r15.
-- 16: program status register.
-- 17: BASEPRI.
-
-Note that the implemented range for BASEPRI is system-specific, but the value
-accessed through this interface is always 8 bits.  Applications should adjust as
-needed.
+- `k.bad_argument` if the register number is invalid for use with this call.
 
 
 Write Register (1)
 ------------------
 
-Writes a register, by index, in the context.
+Writes a register, by index, in the context.  Only registers stored in the
+Context can be read in this way.  Currently available registers are:
 
-Register indices are shared with Read Register, above.
+- 4 - 11: general-purpose registers r4 - r11.
+- 13: stack pointer.
+- 17: BASEPRI.
 
 Arguments:
 - d0: descriptor
@@ -55,7 +49,7 @@ Results:
 - d0: success descriptor.
 
 Exceptions:
-- `k.index_out_of_range`
+- `k.bad_argument` if the register number is invalid for use with this call.
 
 
 Read Key (2)
