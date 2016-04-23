@@ -103,9 +103,6 @@ public:
   void * do_ipc(void * stack, Descriptor);
   void do_copy_key(Descriptor);
 
-  void put_message(Brand sender_brand,
-                   Message const &);
-
   void apply_to_mpu();
 
   /*
@@ -194,8 +191,8 @@ public:
 private:
   Body & _body;
 
-  Descriptor get_descriptor() const;
-  Keys & get_message_keys();
+  Descriptor get_descriptor() const { return _body.save.sys.m.d0; }
+  Keys & get_message_keys() { return *reinterpret_cast<Keys *>(_body.keys); }
 
   Key make_reply_key() const;
 

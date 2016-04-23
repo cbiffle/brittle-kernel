@@ -60,14 +60,6 @@ void Context::set_reply_gate(ReplyGate & g) {
   g.set_owner(this);
 }
 
-Descriptor Context::get_descriptor() const {
-  return _body.save.sys.m.d0;
-}
-
-Keys & Context::get_message_keys() {
-  return *reinterpret_cast<Keys *>(_body.keys);
-}
-
 void * Context::do_ipc(void * stack, Descriptor d) {
   set_stack(static_cast<StackRegisters *>(stack));
 
@@ -95,8 +87,7 @@ void Context::complete_receive(BlockingSender * sender) {
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
-  _body.save.sys.m = Message::failure(e, param);
-  _body.save.sys.b = 0;
+  _body.save.sys = { Message::failure(e, param), 0 };
   nullify_exchanged_keys();
 }
 
@@ -133,11 +124,6 @@ void Context::complete_blocked_receive(Exception e, uint32_t param) {
   pend_switch();
 
   complete_receive(e, param);
-}
-
-void Context::put_message(Brand brand, Message const & m) {
-  _body.save.sys.m = m.sanitized();
-  _body.save.sys.b = brand;
 }
 
 void Context::apply_to_mpu() {
@@ -205,8 +191,7 @@ Message Context::on_delivery_accepted(Keys & k) {
 
 void Context::on_delivery_failed(Exception e, uint32_t param) {
   // Deliver the exception.
-  _body.save.sys.m = Message::failure(e, param);
-  _body.save.sys.b = 0;
+  _body.save.sys = { Message::failure(e, param), 0 };
   // Avoid looking like we delivered any pre-existing keys.
   nullify_exchanged_keys();
 }
