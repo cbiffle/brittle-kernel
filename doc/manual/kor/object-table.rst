@@ -76,3 +76,41 @@ Reply
 - d0: success descriptor
 - d1: table index
 - d2: brand
+
+
+Get Kind (2)
+~~~~~~~~~~~~
+
+Reports the true kind of the object inhabiting a particular object table slot.
+Kinds are reported using values from the table below.
+
+==== =========================
+Code Kind
+==== =========================
+0    :ref:`kor-null`
+1    :ref:`kor-object-table`
+2    :ref:`kor-slot`
+3    :ref:`kor-memory`
+4    :ref:`kor-context`
+5    :ref:`kor-gate`
+6    :ref:`kor-reply-gate`
+7    :ref:`kor-interrupt`
+==== =========================
+
+
+Call
+####
+
+- d0: descriptor
+- d1: object index in table
+
+Reply
+#####
+
+- d0: success descriptor
+- d1: kind code
+
+Exceptions
+##########
+
+- ``k.index_out_of_range`` if the index is not within the object table.

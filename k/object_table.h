@@ -110,6 +110,7 @@ private:
 
   void do_mint_key(Brand, Message const &, Keys &);
   void do_read_key(Brand, Message const &, Keys &);
+  void do_get_kind(Brand, Message const &, Keys &);
 };
 
 /*

@@ -44,6 +44,10 @@ void ObjectTable::deliver_from(Brand brand, Sender * sender) {
     case 1: 
       do_read_key(brand, m, k);
       break;
+
+    case 2:
+      do_get_kind(brand, m, k);
+      break;
     
     default:
       do_badop(m, k);
@@ -83,6 +87,21 @@ void ObjectTable::do_read_key(Brand,
     index,
     brand,
   }};
+}
+
+void ObjectTable::do_get_kind(Brand,
+                              Message const & args,
+                              Keys & keys) {
+  auto index = args.d1;
+
+  ScopedReplySender reply_sender{keys.keys[0]};
+
+  auto & reply = reply_sender.get_message();
+  if (index >= _objects.count()) {
+    reply = Message::failure(Exception::index_out_of_range);
+  } else {
+    reply.d1 = uint32_t(_objects[index].as_object().get_kind());
+  }
 }
 
 }  // namespace k
