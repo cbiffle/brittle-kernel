@@ -95,6 +95,9 @@ protected:
 
 constexpr Rasr MemoryTest::rw_rasr;
 
+#define ASSERT_MESSAGE_SUCCESS(__m) \
+  ASSERT_EQ(0, uint32_t(__m))
+
 #define ASSERT_RETURNED_KEY_SHAPE(_obj, _brand, _index) \
 { \
   auto & __obj = (_obj); \
@@ -135,7 +138,7 @@ protected:
 TEST_F(MemoryTest_Typical, inspect) {
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(0, 0)});
 
-  ASSERT_EQ(0, uint32_t(m.d0))
+  ASSERT_MESSAGE_SUCCESS(m)
     << "inspecting a key should always succeed";
 
   auto rbar = Rbar(m.d1);
@@ -161,7 +164,7 @@ TEST_F(MemoryTest_Typical, change_tex) {
       uint32_t(target_rasr),
       });
 
-  ASSERT_EQ(0, uint32_t(m.d0))
+  ASSERT_MESSAGE_SUCCESS(m)
     << "altering TEX should always succeed";
 
   ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(target_rasr), 1);
@@ -176,7 +179,7 @@ TEST_F(MemoryTest_Typical, change_disable_subregion) {
       uint32_t(target_rasr),
       });
 
-  ASSERT_EQ(0, uint32_t(m.d0))
+  ASSERT_MESSAGE_SUCCESS(m)
     << "disabling a new subregion in a typical sized object should succeed";
 
   ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(target_rasr), 1);
@@ -224,7 +227,7 @@ TEST_F(MemoryTest_Typical, split_ok) {
   _sender.set_key(1, slot().make_key(0).ref());
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
 
-  ASSERT_EQ(0, uint32_t(m.d0))
+  ASSERT_MESSAGE_SUCCESS(m)
     << "splitting a typical-size object with a valid slot donation"
        " should succeed";
 
