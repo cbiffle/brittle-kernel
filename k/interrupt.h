@@ -14,7 +14,7 @@
 
 namespace k {
 
-class Interrupt : public Object, public BlockingSender {
+class Interrupt final : public Object, public BlockingSender {
 public:
   struct Body {
     Brand saved_brand{0};
@@ -43,20 +43,20 @@ public:
    */
 
   Kind get_kind() const override { return Kind::interrupt; }
-  void deliver_from(Brand, Sender *) override final;
+  void deliver_from(Brand, Sender *) override;
 
   /*
    * Implementation of Sender
    */
-  Message on_delivery_accepted(Keys &) override final;
-  void block_in_send(Brand, List<BlockingSender> &) override final;
+  Message on_delivery_accepted(Keys &) override;
+  void block_in_send(Brand, List<BlockingSender> &) override;
 
   /*
    * Implementation of BlockingSender
    */
-  Priority get_priority() const override final;
-  ReceivedMessage on_blocked_delivery_accepted(Keys &) override final;
-  void on_blocked_delivery_aborted() override final;
+  Priority get_priority() const override;
+  ReceivedMessage on_blocked_delivery_accepted(Keys &) override;
+  void on_blocked_delivery_aborted() override;
 
 private:
   Body & _body;
