@@ -47,6 +47,8 @@
  * the case of interrupts preempting one another.
  */
 
+#include <cstdint>
+
 namespace k {
 
 struct Context;  // see: k/context.h
@@ -81,7 +83,7 @@ void do_deferred_switch_from_irq();
 // Implementation of the PendSV handler: saves 'current_stack' as the stack
 // pointer in 'current', performs a deferred switch, and returns the new
 // stack pointer.
-void * switch_after_interrupt(void * current_stack);
+uint32_t switch_after_interrupt(uint32_t current_stack);
 
 }  // namespace k
 

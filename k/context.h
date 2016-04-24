@@ -50,7 +50,7 @@ public:
 
     // Address of the top of the context's current stack.  When the task
     // is stopped, the machine registers are pushed onto this stack.
-    StackRegisters * stack{nullptr};
+    uint32_t stack{0};
 
     // Keys held by the context.
     Key keys[config::n_task_keys]{};
@@ -80,8 +80,8 @@ public:
    * Context-specific accessors for use inside the kernel.
    */
 
-  StackRegisters * stack() const { return _body.stack; }
-  void set_stack(StackRegisters * s) { _body.stack = s; }
+  uint32_t stack() const { return _body.stack; }
+  void set_stack(uint32_t s) { _body.stack = s; }
   Key & key(unsigned i) { return _body.keys[i]; }
   Key & memory_region(unsigned index) {
     return _body.memory_regions[index];
@@ -100,7 +100,7 @@ public:
 
   void nullify_exchanged_keys(unsigned preserved = 0);
 
-  void * do_ipc(void * stack, Descriptor);
+  uint32_t do_ipc(uint32_t stack, Descriptor);
   void do_copy_key(Descriptor);
 
   void apply_to_mpu();

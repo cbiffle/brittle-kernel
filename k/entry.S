@@ -42,7 +42,7 @@ etl_armv7m_sv_call_handler:
     mov r4, lr                @ Back up EXC_RETURN value.
     mov r5, r3                @ Back up '&k::current' for reuse below.
 
-    bl _ZN1k7Context6do_ipcEPv10Descriptor
+    bl _ZN1k7Context6do_ipcEm10Descriptor
 
     mov lr, r4                @ Restore EXC_RETURN so we can trash r4.
 
@@ -94,7 +94,7 @@ etl_armv7m_pend_sv_handler:
     mov r4, lr                @ Back up EXC_RETURN value.
     mov r5, r3                @ Back up '&k::current' for reuse below.
 
-    bl _ZN1k22switch_after_interruptEPv
+    bl _ZN1k22switch_after_interruptEm
 
     mov lr, r4                @ Restore EXC_RETURN so we can trash r4.
 

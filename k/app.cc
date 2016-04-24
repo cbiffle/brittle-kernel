@@ -199,7 +199,7 @@ static void prepare_first_context() {
     bool success = ustore(&s->psr, 1 << 24)
                 && ustore(&s->r15, app.initial_task_pc);
     ETL_ASSERT(success);
-    first_context->set_stack(s);
+    first_context->set_stack(reinterpret_cast<uint32_t>(s));
   }
 
   // Provide initial authority.

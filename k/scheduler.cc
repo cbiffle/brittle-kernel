@@ -48,8 +48,8 @@ void do_deferred_switch_from_irq() {
   }
 }
 
-void * switch_after_interrupt(void * stack) {
-  current->set_stack(static_cast<StackRegisters *>(stack));
+uint32_t switch_after_interrupt(uint32_t stack) {
+  current->set_stack(stack);
   switch_now();
   return current->stack();
 }

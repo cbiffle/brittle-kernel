@@ -60,8 +60,8 @@ void Context::set_reply_gate(ReplyGate & g) {
   g.set_owner(this);
 }
 
-void * Context::do_ipc(void * stack, Descriptor d) {
-  set_stack(static_cast<StackRegisters *>(stack));
+uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
+  set_stack(stack);
 
   // Perform first phase of IPC.
   if (d.get_send_enabled()) {
