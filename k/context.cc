@@ -184,8 +184,15 @@ Priority Context::get_priority() const {
 }
 
 Message Context::on_delivery_accepted(Keys & k) {
+  // We're either synchronously delivering our message, or have been found on a
+  // block list and asked to deliver.
+
+  // We assume that the descriptor is unchanged from when we sent.  If it is
+  // not, it only affects us, since the recipient has been chosen.
   auto d = get_descriptor();
 
+  // Make a copy of the message we're trying to send, sanitized.  We need to do
+  // this because we may be about to receive into the same memory, below.
   auto m = _body.save.sys.m.sanitized();
 
   k.keys[0] = d.is_call() ? make_reply_key() : Key::null();
@@ -193,9 +200,13 @@ Message Context::on_delivery_accepted(Keys & k) {
     k.keys[ki] = key(ki);
   }
 
+  // Atomically transition to receive state if requested by the program.
   if (d.get_receive_enabled()) {
+    // If we're calling, reuse the reply key we just minted:
     auto & source = d.is_call() ? k.keys[0]
                                 : key(d.get_source());
+    // And this is where our outgoing message would be overwritten; thus the
+    // copy above.
     source.get()->deliver_to(this);
   }
 
