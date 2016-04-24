@@ -42,9 +42,7 @@ public:
    * must arrive through a gate.
    */
 
-  /*
-   * Handles a message in the interrupt control protocol.
-   */
+  Kind get_kind() const override { return Kind::interrupt; }
   void deliver_from(Brand, Sender *) override final;
 
   /*

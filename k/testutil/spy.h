@@ -23,6 +23,7 @@ public:
   Keys & keys() { return _keys; }
   unsigned count() const { return _count; }
 
+  Kind get_kind() const override { return Kind::null; } // bit of a hack
   void deliver_from(Brand, Sender *) override;
 
 private:

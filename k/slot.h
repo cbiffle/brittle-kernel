@@ -13,8 +13,8 @@ namespace k {
 class Slot final : public Object {
 public:
   Slot(Generation g) : Object{g} {}
+  Kind get_kind() const override { return Kind::slot; }
   void deliver_from(Brand, Sender *) override;
-  bool is_slot() const override;
 };
 
 }  // namespace k

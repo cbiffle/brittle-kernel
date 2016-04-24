@@ -29,6 +29,7 @@ public:
   Region get_region_for_brand(Brand) const override;
 
   void deliver_from(Brand, Sender *) override;
+  Kind get_kind() const override { return Kind::memory; }
 
 private:
   P2Range _range;

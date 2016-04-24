@@ -33,7 +33,7 @@ public:
 
   void deliver_from(Brand, Sender *) override;
   void deliver_to(Context *) override;
-  bool is_gate() const override;
+  Kind get_kind() const override { return Kind::gate; }
 
 private:
   Body & _body;

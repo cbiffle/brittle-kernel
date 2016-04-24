@@ -174,7 +174,7 @@ void Memory::do_split(Brand brand,
   auto & top = maybe_top.ref();
 
   auto objptr = donation_key.get();
-  if (!objptr->is_slot()) {
+  if (objptr->get_kind() != Kind::slot) {
     // Can't split, donation was of wrong type.
     reply_sender.get_message() = Message::failure(Exception::bad_kind);
     return;

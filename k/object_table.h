@@ -102,6 +102,7 @@ public:
   }
 
   // Implementation of Object.
+  Kind get_kind() const override { return Kind::object_table; }
   void deliver_from(Brand, Sender *) override;
 
 private:

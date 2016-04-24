@@ -82,7 +82,7 @@ void become(Memory & memory,
         // Ensure that the key provided by the caller is an unbound reply gate.
         auto & alleged_gate_key = k.keys[1];
         auto alleged_gate_ptr = alleged_gate_key.get();
-        if (!alleged_gate_ptr->is_reply_gate()) {
+        if (alleged_gate_ptr->get_kind() != Object::Kind::reply_gate) {
           reply_sender.get_message() = Message::failure(Exception::bad_kind);
           return;
         }

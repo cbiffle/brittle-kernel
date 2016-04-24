@@ -187,6 +187,7 @@ public:
    */
 
   void deliver_from(Brand, Sender *) override;
+  Kind get_kind() const override { return Kind::context; }
 
 private:
   Body & _body;

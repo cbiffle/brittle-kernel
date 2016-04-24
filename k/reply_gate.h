@@ -48,10 +48,10 @@ public:
    * Implementation of Object
    */
 
+  Kind get_kind() const override { return Kind::reply_gate; }
   void deliver_from(Brand, Sender *) override;
   void deliver_to(Context *) override;
   Maybe<Key> make_key(Brand) override;
-  bool is_reply_gate() const override { return true; }
 
 private:
   Body & _body;

@@ -27,6 +27,17 @@ class Object {
 public:
   static constexpr unsigned max_head_size = 16;
 
+  enum class Kind : uint32_t {
+    null,
+    object_table,
+    slot,
+    memory,
+    context,
+    gate,
+    reply_gate,
+    interrupt,
+  };
+
   /*
    * Sets the generation number for this object.
    */
@@ -36,6 +47,16 @@ public:
    * Gets the generation number for this object.
    */
   Generation get_generation() const { return _generation; }
+
+  /*
+   * Determines the kind (subclass) of this object.  This is used inside the
+   * kernel when a reference to a particular type is required.
+   *
+   * Subclasses should implement this honestly.  Returning a given Kind also
+   * implies permission to static_cast this Object to the corresponding
+   * subclass.
+   */
+  virtual Kind get_kind() const = 0;
 
   /*
    * Generates a key to this object with the given brand, if the brand is
@@ -98,24 +119,6 @@ public:
    * region.
    */
   virtual Region get_region_for_brand(Brand) const;
-
-  /*
-   * Checks whether this Object is really a Gate.  The default implementation
-   * returns false.
-   */
-  virtual bool is_gate() const;
-
-  /*
-   * Checks whether this Object is really a ReplyGate.  The default
-   * implementation returns false.
-   */
-  virtual bool is_reply_gate() const;
-
-  /*
-   * Checks whether this Object is really a Slot.  The default implementation
-   * returns false.
-   */
-  virtual bool is_slot() const;
 
 protected:
   Object(Generation);
