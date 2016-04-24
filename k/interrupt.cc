@@ -102,8 +102,9 @@ ReceivedMessage Interrupt::on_blocked_delivery_accepted(Keys & k) {
   };
 }
 
-void Interrupt::on_blocked_delivery_failed(Exception, uint32_t) {
+void Interrupt::on_blocked_delivery_aborted() {
   // We appear to have been interrupted while blocked.
+  // TODO: do we need to do something?
 }
 
 void Interrupt::disable_interrupt() {

@@ -38,14 +38,14 @@ public:
   virtual ReceivedMessage on_blocked_delivery_accepted(Keys &) = 0;
 
   /*
-   * Indicates that delivery of the blocked message has failed.
-   * Analog to Sender::on_delivery_failed.
+   * Indicates that this object has been removed from a block list and its
+   * message is no longer of interest.
    *
-   * This can also be used to interrupt a pending sender.
+   * This can be used to interrupt a pending sender.
    *
    * This ends the blocking send protocol.
    */
-  virtual void on_blocked_delivery_failed(Exception, uint32_t = 0) = 0;
+  virtual void on_blocked_delivery_aborted() = 0;
 };
 
 }  // namespace k

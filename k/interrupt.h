@@ -56,7 +56,7 @@ public:
    */
   Priority get_priority() const override final;
   ReceivedMessage on_blocked_delivery_accepted(Keys &) override final;
-  void on_blocked_delivery_failed(Exception, uint32_t = 0) override final;
+  void on_blocked_delivery_aborted() override final;
 
 private:
   Body & _body;

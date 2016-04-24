@@ -156,7 +156,7 @@ void Context::make_runnable() {
   switch (_body.state) {
     case State::sending:
       _body.sender_item.unlink();
-      on_blocked_delivery_failed(Exception::would_block);
+      on_blocked_delivery_aborted();
       break;
 
     case State::receiving:
@@ -229,12 +229,12 @@ ReceivedMessage Context::on_blocked_delivery_accepted(Keys & k) {
   };
 }
 
-void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
+void Context::on_blocked_delivery_aborted() {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
   pend_switch();
 
-  _body.save.sys = { Message::failure(e, param), 0 };
+  _body.save.sys = { Message::failure(Exception::would_block), 0 };
 }
 
 Key Context::make_reply_key() const {
