@@ -1,5 +1,77 @@
-Messaging
-=========
+Syscalls
+========
+
+Brittle implements a small set of *syscalls*, which act as virtual instructions
+that extend the processor.  Syscalls exist for two reasons:
+
+1. To let programs manipulate the Key Registers that Brittle adds to the
+   processor model.
+
+2. To let programs communicate with one another.
+
+Syscalls are accessed using the ARMv7-M ``SVC`` instruction.
+
+.. note:: Brittle currently hooks every ``SVC``, which means it can't virtualize
+  other operating systems' syscalls.  We are likely to fix this by adding a
+  "foreign" bit to the :ref:`kor-context`.
+
+
+Syscall Descriptor Convention
+-----------------------------
+
+Every Brittle syscall requires a descriptor loaded in processor register ``r4``.
+The top four bits of the descriptor are a *sysnum*, or syscall number, which
+determines the operation to perform.
+
+====== ============
+Sysnum Operation
+====== ============
+0      IPC
+1      Copy Key
+====== ============
+
+The remaining 28 bits of the descriptor are interpreted differently by each
+syscall.
+
+
+Copy Key
+--------
+
+Reads a key from one of the current Context's Key Registers, and writes a
+duplicate of it into another.  All processor registers are left unchanged.
+
+.. list-table:: Descriptor Bit Fields
+  :header-rows: 1
+
+  * - Hi
+    - Lo
+    - Name
+    - On Entry
+    - On Return
+  * - 31
+    - 28
+    - Sysnum
+    - 1 (Copy Key)
+    - (preserved)
+  * - 27
+    - 24
+    - Source
+    - Index of Key Register containing key to copy.
+    - (preserved)
+  * - 23
+    - 20
+    - Target
+    - Index of Key Register to receive copy.
+    - (preserved)
+  * - 19
+    - 0
+    - Reserved
+    - Should be zero.
+    - (preserved)
+
+
+IPC
+---
 
 Brittle is built around a synchronous rendezvous messaging model.  This means
 that messages are sent from one object to another directly, without being
@@ -53,7 +125,7 @@ When a program receives a message, one more word of data is included: the brand
 of the key used to send the message through a Gate.
 
 Message Descriptors
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 The first word in a message is called the *descriptor*, and controls the IPC operation.  Its fields are as follows.
 
@@ -108,7 +180,7 @@ The first word in a message is called the *descriptor*, and controls the IPC ope
 
 
 The Send Phase
---------------
+~~~~~~~~~~~~~~
 
 A sent message contains
 
@@ -121,7 +193,7 @@ If the IPC operation is a call, the first key transmitted is not taken from
 
 
 The Receive Phase
------------------
+~~~~~~~~~~~~~~~~~
 
 A received message contains
 

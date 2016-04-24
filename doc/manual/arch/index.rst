@@ -7,5 +7,5 @@ Kernel Architecture
   rules
   parts
   objects
-  ipc
+  syscalls
   boot
