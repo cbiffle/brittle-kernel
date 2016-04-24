@@ -23,6 +23,7 @@ static constexpr uint32_t sys_tick_identifier = ~uint32_t(0);
 
 Interrupt::Interrupt(Generation g, Body & body)
   : Object{g}, _body(body) {
+  _body.sender_item.owner = this;
   get_irq_redirection_table()[get_identifier() + 1] = this;
 }
 
