@@ -34,12 +34,13 @@ using StackRegisters = etl::armv7m::ExceptionFrame;
  */
 union SavedRegisters {
   // Array access to the kernel-saved registers.
-  uint32_t raw[9];
+  uint32_t raw[10];
 
   // Handy named accessors, for when you really want a particular register.
   struct {
     uint32_t r4, r5, r6, r7, r8, r9, r10, r11;
     uint32_t basepri;
+    uint32_t stack;
   } named;
 
   // Interpretation of the kernel-saved registers as arguments to / results

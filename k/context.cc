@@ -27,7 +27,7 @@ static_assert(__builtin_offsetof(Context::Body, save) == 0,
     "Context::Body::save offset is wrong (should be zero, isn't)");
 
 static_assert(K_CONTEXT_BODY_STACK_OFFSET ==
-    __builtin_offsetof(Context::Body, stack),
+    __builtin_offsetof(Context::Body, save.named.stack),
     "K_CONTEXT_BODY_STACK_OFFSET is wrong");
 
 /*******************************************************************************
@@ -274,22 +274,12 @@ void Context::deliver_from(Brand brand, Sender * sender) {
   }
 }
 
-Maybe<uint32_t *> Context::lookup_register(unsigned r) {
-  switch (r) {
-    case 0 ... 8: return &_body.save.raw[r];
-    case 9:       return reinterpret_cast<uint32_t *>(&_body.stack);
-
-    default:
-      return nothing;
-  }
-}
-
 void Context::do_read_register(ScopedReplySender & reply_sender,
                                Brand,
                                Message const & arg,
                                Keys &) {
-  if (auto raddr = lookup_register(arg.d1)) {
-    reply_sender.get_message().d1 = *raddr.ref();
+  if (arg.d1 < etl::array_count(_body.save.raw)) {
+    reply_sender.get_message().d1 = _body.save.raw[arg.d1];
   } else {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
@@ -299,8 +289,8 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
                                 Brand,
                                 Message const & arg,
                                 Keys &) {
-  if (auto raddr = lookup_register(arg.d1)) {
-    *raddr.ref() = arg.d2;
+  if (arg.d1 < etl::array_count(_body.save.raw)) {
+    _body.save.raw[arg.d1] = arg.d2;
   } else {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }

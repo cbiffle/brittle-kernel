@@ -48,10 +48,6 @@ public:
     // Area for saving the context's callee-save registers.
     SavedRegisters save{};
 
-    // Address of the top of the context's current stack.  When the task
-    // is stopped, the machine registers are pushed onto this stack.
-    uint32_t stack{0};
-
     // Keys held by the context.
     Key keys[config::n_task_keys]{};
 
@@ -80,8 +76,8 @@ public:
    * Context-specific accessors for use inside the kernel.
    */
 
-  uint32_t stack() const { return _body.stack; }
-  void set_stack(uint32_t s) { _body.stack = s; }
+  uint32_t stack() const { return _body.save.named.stack; }
+  void set_stack(uint32_t s) { _body.save.named.stack = s; }
   Key & key(unsigned i) { return _body.keys[i]; }
   Key & memory_region(unsigned index) {
     return _body.memory_regions[index];
@@ -216,8 +212,6 @@ private:
       Keys &);
   void do_restore_kernel_registers(ScopedReplySender &, Brand, Message const &,
       Keys &);
-
-  Maybe<uint32_t *> lookup_register(unsigned);
 };
 
 }  // namespace k
