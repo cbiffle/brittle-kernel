@@ -70,6 +70,18 @@ c_binary('memory_test',
   ],
 )
 
+c_binary('null_test',
+  environment = 'native',
+  sources = [
+    'null_test.cc',
+  ],
+  deps = [
+    ':k_portable',
+    ':spy',
+    '//3p/gtest',
+  ],
+)
+
 c_binary('p2range_test',
   environment = 'native',
   sources = [
