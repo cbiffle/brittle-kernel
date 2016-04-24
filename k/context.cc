@@ -195,7 +195,7 @@ Message Context::on_delivery_accepted(Keys & k) {
   // this because we may be about to receive into the same memory, below.
   auto m = _body.save.sys.m.sanitized();
 
-  k.keys[0] = d.is_call() ? make_reply_key() : Key::null();
+  k.keys[0] = d.is_call() ? make_reply_key() : key(0);
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
     k.keys[ki] = key(ki);
   }
