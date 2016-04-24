@@ -207,7 +207,8 @@ static void initialize_registers(unsigned k,
   frame->psr = 1 << 24;  // set thumb mode
 
   // Load the stack pointer.
-  context::set_register(k, 13, reinterpret_cast<uint32_t>(frame));
+  context::set_register(k, context::Register::sp,
+      reinterpret_cast<uint32_t>(frame));
 }
 
 

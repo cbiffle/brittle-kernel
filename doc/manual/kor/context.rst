@@ -12,19 +12,30 @@ The brands of Context keys should be zero.
 Methods
 -------
 
+.. _kor-context-method-read-register:
+
 Read Register (0)
 ~~~~~~~~~~~~~~~~~
 
-.. warning:: This method is deprecated.
-
 Reads a register, by index, from this context.  Only the registers specified as
 "callee-save" by the ARM Procedure Call Standard are stored in the context;
-others are stored on the stack.  Valid register numbers for use with this
-operation are:
+others are stored on the stack.  Indices for use with this method are as
+follows:
 
-- 4 - 11: general-purpose registers ``r4`` - ``r11``.
-- 13: stack pointer.
-- 17: ``BASEPRI``.
+===== =======================
+Index Register
+===== =======================
+0     ``r4``
+1     ``r5``
+2     ``r6``
+3     ``r7``
+4     ``r8``
+5     ``r9``
+6     ``r10``
+7     ``r11``
+8     ``BASEPRI``
+9     ``r13`` (stack pointer)
+===== =======================
 
 Call
 ####
@@ -47,16 +58,10 @@ Exceptions
 Write Register (1)
 ~~~~~~~~~~~~~~~~~~
 
-.. warning:: This method is deprecated.
-
 Writes a register, by index, in this context.  Only the registers specified as
 "callee-save" by the ARM Procedure Call Standard are stored in the context;
-others are stored on the stack.  Valid register numbers for use with this
-operation are:
-
-- 4 - 11: general-purpose registers ``r4`` - ``r11``.
-- 13: stack pointer.
-- 17: ``BASEPRI``.
+others are stored on the stack.  Indices for use with this method are identical
+to those used with :ref:`kor-context-method-read-register`.
 
 Call
 ####

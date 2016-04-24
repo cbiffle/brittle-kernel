@@ -276,9 +276,8 @@ void Context::deliver_from(Brand brand, Sender * sender) {
 
 Maybe<uint32_t *> Context::lookup_register(unsigned r) {
   switch (r) {
-    case 4 ... 11: return &_body.save.raw[r - 4];
-    case 13:       return reinterpret_cast<uint32_t *>(&_body.stack);
-    case 17:       return &_body.save.named.basepri;
+    case 0 ... 8: return &_body.save.raw[r];
+    case 9:       return reinterpret_cast<uint32_t *>(&_body.stack);
 
     default:
       return nothing;

@@ -30,10 +30,10 @@ bool get_region(unsigned k, unsigned region_index, unsigned region_key_out) {
   }
 }
 
-bool set_register(unsigned k, unsigned index, uint32_t value) {
+bool set_register(unsigned k, Register r, uint32_t value) {
   auto rm = ipc({
       Descriptor::call(1, k),
-      index,
+      uint32_t(r),
       value,
     });
 
