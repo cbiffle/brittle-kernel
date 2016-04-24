@@ -27,6 +27,8 @@ public:
   Keys & keys() { return _keys; }
   unsigned count() const { return _count; }
 
+  void set_kind(Kind k) { _kind = k; }
+
   Kind get_kind() const override { return _kind; }
   void deliver_from(Brand, Sender *) override;
 
