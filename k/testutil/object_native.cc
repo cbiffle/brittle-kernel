@@ -3,6 +3,7 @@
 #include "k/key.h"
 #include "k/keys.h"
 #include "k/reply_sender.h"
+#include "k/sender.h"
 
 namespace k {
 
@@ -10,6 +11,10 @@ Object::Object(Generation g) : _generation{g} {}
 
 Maybe<Key> Object::make_key(Brand brand) {
   return { Key::filled(this, brand) };
+}
+
+void Object::deliver_from(Brand, Sender * sender) {
+  sender->on_delivery_failed(Exception::bad_operation);
 }
 
 void Object::deliver_to(Context * ctx) {

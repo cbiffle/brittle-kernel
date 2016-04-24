@@ -14,7 +14,7 @@ void ReplyGate::deliver_from(Brand brand, Sender * sender) {
   // we're bound.
   if (!is_bound() || brand != _body.expected_brand) {
     // Fail like a null object.
-    sender->on_delivery_failed(Exception::bad_operation);
+    Object::deliver_from(brand, sender);
     return;
   }
 

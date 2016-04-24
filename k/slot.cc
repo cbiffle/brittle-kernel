@@ -4,8 +4,8 @@
 
 namespace k {
 
-void Slot::deliver_from(Brand, Sender * sender) {
-  sender->on_delivery_failed(Exception::bad_operation);
-}
+/*
+ * This file exists to ensure that slot.h didn't forget any #includes.
+ */
 
 }  // namespace k

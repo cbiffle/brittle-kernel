@@ -16,7 +16,6 @@ class NullObject final : public Object {
 public:
   NullObject(Generation);
   Kind get_kind() const override { return Kind::null; }
-  void deliver_from(Brand, Sender *) override;
 };
 
 static_assert(sizeof(NullObject) <= 16,

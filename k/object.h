@@ -84,8 +84,11 @@ public:
    * object decides to unblock the sender and take action on the message, it
    * should call on_blocked_delivery_accepted in place of normal
    * on_delivery_accepted and finish the process above.
+   *
+   * The default implementation reports failure to the sender with a
+   * bad_operation exception.
    */
-  virtual void deliver_from(Brand, Sender *) = 0;
+  virtual void deliver_from(Brand, Sender *);
 
   /*
    * The given Context wants to receive a message from this object.  This
