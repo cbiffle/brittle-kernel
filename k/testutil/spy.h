@@ -17,19 +17,24 @@ class Sender;  // see: k/sender.h
 
 class Spy : public Object {
 public:
-  Spy(Generation g) : Object{g}, _received{{}, 0}, _count{} {}
+  Spy(Generation g, Kind k)
+    : Object{g},
+      _received{{}, 0},
+      _count{},
+     _kind{k} {}
 
   ReceivedMessage const & message() const { return _received; }
   Keys & keys() { return _keys; }
   unsigned count() const { return _count; }
 
-  Kind get_kind() const override { return Kind::null; } // bit of a hack
+  Kind get_kind() const override { return _kind; }
   void deliver_from(Brand, Sender *) override;
 
 private:
   ReceivedMessage _received;
   Keys _keys;
   unsigned _count;
+  Kind _kind;
 };
 
 }  // namespace k

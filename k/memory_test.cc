@@ -40,7 +40,7 @@ protected:
   ReplyGate::Body _fake_reply_gate_body;
   ReplyGate _fake_reply_gate{0, _fake_reply_gate_body};
 
-  Spy _spy{0};
+  Spy _spy{0, Object::Kind::reply_gate};
   ReplySender _sender;
 
   void SetUp() override {
