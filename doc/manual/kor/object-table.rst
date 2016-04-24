@@ -42,8 +42,7 @@ Call
 
 - d0: descriptor
 - d1: object index in table
-- d2: brand low bits
-- d3: brand high bits
+- d2: brand
 
 Reply
 #####
@@ -76,5 +75,4 @@ Reply
 
 - d0: success descriptor
 - d1: table index
-- d2: brand low bits
-- d3: brand high bits
+- d2: brand
