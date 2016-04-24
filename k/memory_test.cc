@@ -96,7 +96,10 @@ protected:
 constexpr Rasr MemoryTest::rw_rasr;
 
 #define ASSERT_MESSAGE_SUCCESS(__m) \
-  ASSERT_EQ(0, uint32_t(__m))
+  ASSERT_EQ(0, uint32_t((__m).d0))
+
+#define ASSERT_NULL_KEY(__k) \
+  ASSERT_EQ(Object::Kind::null, (__k).get()->get_kind())
 
 #define ASSERT_RETURNED_KEY_SHAPE(_obj, _brand, _index) \
 { \
@@ -111,6 +114,18 @@ constexpr Rasr MemoryTest::rw_rasr;
     << "returned key " #_index " must have brand " #_brand; \
 }
 
+#define ASSERT_RETURNED_KEY_NULL(__idx) \
+  ASSERT_NULL_KEY(_spy.keys().keys[__idx])
+
+#define ASSERT_ALL_RETURNED_KEYS_NULL() \
+{ \
+  ASSERT_RETURNED_KEY_NULL(0) << "operation must not return any key 0"; \
+  ASSERT_RETURNED_KEY_NULL(1) << "operation must not return any key 1"; \
+  ASSERT_RETURNED_KEY_NULL(2) << "operation must not return any key 2"; \
+  ASSERT_RETURNED_KEY_NULL(3) << "operation must not return any key 3"; \
+}
+
+
 #define ASSERT_RETURNED_EXCEPTION(_m, _e) \
 { \
   auto & __m = (_m); \
@@ -119,6 +134,7 @@ constexpr Rasr MemoryTest::rw_rasr;
     << "operation should have failed"; \
   ASSERT_EQ(uint64_t(__e), (uint64_t(__m.d2) << 32) | __m.d1) \
     << "operation failed with wrong exception"; \
+  ASSERT_ALL_RETURNED_KEYS_NULL(); \
 }
 
 
@@ -140,6 +156,7 @@ TEST_F(MemoryTest_Typical, inspect) {
 
   ASSERT_MESSAGE_SUCCESS(m)
     << "inspecting a key should always succeed";
+  ASSERT_ALL_RETURNED_KEYS_NULL();
 
   auto rbar = Rbar(m.d1);
 
@@ -166,8 +183,10 @@ TEST_F(MemoryTest_Typical, change_tex) {
 
   ASSERT_MESSAGE_SUCCESS(m)
     << "altering TEX should always succeed";
-
+  ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(target_rasr), 1);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
 }
 
 TEST_F(MemoryTest_Typical, change_disable_subregion) {
@@ -182,7 +201,10 @@ TEST_F(MemoryTest_Typical, change_disable_subregion) {
   ASSERT_MESSAGE_SUCCESS(m)
     << "disabling a new subregion in a typical sized object should succeed";
 
+  ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(memory(), brand_from_rasr(target_rasr), 1);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
 }
 
 TEST_F(MemoryTest_Typical, change_enable_subregion) {
@@ -230,6 +252,9 @@ TEST_F(MemoryTest_Typical, split_ok) {
   ASSERT_MESSAGE_SUCCESS(m)
     << "splitting a typical-size object with a valid slot donation"
        " should succeed";
+
+  ASSERT_RETURNED_KEY_NULL(0);
+  ASSERT_RETURNED_KEY_NULL(3);
 
   /*
    * Check side effects on target object.
@@ -379,7 +404,10 @@ TEST_F(MemoryTest_BecomeContext, ok) {
   ASSERT_TRUE(dynamic_cast<Context *>(&object()))
     << "The consumed memory should be a context now.";
 
+  ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
 }
 
 using MemoryTest_BecomeGate = MemoryTest_Become<kabi::gate_l2_size>;
@@ -397,7 +425,10 @@ TEST_F(MemoryTest_BecomeGate, ok) {
   ASSERT_TRUE(dynamic_cast<Gate *>(&object()))
     << "The consumed memory should be a gate now.";
 
+  ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
 }
 
 using MemoryTest_BecomeReplyGate = MemoryTest_Become<kabi::reply_gate_l2_size>;
@@ -415,7 +446,10 @@ TEST_F(MemoryTest_BecomeReplyGate, ok) {
   ASSERT_TRUE(dynamic_cast<ReplyGate *>(&object()))
     << "The consumed memory should be a reply gate now.";
 
+  ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
 }
 
 using MemoryTest_BecomeInterrupt = MemoryTest_Become<kabi::interrupt_l2_size>;
@@ -434,7 +468,10 @@ TEST_F(MemoryTest_BecomeInterrupt, ok) {
   ASSERT_TRUE(dynamic_cast<Interrupt *>(&object()))
     << "The consumed memory should be an interrupt now.";
 
+  ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
 
   // Note that table offset is 1+ interrupt number because of systick.
   ASSERT_EQ(&object(), irq_table[irq_number + 1])
