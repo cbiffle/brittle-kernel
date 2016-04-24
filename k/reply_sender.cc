@@ -2,6 +2,8 @@
 
 #include "etl/assert.h"
 
+#include "k/object.h"
+
 namespace k {
 
 ReplySender::ReplySender()
@@ -28,6 +30,13 @@ void ReplySender::on_delivery_failed(Exception, uint32_t) {
 
 void ReplySender::block_in_send(Brand, List<BlockingSender> &) {
   // No.
+}
+
+
+ScopedReplySender::~ScopedReplySender() {
+  auto obj = k.get();
+  if (obj->get_kind() == Object::Kind::null) return;
+  obj->deliver_from(k.get_brand(), &rs);
 }
 
 }  // namespace k

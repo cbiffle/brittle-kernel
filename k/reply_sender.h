@@ -26,6 +26,15 @@
  * TODO: the two are separate for historical reasons.  It might make sense to
  * fold them together someday, since I'm not using ReplySender without Scoped
  * in practice.
+ *
+ *
+ * Null Message Elision
+ * --------------------
+ *
+ * ScopedReplySender implements the Null Message Elision Rule: it will not
+ * deliver the reply if the target key refers to the Null Object.  This is the
+ * desired behavior for replies from kernel objects, but might be surprising if
+ * you try to (ab)use ScopedReplySender to send non-reply messages in tests.
  */
 
 #include "common/message.h"
@@ -83,9 +92,8 @@ public:
   ScopedReplySender(Key & key) : rs{}, k(key) {}
   explicit ScopedReplySender(Key & key, Message const &m) : rs{m}, k(key) {}
 
-  ~ScopedReplySender() {
-    k.deliver_from(&rs);
-  }
+  // Fires off the reply, assuming the target key is non-null.
+  ~ScopedReplySender();
 
   Message & get_message() { return rs.get_message(); }
   void set_key(unsigned index, Key const & k) { rs.set_key(index, k); }
