@@ -11,12 +11,6 @@ replies for commands.
 Identify and implement any fast paths necessary in IPC.  Context-Gate-Context
 seems like a potential candidate, as does Context-ReplyGate-Context.
 
-Consider merging Gate and ReplyGate.  A move to 64-bit generations should make
-this less scary.
-
-Implement a way to determine the kernel type of an object, either through the
-object table, or by asking it directly.
-
 Should the Null Object be distinct from the behavior of a revoked key?  e.g.
 should revoked keys escalate to a supervisor, like a fault, or throw a very
 specific exception?
