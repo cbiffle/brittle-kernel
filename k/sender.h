@@ -26,15 +26,11 @@ public:
    *
    * This ends the non-blocking send protocol.  If the sender needs to
    * atomically transition to receive state, it should do so here.
+   *
+   * TODO: the current protocol requires delivers to *always* be accepted, so
+   * it's possible this name could get more concise.
    */
   virtual Message on_delivery_accepted(Keys &) = 0;
-
-  /*
-   * Indicates that delivery of the sender's current message has failed.
-   *
-   * This ends the non-blocking send protocol.
-   */
-  virtual void on_delivery_failed(Exception, uint32_t = 0) = 0;
 
   /*
    * Asks this sender to suspend sending and block on the given list.  The

@@ -159,11 +159,6 @@ public:
   Message on_delivery_accepted(Keys &) override;
 
   /*
-   * Overridden to record the exception and abort any remaining phase.
-   */
-  void on_delivery_failed(Exception, uint32_t = 0) override;
-
-  /*
    * Overridden to support real blocking if permitted by task code.
    */
   void block_in_send(Brand, List<BlockingSender> &) override;

@@ -202,13 +202,6 @@ Message Context::on_delivery_accepted(Keys & k) {
   return m;
 }
 
-void Context::on_delivery_failed(Exception e, uint32_t param) {
-  // Deliver the exception.
-  _body.save.sys = { Message::failure(e, param), 0 };
-  // Avoid looking like we delivered any pre-existing keys.
-  nullify_exchanged_keys();
-}
-
 void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
   ETL_ASSERT(this == current);
 
@@ -221,7 +214,7 @@ void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
     pend_switch();
   } else {
     // Unprivileged code is unwilling to block for delivery.
-    on_delivery_failed(Exception::would_block);
+    _body.save.sys = { Message::failure(Exception::would_block), 0 };
   }
 }
 
@@ -241,7 +234,7 @@ void Context::on_blocked_delivery_failed(Exception e, uint32_t param) {
   _body.state = State::runnable;
   pend_switch();
 
-  on_delivery_failed(e, param);
+  _body.save.sys = { Message::failure(e, param), 0 };
 }
 
 Key Context::make_reply_key() const {

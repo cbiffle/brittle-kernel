@@ -49,7 +49,6 @@ public:
    * Implementation of Sender
    */
   Message on_delivery_accepted(Keys &) override final;
-  void on_delivery_failed(Exception, uint32_t = 0) override final;
   void block_in_send(Brand, List<BlockingSender> &) override final;
 
   /*

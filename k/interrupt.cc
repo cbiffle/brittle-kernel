@@ -89,12 +89,6 @@ Message Interrupt::on_delivery_accepted(Keys & k) {
   };
 }
 
-void Interrupt::on_delivery_failed(Exception, uint32_t) {
-  // Our attempt to deliver has failed.  This is an indication of a
-  // configuration error.  Do nothing for now.
-  // TODO: should this be able to raise some sort of alert?
-}
-
 void Interrupt::block_in_send(Brand brand,
                               List<BlockingSender> & list) {
   _body.saved_brand = brand;
