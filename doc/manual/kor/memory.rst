@@ -138,8 +138,8 @@ size as the bottom half.  Thus, both halves are still a power of two in size,
 and naturally aligned.
 
 This operation produces one net new object.  To justify this use of resources,
-callers are required to donate a slot key.  The slot is consumed and all keys
-revoked.
+callers are required to donate a :ref:`kor-slot` key.  The Slot is consumed and
+all keys revoked.
 
 This operation destroys this object, revoking all keys.  Keys to the new Memory
 objects representing the top and bottom halves are sent in the reply.  The

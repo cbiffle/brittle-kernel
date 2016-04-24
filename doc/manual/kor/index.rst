@@ -12,3 +12,4 @@ Kernel Object Reference
   null
   object-table
   reply-gate
+  slot
