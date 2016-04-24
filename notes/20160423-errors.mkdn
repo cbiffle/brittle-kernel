@@ -1,0 +1,121 @@
+
+I'm reconsidering how to handle IPC delivery errors.
+
+Consider the Null Object.
+
+Sending anything to the Null Object fails with an error visible to the sender.
+In particular, it *does not* do anything with a Reply Key.  This is probably
+bad!  It can't be proxied, for one, and it adds a second code path for returning
+a result to the sender.
+
+The Null Object should, instead, send a reply message with the error bit set to
+the reply key.  Like other objects do.  Even Object, in `do_badop`, uses the
+reply key path.
+
+Which raises an interesting question: *can sends ever fail?*  Detectably fail, I
+mean.  Because why would they?  Programs can't name an out-of-range key
+register, because they have exactly the right number of bits in the descriptor.
+They can send freely to an uninitialized or revoked key, because those keys
+point to the Null Object, and (as discussed above) the Null Object should send
+replies like everyone else.
+
+The single case where a send could fail: if it's a blocking send, and the sender
+is interrupted (by system action) before it completes.  But this is a system
+policy decision; the kernel never interrupts a sender on its own.  So while it's
+interrupting a sender, the system could just as well deposit a failure code into
+a register (or redirect execution to a signal handler, or...).
+
+Should the send phase *even alter registers?*  Maybe not.  Depositing a success
+code would give the system something to alter to indicate interruption.  On the
+other hand, the system could just rewrite the initiating descriptor; at minimum,
+clearing the send bit?
+
+Anyway.  Two topics here:
+- Null is probably behaving wrong today.
+- Sends probably can't fail.
+
+What are the implications for the implementation?
+
+
+As of quite recently, the failure path exercised by Null (and Slot) has been
+pulled up into Object.  This path now needs to
+- Accept delivery, copying out the message.
+- Fail.
+
+We can use the existing `do_badop` code to fail.
+
+
+So now `on_delivery_failed` is unused.  Which makes sense; delivery can no
+longer fail.
+
+
+
+Ah, right, I remember why I did it this way.  Null's current behavior breaks a
+potential send loop.
+- Send to object A with a null key in reply postion.
+- A is not impressed by the message, sends an error to the "reply key."  As a
+  send, this also carries a null key in the reply position.
+- Null key rejects message, sends angry error to itself.
+- You are now hosed.
+
+Reply messages conventionally have either the error bit set, or the selector set
+to zero.  In either case, perhaps we don't send a reply?  I've already got at
+least one server that behaves that way (silently ignoring messages with error
+bit set).  But silently dropping messages with selector zero seems like it could
+be really surprising in a debugging setting.  What if the selector is
+accidentally off by one?  Accidentally setting the error bit seems waaaay less
+likely.
+
+...hm.  Or the error bit becomes a reply bit, and the selector distinguishes
+success from exception.  Messages received with the reply bit set shouldn't
+receive a reply.  This would have the effect of making a "success descriptor"
+non-zero.
+
+...or the error bit becomes a call bit.
+- Call bit set explicitly requests a reply.
+- Reply key generation (vs. forwarding) is still controlled by other aspects of
+  the encoding.
+- Call bit clear says "don't send anything to k0."
+
+I dislike call bits, because it feels like a weird additional axis for
+overloading, in the same sense as (but less useful than) const in C++.  Would
+servers need to define the behavior of their methods for call as well as
+not-call?
+
+The reply bit seems cleaner to me, because servers could uniformly ignore any
+message with it set.  (On the other hand, servers could just as well uniformly
+ignore any message without the call bit set.)
+
+What would it mean to get a reply *without* the reply bit set?  This might
+actually be reasonable in inter-call cases, where two objects are acting as
+co-routines.  Equivalently: a reply with the call bit set, meaning "here is a
+message and I'd like you to call me back on k0."
+
+
+
+Call bit nuances.
+
+- Can I send a legit reply key without the call bit set?  That would permanently
+  block the sender waiting for a reply that is not solicited.
+
+- Can I send a call bit without generating a reply key?  The answer needs to be
+  yes, for forwarding reasons.
+
+Okay... forwarding, you say.  Forwarding with a reply key would likely be
+send-only, i.e.
+- Send phase enabled.
+- Receive phase *not* enabled.
+- Call semantics requested.
+- Blocking ... or not.
+
+Maybe a reply key gets minted for S+R+C?  i.e. only mint when C set, but allow C
+to be set without minting for forwarding.  What's the role of the "source" key
+index in this case, then?  Ignored?  Ignored would be okay; it's currently sort
+of a hack to require a zero in that position.
+
+Could also be required to be a zero, like today; an S+R+C operation with a
+non-zero source key would be a forward followed by a receive, with no relation
+between the two.
+
+
+

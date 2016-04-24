@@ -1,0 +1,45 @@
+Following up on my notes from last night.
+
+
+Variations in the IPC operation.
+
+Phase options:
+- Send only
+- Send then Receive
+- Receive only
+
+(Technically there's also a no-op, but let's ignore it.)
+
+Key transfer options:
+- Transfer four keys (forwarding reply key).
+- Transfer three keys plus new reply key (call).
+- Transfer three keys plus null (send).
+
+Indications to recipient:
+- This is intended as a call and I'd like you to reply.
+- This is not intended as a call, here are some keys.
+
+The last bit could be implicit in the definition of the method, or explicit in
+the selector.  Last night I was considering making it explicit.
+
+
+There is currently no way to null out keys, but this is important to avoid
+sending unintended authority.  (I plumbed part of a syscall for this and never
+finished.)
+
+
+There is another way to break loops: detect null sending to null and
+short-circuit.  Assuming we can null out keys and reliably transmit nulls when
+desired, this might fix the problem.
+
+- Replies should always contain a null key in k0.
+- Objects receiving such a reply as a method call should interpret the
+  conventional reply selector 0 as an invalid message and respond with an error
+  message.  This error message is also a reply, and also has a null key in k0.
+- The error message goes to the null object, which looks at the reply key,
+  recognizes itself, and stops the loop.
+
+
+
+
+
