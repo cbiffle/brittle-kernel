@@ -151,6 +151,11 @@ protected:
   }
 };
 
+TEST_F(MemoryTest_Typical, bad_selector) {
+  auto & m = send_from_spy(rw_rasr, {Descriptor::call(0xFFFF, 0)});
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
+}
+
 TEST_F(MemoryTest_Typical, inspect) {
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(0, 0)});
 
