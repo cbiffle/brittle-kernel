@@ -15,7 +15,9 @@ Maybe<Key> Object::make_key(Brand brand) {
 }
 
 void Object::deliver_from(Brand, Sender * sender) {
-  sender->on_delivery_failed(Exception::bad_operation);
+  Keys k;
+  auto m = sender->on_delivery_accepted(k);
+  do_badop(m, k);
 }
 
 void Object::deliver_to(Context * ctx) {
