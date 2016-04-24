@@ -70,10 +70,10 @@ etl_armv7m_sv_call_handler:
     @ SVC exit sequence.
     b 2b
 
-3:  @ Cheap syscall path for Copy Key, without a context save.
+3:  @ Cheap syscall path for Key Register operations, without a context save.
     @ Note that the sysnum is in r1, if we want to add more syscalls later!
-    mov r1, r4                @ Copy descriptor to act as argument.
-    b _ZN1k7Context11do_copy_keyE10Descriptor
+    mov r2, r4                @ Copy descriptor to act as argument.
+    b _ZN1k7Context9do_key_opEm10Descriptor
     
 
 .globl etl_armv7m_pend_sv_handler

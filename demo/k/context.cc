@@ -5,6 +5,7 @@
 namespace context {
 
 bool set_region(unsigned k, unsigned region_index, unsigned region_key) {
+  discard_received_keys();
   copy_key(1, region_key);
 
   auto rm = ipc({
@@ -16,6 +17,7 @@ bool set_region(unsigned k, unsigned region_index, unsigned region_key) {
 }
 
 bool get_region(unsigned k, unsigned region_index, unsigned region_key_out) {
+  discard_received_keys();
 
   auto rm = ipc({
       Descriptor::call(4, k),
@@ -31,6 +33,7 @@ bool get_region(unsigned k, unsigned region_index, unsigned region_key_out) {
 }
 
 bool set_register(unsigned k, Register r, uint32_t value) {
+  discard_received_keys();
   auto rm = ipc({
       Descriptor::call(1, k),
       uint32_t(r),
@@ -41,6 +44,7 @@ bool set_register(unsigned k, Register r, uint32_t value) {
 }
 
 bool set_key(unsigned k, unsigned index, unsigned source_index) {
+  discard_received_keys();
   copy_key(1, source_index);
 
   auto rm = ipc({
@@ -52,11 +56,13 @@ bool set_key(unsigned k, unsigned index, unsigned source_index) {
 }
 
 bool make_runnable(unsigned k) {
+  discard_received_keys();
   auto rm = ipc({Descriptor::call(6, k)});
   return rm.m.d0.get_error() == false;
 }
 
 bool set_priority(unsigned k, unsigned priority) {
+  discard_received_keys();
   auto rm = ipc({
       Descriptor::call(8, k),
       priority,

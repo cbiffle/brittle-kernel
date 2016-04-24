@@ -97,7 +97,7 @@ public:
   void nullify_exchanged_keys(unsigned preserved = 0);
 
   uint32_t do_ipc(uint32_t stack, Descriptor);
-  void do_copy_key(Descriptor);
+  void do_key_op(uint32_t sysnum, Descriptor);
 
   void apply_to_mpu();
 

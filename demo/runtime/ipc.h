@@ -27,4 +27,25 @@ void copy_key(unsigned to, unsigned from) {
       );
 }
 
+ETL_INLINE
+void discard_keys(unsigned first, unsigned last) {
+  auto d = Descriptor::zero()
+    .with_sysnum(2)
+    .with_source(first)
+    .with_target(last);
+
+  register auto d_bits asm ("r4") = uint32_t(d);
+
+  asm volatile(
+      "svc #0"
+      : /* no outputs */
+      : "r"(d_bits)
+      );
+}
+
+ETL_INLINE
+void discard_received_keys() {
+  discard_keys(0, 3);
+}
+
 #endif  // DEMO_RUNTIME_IPC_H

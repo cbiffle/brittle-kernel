@@ -8,6 +8,7 @@ namespace memory {
 
 void split(unsigned k, unsigned slot_key,
     unsigned top_key_out) {
+  discard_received_keys();
   copy_key(1, slot_key);
 
   auto rm = ipc({Descriptor::call(2, k)});
@@ -18,6 +19,7 @@ void split(unsigned k, unsigned slot_key,
 }
 
 void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
+  discard_received_keys();
   if (arg_key) copy_key(1, arg_key);
 
   auto rm = ipc({
@@ -31,6 +33,7 @@ void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
 }
 
 uint32_t peek(unsigned k, uint32_t offset) {
+  discard_received_keys();
   auto rm = ipc({
       Descriptor::call(4, k),
       offset,
@@ -41,6 +44,7 @@ uint32_t peek(unsigned k, uint32_t offset) {
 }
 
 void poke(unsigned k, uint32_t offset, uint32_t word) {
+  discard_received_keys();
   auto rm = ipc({
       Descriptor::call(5, k),
       offset,

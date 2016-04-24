@@ -167,7 +167,7 @@ static unsigned alloc_mem(unsigned l2_half_size, unsigned key_out) {
     // Fabricate a slot key.
     ETL_ASSERT(object_table::mint_key(k_object_table, top_index, 0, k_tmp1));
     // Perform the split.
-    memory::split(key_out, 1, k_tmp1);
+    memory::split(key_out, k_tmp1, k_tmp1);
     // Link the new top into place as the only member of the freelist for this
     // size.
     memory::poke(k_tmp1, 0, 0);  // End of list.
@@ -336,9 +336,9 @@ static void demo_main() {
   copy_key(4, k_gate);
   copy_key(5, k_irq_gate);
   copy_key(6, k_irq);
-  for (unsigned i = 7; i < 16; ++i) {
-    copy_key(i, 0);
-  }
+
+  discard_keys(0, 3);
+  discard_keys(7, 15);
 
   drv::uart::main();
 }

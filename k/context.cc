@@ -77,8 +77,22 @@ uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
   return current->stack();
 }
 
-void Context::do_copy_key(Descriptor d) {
-  key(d.get_target()) = key(d.get_source());
+void Context::do_key_op(uint32_t sysnum, Descriptor d) {
+  switch (sysnum) {
+    case 1:  // Copy Key
+      key(d.get_target()) = key(d.get_source());
+      return;
+
+    case 2:  // Discard Keys
+      for (unsigned k = d.get_source(); k <= d.get_target(); ++k) {
+        key(k) = Key::null();
+      }
+      return;
+
+    default:
+      // Bad sysnum used.  This should probably become a fault?
+      return;
+  }
 }
 
 void Context::complete_receive(BlockingSender * sender) {

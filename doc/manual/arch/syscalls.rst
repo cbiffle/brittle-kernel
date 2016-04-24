@@ -28,6 +28,7 @@ Sysnum Operation
 ====== ============
 0      IPC
 1      Copy Key
+2      Discard Keys
 ====== ============
 
 The remaining 28 bits of the descriptor are interpreted differently by each
@@ -62,6 +63,47 @@ duplicate of it into another.  All processor registers are left unchanged.
     - 20
     - Target
     - Index of Key Register to receive copy.
+    - (preserved)
+  * - 19
+    - 0
+    - Reserved
+    - Should be zero.
+    - (preserved)
+
+
+Discard Keys
+------------
+
+Writes :ref:`kor-null` keys into some of the current Context's Key Registers.
+This can be used to discard authority, or prepare for sending a message without
+keys.
+
+Any contiguous range of registers can be specified.  Registers are given by the
+register indices of the first and last affected register, inclusive.  If the
+last index is smaller than the first, no registers are affected.
+
+.. list-table:: Descriptor Bit Fields
+  :header-rows: 1
+
+  * - Hi
+    - Lo
+    - Name
+    - On Entry
+    - On Return
+  * - 31
+    - 28
+    - Sysnum
+    - 2 (Discard Keys)
+    - (preserved)
+  * - 27
+    - 24
+    - First
+    - Index of first Key Register to discard.
+    - (preserved)
+  * - 23
+    - 20
+    - Last
+    - Index of last Key Register to discard.
     - (preserved)
   * - 19
     - 0

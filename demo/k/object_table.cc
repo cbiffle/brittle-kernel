@@ -5,6 +5,7 @@
 namespace object_table {
 
 bool mint_key(unsigned k, unsigned index, uint64_t brand, unsigned out_index) {
+  discard_received_keys();
   ReceivedMessage rm = ipc({
       Descriptor::call(0, k),
       index,
