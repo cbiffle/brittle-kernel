@@ -20,16 +20,15 @@ c_library('k_portable',
 ).extend_when(lambda e: e['arch'] == 'target',
   sources = [
     'object.cc',
+    'panic.cc',
     'unprivileged.cc',
     'unprivileged.S',
-  ],
-  deps = [
-    '//etl:assert_loop'
   ],
 ).extend_when(lambda e: e['arch'] == 'native',
   sources = [
     'testutil/mpu_fake.cc',
     'testutil/object_native.cc',
+    'testutil/panic_fake.cc',
     'testutil/sys_tick_fake.cc',
     'testutil/unprivileged_fake.cc',
   ],
@@ -51,7 +50,6 @@ c_library('k',
   ],
   deps = [
     ':k_portable',
-    '//etl:assert_loop'
   ],
   local = {
     'cxx_flags': ['-Wno-invalid-offsetof'],

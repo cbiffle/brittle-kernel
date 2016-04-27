@@ -1,14 +1,13 @@
 #include "k/key.h"
 
-#include "etl/assert.h"
-
 #include "k/object.h"
 #include "k/object_table.h"
+#include "k/panic.h"
 
 namespace k {
 
 Key Key::filled(Object * ptr, Brand brand) {
-  ETL_ASSERT(ptr);
+  PANIC_UNLESS(ptr, "nullptr in Key::filled");
 
   Key k;
 

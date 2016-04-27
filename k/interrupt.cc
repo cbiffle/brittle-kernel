@@ -3,7 +3,6 @@
 #include "etl/armv7m/nvic.h"
 #include "etl/armv7m/scb.h"
 #include "etl/armv7m/sys_tick.h"
-#include "etl/assert.h"
 
 #include "common/abi_sizes.h"
 

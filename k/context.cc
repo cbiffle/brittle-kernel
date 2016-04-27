@@ -11,6 +11,7 @@
 #include "k/memory.h"
 #include "k/context_layout.h"
 #include "k/object_table.h"
+#include "k/panic.h"
 #include "k/registers.h"
 #include "k/reply_gate.h"
 #include "k/reply_sender.h"
@@ -55,7 +56,8 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
 }
 
 void Context::set_reply_gate(ReplyGate & g) {
-  ETL_ASSERT(!g.is_bound());
+  PANIC_IF(g.is_bound(), "ReplyGate double bind");
+
   _body.reply_gate = &g;
   g.set_owner(this);
 }
@@ -214,7 +216,7 @@ Message Context::on_delivery_accepted(Keys & k) {
 }
 
 void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
-  ETL_ASSERT(this == current);
+  PANIC_UNLESS(this == current, "non-current Context block_in_send");
 
   if (get_descriptor().get_block()) {
     _body.saved_brand = brand;

@@ -4,6 +4,7 @@
 
 #include "k/context.h"
 #include "k/list.h"
+#include "k/panic.h"
 
 using etl::armv7m::scb;
 using etl::armv7m::Scb;
@@ -22,10 +23,7 @@ void pend_switch() {
 static void switch_now() {
   auto head = runnable.peek();
 
-  if (config::checks == false) {
-    // We still want to check this!
-    ETL_ASSERT(head);
-  }
+  ALWAYS_PANIC_UNLESS(head, "no runnable Contexts");
 
   current = head.ref()->owner;
 }

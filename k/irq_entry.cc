@@ -6,6 +6,7 @@
 
 #include "k/interrupt.h"
 #include "k/irq_redirector.h"
+#include "k/panic.h"
 #include "k/scheduler.h"
 
 namespace k {
@@ -20,11 +21,10 @@ void irq_redirector() {
     // External interrupt.
     handler = get_irq_redirection_table()[exception_number - 15];
   } else {
-    // Some other fault, errantly routed here.
-    ETL_ASSERT(false);
+    PANIC("fault sent to IRQ redirector");
   }
 
-  ETL_ASSERT(handler);
+  PANIC_UNLESS(handler, "null IRQ redirector entry");
   handler->trigger();
   do_deferred_switch_from_irq();
 

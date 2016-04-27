@@ -1,8 +1,7 @@
 #include "k/reply_sender.h"
 
-#include "etl/assert.h"
-
 #include "k/object.h"
+#include "k/panic.h"
 
 namespace k {
 
@@ -15,7 +14,7 @@ ReplySender::ReplySender(Message const & m)
     _keys{{}} {}
 
 void ReplySender::set_key(unsigned index, Key const & k) {
-  ETL_ASSERT(index < config::n_message_keys);
+  PANIC_UNLESS(index < config::n_message_keys, "bad key index in ReplySender");
   _keys.keys[index] = k;
 }
 

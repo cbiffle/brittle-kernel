@@ -8,6 +8,7 @@
 
 #include "k/become.h"
 #include "k/context.h"
+#include "k/panic.h"
 #include "k/region.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
@@ -104,7 +105,7 @@ static SplitAccess decode_ap(Mpu::AccessPermissions ap) {
     default:
       // This case should have been prevented by a call to ap_is_unpredictable,
       // above.
-      ETL_ASSERT(false);
+      PANIC("decoding unpredictable AP");
   }
 #undef CASE
 }

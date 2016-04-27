@@ -2,8 +2,7 @@
 
 #include "etl/armv7m/exception_frame.h"
 
-#include "etl/assert.h"
-
+#include "k/panic.h"
 #include "k/unprivileged.h"
 
 namespace k {
@@ -11,7 +10,7 @@ namespace k {
 void * mm_fault(void * stack) {
   // TODO: generate fault message to supervisor.
   // For now, halt execution here.
-  ETL_ASSERT(false);
+  PANIC("mm fault");
 }
 
 void mm_fault_k(void * vstack) {
@@ -25,7 +24,7 @@ void mm_fault_k(void * vstack) {
     frame->r15 = mm_fault_recovery_handler;
     mm_fault_recovery_handler = 0;
   } else {
-    ETL_ASSERT(false);  // failure in kernel.
+    PANIC("mm fault in kernel");
   }
 }
 

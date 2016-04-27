@@ -18,6 +18,7 @@
 #include "k/irq_redirector.h"
 #include "k/null_object.h"
 #include "k/object_table.h"
+#include "k/panic.h"
 #include "k/registers.h"
 #include "k/reply_gate.h"
 #include "k/range_ptr.h"
@@ -40,10 +41,20 @@ namespace k {
  */
 
 /*
+ * Allocation failure strategy to plug into the ETL Arena, below.  This converts
+ * allocation failures into kernel panics.
+ */
+struct PanicOnAllocationFailure {
+  static void * allocation_failed() {
+    PANIC("out of donated RAM");
+  }
+};
+
+/*
  * We'll use the ETL Arena to allocate objects, using this shorthand for our
  * preferred flavor.
  */
-using Arena = etl::mem::Arena<etl::mem::AssertOnAllocationFailure,
+using Arena = etl::mem::Arena<PanicOnAllocationFailure,
                               etl::mem::DoNotRequireDeallocation>;
 
 /*
@@ -54,6 +65,9 @@ extern "C" {
   extern uint32_t _kernel_rom_end;
 }
 
+/*
+ * Accessor for the application info.
+ */
 static inline AppInfo const & get_app_info() {
   return *reinterpret_cast<AppInfo const *>(&_kernel_rom_end);
 }
@@ -138,8 +152,10 @@ static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
     auto half_size = half_end - (map[i].base >> 1);
 
     // That better be a power of two (zero doesn't count).
-    ETL_ASSERT(half_size);
-    ETL_ASSERT((half_size & (half_size - 1)) == 0);
+    ALWAYS_PANIC_IF(
+        (half_size == 0)  // empty or 4GiB region
+        || ((half_size & (half_size - 1)) != 0),  // not power of two
+        "bad region size");
 
     // Which power of two is it?
     unsigned l2_half_size;
@@ -148,7 +164,7 @@ static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
     }
 
     auto maybe_range = P2Range::of(map[i].base, l2_half_size);
-    ETL_ASSERT(maybe_range);
+    ALWAYS_PANIC_UNLESS(maybe_range, "bad region");
 
     // TODO: check that this does not alias the kernel or reserved devs
 
@@ -181,7 +197,7 @@ static void prepare_first_context() {
     // Attempt to create a key.
     auto maybe_key = ot[grant.memory_index].make_key(grant.brand);
     // Require success.
-    ETL_ASSERT(maybe_key);
+    ALWAYS_PANIC_UNLESS(maybe_key, "bad brand in memory grant");
     // Attempt to load the corresponding memory region.  If the named object is
     // not a Memory object it will be silently ignored later.
     first_context->memory_region(i) = maybe_key.ref();
@@ -198,7 +214,7 @@ static void prepare_first_context() {
     auto s = reinterpret_cast<StackRegisters *>(app.initial_task_sp) - 1;
     bool success = ustore(&s->psr, 1 << 24)
                 && ustore(&s->r15, app.initial_task_pc);
-    ETL_ASSERT(success);
+    ALWAYS_PANIC_UNLESS(success, "fault setting up initial stack");
     first_context->set_stack(reinterpret_cast<uint32_t>(s));
   }
 
@@ -221,7 +237,7 @@ static void prepare_first_context() {
 static void initialize_app() {
   auto & app = get_app_info();
 
-  ETL_ASSERT(app.abi_token == current_abi_token);
+  ALWAYS_PANIC_UNLESS(app.abi_token == current_abi_token, "bad ABI token");
 
   // Create an Arena that can allocate RAM from the donated RAM region.
   Arena arena{{reinterpret_cast<uint8_t *>(app.donated_ram_begin),

@@ -1,10 +1,9 @@
 #ifndef K_LIST_H
 #define K_LIST_H
 
-#include "etl/assert.h"
-
 #include "k/config.h"
 #include "k/maybe.h"
+#include "k/panic.h"
 
 namespace k {
 
@@ -41,7 +40,7 @@ public:
 
     void reinsert() {
       auto c = this->container;
-      ETL_ASSERT(c);
+      PANIC_UNLESS(c, "reinsert without insert");
       unlink();
       c->insert(this);
     }
@@ -110,10 +109,11 @@ public:
   }
 
   void insert(Item * it) {
-    ETL_ASSERT(it->next == it);
+    PANIC_IF(it->container, "node already in list");
+    PANIC_IF(it->next != it || it->prev != it, "corrupt node on insert");
 
     auto p = it->owner->get_priority();
-    ETL_ASSERT(p < config::n_priorities);
+    PANIC_UNLESS(p < config::n_priorities, "bogus priority");
 
     it->prev = _roots[p].prev;
     it->next = &_roots[p];

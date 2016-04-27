@@ -4,6 +4,7 @@
 #include "common/message.h"
 
 #include "k/context.h"
+#include "k/panic.h"
 #include "k/reply_sender.h"
 #include "k/unprivileged.h"
 
@@ -12,13 +13,13 @@ namespace k {
 static ObjectTable * instance;
 
 ObjectTable & object_table() {
-  ETL_ASSERT(instance);
+  PANIC_UNLESS(instance, "ObjectTable singleton not set");
   return *instance;
 }
 
 void set_object_table(ObjectTable * p) {
-  ETL_ASSERT(instance == nullptr);
-  ETL_ASSERT(p);
+  PANIC_IF(instance, "ObjectTable singleton set twice");
+  PANIC_UNLESS(p, "ObjectTable singleton set to nullptr");
   instance = p;
 }
 
@@ -29,7 +30,8 @@ void reset_object_table_for_test() {
 ObjectTable::ObjectTable(Generation g) : Object{g} {}
 
 void ObjectTable::set_entries(RangePtr<Entry> entries) {
-  ETL_ASSERT(_objects.is_empty());
+  PANIC_IF(entries.is_empty(), "ObjectTable entries set to empty range");
+  PANIC_UNLESS(_objects.is_empty(), "ObjectTable entries set twice");
   _objects = entries;
 }
 
