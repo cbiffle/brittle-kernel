@@ -1,0 +1,273 @@
+Architecture Brainstorming
+==========================
+
+A bazillion potential axes of change!
+
+
+Change RPC model to call-style.
+-------------------------------
+
+Because it seems simpler, and because I think it might just work.  It also
+provides a cleaner bridge to thread migration, should I choose to go that way.
+
+Operations:
+- Call.
+- ReplyAndWait.
+- Receive.  (Mostly for startup.  Could be obviated by a reply to a null key.)
+- Forward.
+- Reply?  Without waiting?  No current server uses this.
+
+Questions that arise:
+
+How does a supervisor send test calls to potentially failing services?  By using
+sacrificial (zombie) Contexts.  Set up the Context to run test code and then
+report back.  If it doesn't... something is wrong.
+
+More generally, this seems like the way to call into something you don't trust:
+use an extra Context and monitor it closely.
+
+How do we forward calls?  With an explicit "forward call" operation (tail call).
+
+Can we do extended mutual exclusion, EROS-style?  Probably not, at least
+initially.  But we could fake it by having the server return a unique key to a
+closely held gate that gets invalidated, effectively simulating reply keys.
+
+Can I still write a general interposer?  I think so, but it may require more
+than one collaborating Context to implement.
+
+This "Forward" call could be used to un-receive messages, by forwarding them to
+a holding gate.
+
+
+
+Record call structure.
+----------------------
+
+Record that a Context is calling into another Context.  If the target Context is
+destroyed, wake the caller with an exception.  Because the caller is known by
+the kernel to be blocked in Call (and thus on its reply key) it can't
+distinguish a send through the reply key from a direct error from the kernel.
+
+Many Contexts can simultaneously be calling into a server Context.  The server
+has no requirement to reply in order.
+
+Update this information on Forward.
+
+Verify it on Reply.  A Context should be able to use a Reply key iff the issuer
+of the Reply key is still blocked in call on the Context.  And by "blocked in
+call" I mean waiting-for-reply, not waiting-to-deliver in a later call.
+
+This means Reply keys don't quite act like other capabilities anymore: you can
+store them and forward them, but they can only be used from the callee or a
+collaborator designated by Forward.  I think I'm cool with this.
+
+IPC-related Context states in this new scheme:
+
+- Ready.
+- Sending to gate.  (Gate implied by sender item.)
+- Waiting for context.  (Context tracked by context item?)
+- Receiving from gate.  (Gate implied by context item?)
+
+Reply keys are slightly less subject to misuse this way.  The only risk of
+misuse is something like:
+
+- Client C calls server S.
+- Server S stashes C's reply key with the intent to reply out of order.
+- System interrupts C.
+- C tries calling S again.
+- S receives that message, stashes it.
+- S replies to the *first* key.
+
+In other words: any key uniqueness magic only needs to guard against accidental
+simultaneous calls to the same server.  Interestingly the System can actually
+detect when it might need to invalidate reply keys: whenever a call is
+interrupted.
+
+If the reply key arrives in a special register, like seL4, we could actually
+delay minting it for real until that register is accessed for copy.  Any call
+where the key is not copied out of that register doesn't require any magic at
+all.
+
+This might let me convert reply keys into specially branded Context keys and
+eliminate separate ReplyGate objects.  Basically, if I can convince myself that
+`brand_bits - n` bits are enough to avoid reply key misuse, I can eliminate
+ReplyGate.
+
+Currently, brands are 32 bits, and this gives me 31 bits to potentially use to
+distinguish reply keys.  Assuming a need to bump the expected brand
+(invalidating issued reply keys) every...
+- Microsecond? 35 minutes.
+- Millisecond? 24 days.
+
+Not great.  Here's the table.
+
+    Bits / Interval       ms        us        ns
+    32                  49.7 d    1.19 h     4.29 s
+    48                  8919 y    8.92 y     3.25 d
+    56                  2.28 My   2283 y     2.28 y
+    64                   584 My   584 ky      584 y
+
+I'd like events like this to fall into only two categories:
+- Pretty common with a clear way of handling it.
+- Effectively impossible.
+
+Events that have clear recourse but are infrequent won't get tested, and will
+thus be wrong.
+
+
+
+
+Address priority inversion.
+---------------------------
+
+Figure out a technique for avoiding priority inversion in IPC.  We can already
+implement priority inheritance for system-implemented mutexes (see: FreeRTOS
+port).  But we have no solution for IPC.
+
+The obvious candidate is the priority ceiling protocol, but embedding this in
+the kernel seems sketchy.
+
+If I can find primitives to support system-defined inversion control protocols,
+that would be lovely, but so far I haven't.
+
+Support for PCP on IPC would be pretty simple, so far as I can tell.  A priority
+limit on gates would suffice.  Systems would be constructed so that server
+Contexts are higher priority than their clients, and this would be enforced by
+the server's entry gates.  If this is enforced transitively, then a server doing
+work naturally prevents any of its clients from producing a request (because
+they cannot run).  If the server is allowed to call into lower priority
+Contexts, however, inversion can still occur.
+
+(Should the limit be on the gate, or the Context?  Putting it on the Gate seems
+to make sense to me.)
+
+In a possible future with thread migration, the equivalent scheme would put
+priority limits on gates, and associate elevated priority with (some)
+activations.  The previous priority would be tracked on the activation stack, so
+that it can be restored trivially on return.
+
+I'll put some thought into providing primitives in support of other schemes
+later, but for now it seems like implementing *a* scheme would be better than
+none.
+
+
+
+Consider binding gates to Contexts.
+-----------------------------------
+
+Yeah, the design approach that I rejected last year -- I think it may be the
+right way to go.  Though I should still compare it with Groups.
+
+Each Gate can be bound to a Context, or not bound.
+
+Allow Contexts to either open-receive from any bound Gate, or specifically
+receive from a single Gate.  (Implication: Contexts can now receive from Gates
+to which they hold no key.)
+
+How does a gate get closed?  By unbinding it, or by setting a flag?  The
+sequence of actions is likely to be identical to unbinding, so that might be the
+minimal approach -- as long as the server can re-bind the gate easily.
+
+Of course, for a server to re-bind the gate, it would need to designate the
+bound Context (itself), using a key.  Servers are not generally expected to
+hold their own Context key, so this might be a non-starter.
+
+Boolean flag in the Gate then.
+
+Advantages?
+- Simpler, no separate Group object required.
+- Can reason about Context blocking relationships, for e.g. priority
+  inheritance (if I figure out how to implement that.)
+  - Could also achieve this by associating Contexts with Groups in a group
+    model.
+  - Though for non-Group Gates I'd still need a way to bind Gates to Contexts.
+
+Disadvantages?
+- Less flexible; multiple Contexts cannot serve a set of gates.
+- Potential authority leak: can a server's gate maintenance key be used to
+  retrieve its own Context key from a bound gate?
+
+
+
+Gate Maintenance Keys.
+----------------------
+
+Oooh.  Gate keys should come in two flavors.
+
+1. Transparent entry keys.
+
+2. Non-transparent maintenance and receive keys.
+
+Maintenance could potentially be further restricted, but it looks like servers
+will need to perform bind/unbind maintenance and also receive, so.
+
+That maintenance+receive key is also an obvious place to hang an "invalidate"
+operation.  Invalidate followed by draining the receive queue could be useful to
+implement single-use keys.
+
+
+
+Reconsider key layout.
+----------------------
+
+Keys are currently intended to look like this (but Generation is still 32 bits):
+
+    +------------+  0
+    | Generation |
+    |            |
+    +------------+  8
+    |   Brand    |
+    +------------+  12
+    |  Pointer   |
+    +------------+  16
+
+I'd like to keep keys around 16 bytes if possible.
+
+I'm hesitant to shrink generation below 64 bits, because 64 bits seems like the
+smallest size where we just won't have to worry about it.
+
+I could extend brands to 48 bits by switching to a table index:
+
+    +------------+  0
+    | Generation |
+    |            |
+    +------------+  8
+    |   Brand    |
+    +      +-----+  12
+    |      |Index|
+    +------+-----+  16
+
+This would allow for reply key invalidation at 1Mhz for 4.45 years.  That's
+still well within my "worry about" horizon.
+
+I could just bite the bullet and increase keys to 20 bytes:
+
+    +------------+  0
+    | Generation |
+    |            |
+    +------------+  8
+    |   Brand    |
+    |            |
+    +------------+  16
+    |  Pointer   |
+    +------------+  20
+
+This would increase the size of a Context by 96 bytes, and (because keys are now
+non-power-of-two) slightly increase the cost of key address computations.
+
+But it would neatly end this discussion and let me think about other things.
+Which appeals to me.
+
+
+
+
+Thread migration.
+-----------------
+
+The architectural elephant in the room.  My summary as of today:
+
+Pretty interesting.  Still scary in how different it is.  I'm not finding a lot
+of use of the technique in messaging-oriented RTOSes, which is either an
+opportunity or an omen.
+
+
