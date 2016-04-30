@@ -1,7 +1,8 @@
 Architecture Brainstorming
 ==========================
 
-A bazillion potential axes of change!
+A bazillion potential axes of change!  Let's just reopen all the closed issues,
+shall we?
 
 
 Change RPC model to call-style.
@@ -271,3 +272,29 @@ of use of the technique in messaging-oriented RTOSes, which is either an
 opportunity or an omen.
 
 
+
+
+Priorities: numbers or capabilities?
+------------------------------------
+
+It seems a little weird that holding a Context key implicitly authorizes a
+program to *arbitrarily* boost the priority of said Context.  From the early
+days I've had an open TODO about whether priorities would be better represented
+as capabilities.
+
+Of course, I don't currently have any concept of "value" capabilities that don't
+reference an object, a la EROS's "number keys."  So that'd have to happen.
+Perhaps all the value keys would reference an immortal singleton.
+
+Mach and Unix are an interesting reference case for this.  Both systems allow
+the priority of a thread to be *lowered*.  Raising it typically takes superuser
+privileges.  An equivalent in my system would be for priority keys to provide a
+method for deriving a lower-priority key, but to have higher-priority keys
+sourced only from the system.
+
+I could imagine this working.
+
+Of course: this may not be primitive.  Another option for Systems concerned
+about this is to proxy all their Context keys.  Priority keys would then be
+specially branded System keys, much like how I've imagined scheduling classes
+might be implemented.
