@@ -81,7 +81,7 @@ protected:
   }
 
   Message const & send_from_spy(Rasr rasr, Message m) {
-    _sender.get_message() = m;
+    _sender.message() = m;
     _sender.set_key(0, _spy.make_key(0).ref());
     memory().deliver_from(brand_from_rasr(rasr), &_sender);
 

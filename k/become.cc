@@ -55,7 +55,7 @@ void become(Memory & memory,
   auto maybe_type_code = extract_type_code(m.d0);
   if (!maybe_type_code) {
     // Can't transmogrify, target object type not recognized.
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
     return;
   }
 
@@ -64,7 +64,7 @@ void become(Memory & memory,
 
   if (l2_size_for_type_code(type_code) != range.l2_size()) {
     // Can't transmogrify, size is wrong.
-    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }
 
@@ -83,13 +83,13 @@ void become(Memory & memory,
         auto & alleged_gate_key = k.keys[1];
         auto alleged_gate_ptr = alleged_gate_key.get();
         if (alleged_gate_ptr->get_kind() != Object::Kind::reply_gate) {
-          reply_sender.get_message() = Message::failure(Exception::bad_kind);
+          reply_sender.message() = Message::failure(Exception::bad_kind);
           return;
         }
 
         auto gate_ptr = static_cast<ReplyGate *>(alleged_gate_ptr);
         if (gate_ptr->is_bound()) {
-          reply_sender.get_message() = Message::failure(Exception::bad_kind);
+          reply_sender.message() = Message::failure(Exception::bad_kind);
           return;
         }
 

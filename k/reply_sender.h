@@ -63,7 +63,7 @@ public:
   explicit ReplySender(Message const &);
 
   // Gets a mutable reference to the contained message, so it can be updated.
-  Message & get_message() { return _m; }
+  Message & message() { return _m; }
 
   // Replaces one of the keys in the contained message.
   void set_key(unsigned index, Key const &);
@@ -94,7 +94,7 @@ public:
   // Fires off the reply, assuming the target key is non-null.
   ~ScopedReplySender();
 
-  Message & get_message() { return rs.get_message(); }
+  Message & message() { return rs.message(); }
   void set_key(unsigned index, Key const & k) { rs.set_key(index, k); }
 
   ReplySender rs;

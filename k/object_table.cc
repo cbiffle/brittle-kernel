@@ -66,13 +66,13 @@ void ObjectTable::do_mint_key(Brand,
   ScopedReplySender reply_sender{keys.keys[0]};
 
   if (index >= _objects.count()) {
-    reply_sender.get_message() = Message::failure(Exception::index_out_of_range);
+    reply_sender.message() = Message::failure(Exception::index_out_of_range);
   } else {
     // Give the recipient a chance to reject the brand.
     if (auto maybe_key = _objects[index].as_object().make_key(brand)) {
       reply_sender.set_key(1, maybe_key.ref());
     } else {
-      reply_sender.get_message() = Message::failure(Exception::bad_brand);
+      reply_sender.message() = Message::failure(Exception::bad_brand);
     }
   }
 }
@@ -98,7 +98,7 @@ void ObjectTable::do_get_kind(Brand,
 
   ScopedReplySender reply_sender{keys.keys[0]};
 
-  auto & reply = reply_sender.get_message();
+  auto & reply = reply_sender.message();
   if (index >= _objects.count()) {
     reply = Message::failure(Exception::index_out_of_range);
   } else {

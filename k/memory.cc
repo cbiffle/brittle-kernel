@@ -141,7 +141,7 @@ void Memory::do_change(Brand brand,
       || ap_is_stronger(rasr.get_ap(), current.get_ap())
       || (current.get_srd() & ~rasr.get_srd())
       || (_range.l2_size() < 8 && rasr.get_srd())) {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
     return;
   }
 
@@ -158,7 +158,7 @@ void Memory::do_split(Brand brand,
 
   if (get_region_for_brand(brand).rasr.get_srd()) {
     // Can't split, some subregions are disabled.
-    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }
 
@@ -167,7 +167,7 @@ void Memory::do_split(Brand brand,
 
   if (!maybe_bottom || !maybe_top) {
     // Can't split, too small.
-    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }
 
@@ -177,7 +177,7 @@ void Memory::do_split(Brand brand,
   auto objptr = donation_key.get();
   if (objptr->get_kind() != Kind::slot) {
     // Can't split, donation was of wrong type.
-    reply_sender.get_message() = Message::failure(Exception::bad_kind);
+    reply_sender.message() = Message::failure(Exception::bad_kind);
     return;
   }
 
@@ -215,7 +215,7 @@ void Memory::do_become(Brand brand,
 
   if (get_region_for_brand(brand).rasr.get_srd()) {
     // Can't transmogrify, some subregions are disabled.
-    reply_sender.get_message() = Message::failure(Exception::bad_operation);
+    reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }
 
@@ -229,11 +229,11 @@ void Memory::do_peek(Brand brand, Message const & m, Keys & k) {
   auto size_in_words = _range.half_size() / 2;
 
   if (offset >= size_in_words) {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
     return;
   }
 
-  reply_sender.get_message().d0 =
+  reply_sender.message().d0 =
     reinterpret_cast<uint32_t const *>(_range.base())[offset];
 }
 
@@ -244,7 +244,7 @@ void Memory::do_poke(Brand brand, Message const & m, Keys & k) {
   auto size_in_words = _range.half_size() / 2;
 
   if (offset >= size_in_words) {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
     return;
   }
 

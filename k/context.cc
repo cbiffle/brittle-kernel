@@ -299,9 +299,9 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
                                Message const & arg,
                                Keys &) {
   if (arg.d0 < etl::array_count(_body.save.raw)) {
-    reply_sender.get_message().d0 = _body.save.raw[arg.d0];
+    reply_sender.message().d0 = _body.save.raw[arg.d0];
   } else {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   }
 }
 
@@ -312,7 +312,7 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
   if (arg.d0 < etl::array_count(_body.save.raw)) {
     _body.save.raw[arg.d0] = arg.d1;
   } else {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   }
 }
 
@@ -323,7 +323,7 @@ void Context::do_read_key(ScopedReplySender & reply_sender,
   auto r = arg.d0;
 
   if (r >= config::n_task_keys) {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   } else {
     reply_sender.set_key(1, key(r));
   }
@@ -336,7 +336,7 @@ void Context::do_write_key(ScopedReplySender & reply_sender,
   auto r = arg.d0;
 
   if (r >= config::n_task_keys) {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   } else {
     key(r) = k.keys[1];
   }
@@ -351,7 +351,7 @@ void Context::do_read_region(ScopedReplySender & reply_sender,
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _body.memory_regions[n]);
   } else {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   }
 }
 
@@ -364,7 +364,7 @@ void Context::do_write_region(ScopedReplySender & reply_sender,
   if (n < config::n_task_regions) {
     _body.memory_regions[n] = k.keys[1];
   } else {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   }
 
   if (current == this) apply_to_mpu();
@@ -382,7 +382,7 @@ void Context::do_read_priority(ScopedReplySender & reply_sender,
                                Brand,
                                Message const &,
                                Keys &) {
-  reply_sender.get_message().d0 = _body.priority;
+  reply_sender.message().d0 = _body.priority;
 }
 
 void Context::do_write_priority(ScopedReplySender & reply_sender,
@@ -397,7 +397,7 @@ void Context::do_write_priority(ScopedReplySender & reply_sender,
     if (_body.ctx_item.is_linked()) _body.ctx_item.reinsert();
     if (_body.sender_item.is_linked()) _body.sender_item.reinsert();
   } else {
-    reply_sender.get_message() = Message::failure(Exception::bad_argument);
+    reply_sender.message() = Message::failure(Exception::bad_argument);
   }
 }
 
@@ -409,7 +409,7 @@ void Context::do_save_kernel_registers(ScopedReplySender & reply_sender,
 
   for (unsigned i = 0; i < etl::array_count(_body.save.raw); ++i) {
     if (!ustore(&dest[i], _body.save.raw[i])) {
-      reply_sender.get_message() = Message::failure(Exception::fault);
+      reply_sender.message() = Message::failure(Exception::fault);
       return;
     }
   }
@@ -425,7 +425,7 @@ void Context::do_restore_kernel_registers(ScopedReplySender & reply_sender,
     if (auto mval = uload(&src[i])) {
       _body.save.raw[i] = mval.ref();
     } else {
-      reply_sender.get_message() = Message::failure(Exception::fault);
+      reply_sender.message() = Message::failure(Exception::fault);
       return;
     }
   }

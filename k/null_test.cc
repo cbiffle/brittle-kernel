@@ -62,7 +62,7 @@ protected:
   }
 
   Message const & send_from_spy(Message m) {
-    _sender.get_message() = m;
+    _sender.message() = m;
     _sender.set_key(0, _spy.make_key(0).ref());
     null().deliver_from(0, &_sender);
 
@@ -125,7 +125,7 @@ TEST_F(NullTest, no_loop) {
   /*
    * Here the spy looks like Null itself, so Null should not respond.
    */
-  _sender.get_message() = {Descriptor::call(0, 0)};
+  _sender.message() = {Descriptor::call(0, 0)};
   _sender.set_key(0, _spy.make_key(0).ref());
   _spy.set_kind(Object::Kind::null);
 
