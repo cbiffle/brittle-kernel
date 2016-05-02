@@ -285,9 +285,9 @@ void Context::deliver_from(Brand brand, Sender * sender) {
     &Context::do_save_kernel_registers,
     &Context::do_restore_kernel_registers,
   };
-  if (m.d0.get_selector() < etl::array_count(dispatch)) {
+  if (m.desc.get_selector() < etl::array_count(dispatch)) {
     ScopedReplySender reply_sender{k.keys[0]};
-    auto fn = dispatch[m.d0.get_selector()];
+    auto fn = dispatch[m.desc.get_selector()];
     (this->*fn)(reply_sender, brand, m, k);
   } else {
     do_badop(m, k);
@@ -298,8 +298,8 @@ void Context::do_read_register(ScopedReplySender & reply_sender,
                                Brand,
                                Message const & arg,
                                Keys &) {
-  if (arg.d1 < etl::array_count(_body.save.raw)) {
-    reply_sender.get_message().d1 = _body.save.raw[arg.d1];
+  if (arg.d0 < etl::array_count(_body.save.raw)) {
+    reply_sender.get_message().d0 = _body.save.raw[arg.d0];
   } else {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
@@ -309,8 +309,8 @@ void Context::do_write_register(ScopedReplySender & reply_sender,
                                 Brand,
                                 Message const & arg,
                                 Keys &) {
-  if (arg.d1 < etl::array_count(_body.save.raw)) {
-    _body.save.raw[arg.d1] = arg.d2;
+  if (arg.d0 < etl::array_count(_body.save.raw)) {
+    _body.save.raw[arg.d0] = arg.d1;
   } else {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
   }
@@ -320,7 +320,7 @@ void Context::do_read_key(ScopedReplySender & reply_sender,
                           Brand,
                           Message const & arg,
                           Keys &) {
-  auto r = arg.d1;
+  auto r = arg.d0;
 
   if (r >= config::n_task_keys) {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
@@ -333,7 +333,7 @@ void Context::do_write_key(ScopedReplySender & reply_sender,
                            Brand,
                            Message const & arg,
                            Keys & k) {
-  auto r = arg.d1;
+  auto r = arg.d0;
 
   if (r >= config::n_task_keys) {
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
@@ -346,7 +346,7 @@ void Context::do_read_region(ScopedReplySender & reply_sender,
                              Brand,
                              Message const & arg,
                              Keys &) {
-  auto n = arg.d1;
+  auto n = arg.d0;
 
   if (n < config::n_task_regions) {
     reply_sender.set_key(1, _body.memory_regions[n]);
@@ -359,7 +359,7 @@ void Context::do_write_region(ScopedReplySender & reply_sender,
                               Brand,
                               Message const & arg,
                               Keys & k) {
-  auto n = arg.d1;
+  auto n = arg.d0;
 
   if (n < config::n_task_regions) {
     _body.memory_regions[n] = k.keys[1];
@@ -382,14 +382,14 @@ void Context::do_read_priority(ScopedReplySender & reply_sender,
                                Brand,
                                Message const &,
                                Keys &) {
-  reply_sender.get_message().d1 = _body.priority;
+  reply_sender.get_message().d0 = _body.priority;
 }
 
 void Context::do_write_priority(ScopedReplySender & reply_sender,
                                 Brand,
                                 Message const & arg,
                                 Keys &) {
-  auto priority = arg.d1;
+  auto priority = arg.d0;
 
   if (priority < config::n_priorities) {
     _body.priority = priority;
@@ -405,7 +405,7 @@ void Context::do_save_kernel_registers(ScopedReplySender & reply_sender,
                                        Brand,
                                        Message const & arg,
                                        Keys &) {
-  uint32_t * dest = reinterpret_cast<uint32_t *>(arg.d1);
+  uint32_t * dest = reinterpret_cast<uint32_t *>(arg.d0);
 
   for (unsigned i = 0; i < etl::array_count(_body.save.raw); ++i) {
     if (!ustore(&dest[i], _body.save.raw[i])) {
@@ -419,7 +419,7 @@ void Context::do_restore_kernel_registers(ScopedReplySender & reply_sender,
                                           Brand,
                                           Message const & arg,
                                           Keys &) {
-  uint32_t const * src = reinterpret_cast<uint32_t const *>(arg.d1);
+  uint32_t const * src = reinterpret_cast<uint32_t const *>(arg.d0);
 
   for (unsigned i = 0; i < etl::array_count(_body.save.raw); ++i) {
     if (auto mval = uload(&src[i])) {

@@ -38,7 +38,7 @@ void ObjectTable::set_entries(RangePtr<Entry> entries) {
 void ObjectTable::deliver_from(Brand brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
-  switch (m.d0.get_selector()) {
+  switch (m.desc.get_selector()) {
     case 0:
       do_mint_key(brand, m, k);
       break;
@@ -60,8 +60,8 @@ void ObjectTable::deliver_from(Brand brand, Sender * sender) {
 void ObjectTable::do_mint_key(Brand,
                               Message const & args,
                               Keys & keys) {
-  auto index = args.d1;
-  auto brand = args.d2;
+  auto index = args.d0;
+  auto brand = args.d1;
 
   ScopedReplySender reply_sender{keys.keys[0]};
 
@@ -94,7 +94,7 @@ void ObjectTable::do_read_key(Brand,
 void ObjectTable::do_get_kind(Brand,
                               Message const & args,
                               Keys & keys) {
-  auto index = args.d1;
+  auto index = args.d0;
 
   ScopedReplySender reply_sender{keys.keys[0]};
 
@@ -102,7 +102,7 @@ void ObjectTable::do_get_kind(Brand,
   if (index >= _objects.count()) {
     reply = Message::failure(Exception::index_out_of_range);
   } else {
-    reply.d1 = uint32_t(_objects[index].as_object().get_kind());
+    reply.d0 = uint32_t(_objects[index].as_object().get_kind());
   }
 }
 

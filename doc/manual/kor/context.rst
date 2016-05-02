@@ -40,14 +40,12 @@ Index Register
 Call
 ####
 
-- d0: descriptor
-- d1: register index.
+- d0: register index.
 
 Reply
 #####
 
-- d0: success descriptor.
-- d1: register contents.
+- d0: register contents.
 
 Exceptions
 ##########
@@ -66,14 +64,13 @@ to those used with :ref:`kor-context-method-read-register`.
 Call
 ####
 
-- d0: descriptor
-- d1: register index
-- d2: value
+- d0: register index
+- d1: value
 
 Reply
 #####
 
-- d0: success descriptor.
+Empty.
 
 Exceptions
 ##########
@@ -90,13 +87,13 @@ are currently 16 key registers.
 Call
 ####
 
-- d0: descriptor.
-- d1: key index.
+- d0: key index.
 
 Reply
 #####
 
-- d0: success descriptor.
+No data.
+
 - k1: key from context.
 
 Exceptions
@@ -114,14 +111,13 @@ there are currently 16 key registers.
 Call
 ####
 
-- d0: descriptor
-- d1: key index
+- d0: key index
 - k1: key
 
 Reply
 #####
 
-- d0: success descriptor.
+Empty.
 
 Exceptions
 ##########
@@ -138,13 +134,13 @@ number of MPU region registers per Context is configurable at build time.
 Call
 ####
 
-- d0: descriptor
-- d1: region index
+- d0: region index
 
 Reply
 #####
 
-- d0: success descriptor
+No data.
+
 - k1: region key
 
 Exceptions
@@ -172,14 +168,13 @@ confer no authority.
 Call
 ####
 
-- d0: descriptor
-- d1: region index
+- d0: region index
 - k1: region key
 
 Reply
 #####
 
-- d0: success descriptor
+Empty.
 
 Exceptions
 ##########
@@ -209,12 +204,12 @@ depends on this context's current state:
 Call
 ####
 
-- d0: descriptor
+Empty.
 
 Reply
 #####
 
-- d0: success descriptor
+Empty.
 
 
 Get Priority (7)
@@ -225,13 +220,12 @@ Gets the current priority of this context.
 Call
 ####
 
-- d0: descriptor
+Empty.
 
 Reply
 #####
 
-- d0: success descriptor
-- d1: priority
+- d0: priority
 
 .. warning:: This API may change; priorities may need to be capabilities.
 
@@ -245,13 +239,12 @@ might trigger a context switch.
 Call
 ####
 
-- d0: descriptor
-- d1: priority
+- d0: priority
 
 Reply
 #####
 
-- d0: success descriptor
+Empty.
 
 .. warning:: This API may change; priorities may need to be capabilities.
 
@@ -273,13 +266,12 @@ saved to memory they are written in that order (by ascending address).
 Call
 ####
 
-- d0: descriptor
-- d1: destination base address.
+- d0: destination base address.
 
 Reply
 #####
 
-- d0: success descriptor.
+Empty.
 
 Exceptions
 ##########
@@ -309,13 +301,12 @@ restored from memory they are read in that order (by ascending address).
 Call
 ####
 
-- d0: descriptor
-- d1: source base address.
+- d0: source base address.
 
 Reply
 #####
 
-- d0: success descriptor.
+Empty.
 
 Exceptions
 ##########

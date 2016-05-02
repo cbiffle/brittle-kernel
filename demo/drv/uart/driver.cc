@@ -93,7 +93,7 @@ static void wait_for_txe() {
   // Receive from the IRQ gate, blocking.
   auto rm = blocking_receive(k_irq_gate);
   // The IRQ object should not be sending errors!
-  ETL_ASSERT(rm.m.d0.get_error() == false);
+  ETL_ASSERT(rm.m.desc.get_error() == false);
 
   // Disable TXE interrupt generation; otherwise it'll happen repeatedly.
   usart2.write_cr1(usart2.read_cr1().with_txeie(false));
@@ -113,7 +113,7 @@ void main() {
     auto rm = blocking_receive(k_gate);
     ++receive_count;
 
-    if (rm.m.d0.get_error()) {
+    if (rm.m.desc.get_error()) {
       // Clients can send us errors if they want.  Don't bother replying.
       // If the client sent an error in a "call" this may block the client
       // forever... not our problem.  Better this than to reply blindly and
@@ -121,13 +121,13 @@ void main() {
       continue;
     }
 
-    switch (rm.m.d0.get_selector()) {
+    switch (rm.m.desc.get_selector()) {
       case 1:  // Send!
         ++send_count;
         // Back up reply key, as we're about to receive from the IRQ.
         copy_key(k_saved_reply, 0);
         // Load character into data register.
-        usart2.write_dr(rm.m.d1 & 0xFF);
+        usart2.write_dr(rm.m.d0 & 0xFF);
         // Enable TX Empty interrupt (signals data register available)
         usart2.write_cr1(usart2.read_cr1().with_txeie(true));
 

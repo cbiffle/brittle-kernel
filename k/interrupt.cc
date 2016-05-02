@@ -40,7 +40,7 @@ void Interrupt::trigger() {
 void Interrupt::deliver_from(Brand brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
-  switch (m.d0.get_selector()) {
+  switch (m.desc.get_selector()) {
     case 1:
       do_set_target(brand, m, k);
       break;
@@ -67,7 +67,7 @@ void Interrupt::do_set_target(Brand, Message const &, Keys & k) {
 void Interrupt::do_enable(Brand, Message const & m, Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
-  bool clear_pending = m.d1 != 0;
+  bool clear_pending = m.d0 != 0;
 
   if (clear_pending) clear_pending_interrupt();
   enable_interrupt();

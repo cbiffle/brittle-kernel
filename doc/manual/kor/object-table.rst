@@ -40,14 +40,14 @@ object.
 Call
 ####
 
-- d0: descriptor
-- d1: object index in table
-- d2: brand
+- d0: object index in table
+- d1: brand
 
 Reply
 #####
 
-- d0: success descriptor
+No data.
+
 - k1: newly minted key
 
 Exceptions
@@ -67,15 +67,15 @@ the same object, and the only general way to read out a key's brand.
 Call
 ####
 
-- d0: descriptor
-- k0: key
+No data.
+
+- k1: key
 
 Reply
 #####
 
-- d0: success descriptor
-- d1: table index
-- d2: brand
+- d0: table index
+- d1: brand
 
 
 Get Kind (2)
@@ -101,14 +101,12 @@ Code Kind
 Call
 ####
 
-- d0: descriptor
-- d1: object index in table
+- d0: object index in table
 
 Reply
 #####
 
-- d0: success descriptor
-- d1: kind code
+- d0: kind code
 
 Exceptions
 ##########

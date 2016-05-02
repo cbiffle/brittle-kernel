@@ -96,7 +96,7 @@ protected:
 constexpr Rasr MemoryTest::rw_rasr;
 
 #define ASSERT_MESSAGE_SUCCESS(__m) \
-  ASSERT_EQ(0, uint32_t((__m).d0))
+  ASSERT_EQ(0, uint32_t((__m).desc))
 
 #define ASSERT_NULL_KEY(__k) \
   ASSERT_EQ(Object::Kind::null, (__k).get()->get_kind())
@@ -130,9 +130,9 @@ constexpr Rasr MemoryTest::rw_rasr;
 { \
   auto & __m = (_m); \
   auto __e = (_e); \
-  ASSERT_TRUE(__m.d0.get_error()) \
+  ASSERT_TRUE(__m.desc.get_error()) \
     << "operation should have failed"; \
-  ASSERT_EQ(uint64_t(__e), (uint64_t(__m.d2) << 32) | __m.d1) \
+  ASSERT_EQ(uint64_t(__e), (uint64_t(__m.d1) << 32) | __m.d0) \
     << "operation failed with wrong exception"; \
   ASSERT_ALL_RETURNED_KEYS_NULL(); \
 }
@@ -163,7 +163,7 @@ TEST_F(MemoryTest_Typical, inspect) {
     << "inspecting a key should always succeed";
   ASSERT_ALL_RETURNED_KEYS_NULL();
 
-  auto rbar = Rbar(m.d1);
+  auto rbar = Rbar(m.d0);
 
   ASSERT_EQ(p2range_under_test().base(),
             rbar.get_addr_27() << 5)
@@ -171,7 +171,7 @@ TEST_F(MemoryTest_Typical, inspect) {
   ASSERT_FALSE(rbar.get_valid()) << "Region number valid field must not be set";
   ASSERT_EQ(0, rbar.get_region()) << "Region number field must not be set";
 
-  auto rasr = Rasr(m.d2);
+  auto rasr = Rasr(m.d1);
   auto expected_rasr = rw_rasr.with_size(7).with_enable(true);
   ASSERT_EQ(uint32_t(expected_rasr), uint32_t(rasr))
     << "Revealed RASR should be initial RASR but with size and enable set";
@@ -398,11 +398,11 @@ TEST_F(MemoryTest_BecomeContext, ok) {
   _sender.set_key(1, _fake_reply_gate.make_key(0).ref());
   auto & m = send_become(rw_rasr, 0);
 
-  ASSERT_FALSE(m.d0.get_error())
+  ASSERT_FALSE(m.desc.get_error())
     << "this memory should be able to become a context; exception: "
     << std::hex
-    << m.d2 << m.d1
-    << std::dec << " " << m.d3;
+    << m.d1 << m.d0
+    << std::dec << " " << m.d2;
 
   ASSERT_EQ(1, object().get_generation())
     << "The consumed memory's generation should have advanced.";
@@ -419,11 +419,11 @@ using MemoryTest_BecomeGate = MemoryTest_Become<kabi::gate_l2_size>;
 TEST_F(MemoryTest_BecomeGate, ok) {
   auto & m = send_become(rw_rasr, 1);
 
-  ASSERT_FALSE(m.d0.get_error())
+  ASSERT_FALSE(m.desc.get_error())
     << "this memory should be able to become a gate; exception: "
     << std::hex
-    << m.d2 << m.d1
-    << std::dec << " " << m.d3;
+    << m.d1 << m.d0
+    << std::dec << " " << m.d2;
 
   ASSERT_EQ(1, object().get_generation())
     << "The consumed memory's generation should have advanced.";
@@ -440,11 +440,11 @@ using MemoryTest_BecomeReplyGate = MemoryTest_Become<kabi::reply_gate_l2_size>;
 TEST_F(MemoryTest_BecomeReplyGate, ok) {
   auto & m = send_become(rw_rasr, 2);
 
-  ASSERT_FALSE(m.d0.get_error())
+  ASSERT_FALSE(m.desc.get_error())
     << "this memory should be able to become a reply gate; exception: "
     << std::hex
-    << m.d2 << m.d1
-    << std::dec << " " << m.d3;
+    << m.d1 << m.d0
+    << std::dec << " " << m.d2;
 
   ASSERT_EQ(1, object().get_generation())
     << "The consumed memory's generation should have advanced.";
@@ -462,11 +462,11 @@ TEST_F(MemoryTest_BecomeInterrupt, ok) {
   static constexpr unsigned irq_number = 1;
   auto & m = send_become(rw_rasr, 3, irq_number);
 
-  ASSERT_FALSE(m.d0.get_error())
+  ASSERT_FALSE(m.desc.get_error())
     << "this memory should be able to become an interrupt; exception: "
     << std::hex
-    << m.d2 << m.d1
-    << std::dec << " " << m.d3;
+    << m.d1 << m.d0
+    << std::dec << " " << m.d2;
 
   ASSERT_EQ(1, object().get_generation())
     << "The consumed memory's generation should have advanced.";

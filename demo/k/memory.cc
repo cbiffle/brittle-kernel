@@ -12,7 +12,7 @@ void split(unsigned k, unsigned slot_key,
   copy_key(1, slot_key);
 
   auto rm = ipc({Descriptor::call(2, k)});
-  ETL_ASSERT(!rm.m.d0.get_error());
+  ETL_ASSERT(!rm.m.desc.get_error());
 
   copy_key(k, 1);
   copy_key(top_key_out, 2);
@@ -27,7 +27,7 @@ void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
       uint32_t(ot),
       arg,
       });
-  ETL_ASSERT(!rm.m.d0.get_error());
+  ETL_ASSERT(!rm.m.desc.get_error());
 
   copy_key(k, 1);
 }
@@ -38,9 +38,9 @@ uint32_t peek(unsigned k, uint32_t offset) {
       Descriptor::call(4, k),
       offset,
       });
-  ETL_ASSERT(!rm.m.d0.get_error());
+  ETL_ASSERT(!rm.m.desc.get_error());
 
-  return rm.m.d1;
+  return rm.m.d0;
 }
 
 void poke(unsigned k, uint32_t offset, uint32_t word) {
@@ -50,7 +50,7 @@ void poke(unsigned k, uint32_t offset, uint32_t word) {
       offset,
       word,
       });
-  ETL_ASSERT(!rm.m.d0.get_error());
+  ETL_ASSERT(!rm.m.desc.get_error());
 }
 
 }  // namespace memory

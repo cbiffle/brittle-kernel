@@ -28,7 +28,7 @@ Region Object::get_region_for_brand(Brand) const {
 
 void Object::do_badop(Message const & m, Keys & k) {
   ScopedReplySender reply{k.keys[0],
-    Message::failure(Exception::bad_operation, m.d0.get_selector())};
+    Message::failure(Exception::bad_operation, m.desc.get_selector())};
 }
 
 }  // namespace k

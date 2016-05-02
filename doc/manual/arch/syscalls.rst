@@ -158,8 +158,9 @@ special variety:
 
 Each phase of an IPC transfers a single message.  A message consists of
 
-- Four words of data, one of which is a descriptor that controls the messaging
-  operation.
+- The syscall descriptor.
+
+- Four words of data.
 
 - Three keys.
 
@@ -226,8 +227,8 @@ The Send Phase
 
 A sent message contains
 
-- Four data words taken from registers ``r4`` through ``r7``, where ``r4`` is
-  the descriptor.
+- The descriptor in ``r4``.
+- Four data words taken from registers ``r5`` through ``r8``.
 - Four keys taken from key registers ``k0`` through ``k3``.
 
 If the IPC operation is a call, the first key transmitted is not taken from
@@ -239,10 +240,10 @@ The Receive Phase
 
 A received message contains
 
-- Four data words in registers ``r4`` through ``r7``, where ``r4`` is the
-  descriptor.
+- A sanitized version of the descriptor in ``r4``.
+- Four data words in registers ``r5`` through ``r8``.
 - Four keys, in key registers ``k0`` through ``k3``.
-- The brand of the Gate key used to send the message, in ``r8``.
+- The brand of the Gate key used to send the message, in ``r9``.
 
 The received descriptor is *sanitized*: the key index fields are zeroed, so that
 the recipient doesn't learn anything about how the sender organizes their keys.

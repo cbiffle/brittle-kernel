@@ -183,7 +183,7 @@ public:
 private:
   Body & _body;
 
-  Descriptor get_descriptor() const { return _body.save.sys.m.d0; }
+  Descriptor get_descriptor() const { return _body.save.sys.m.desc; }
   Keys & get_message_keys() { return *reinterpret_cast<Keys *>(_body.keys); }
 
   Key make_reply_key() const;

@@ -72,14 +72,13 @@ were loaded into an MPU Region Register of a Context.
 Call
 ####
 
-- d0: descriptor
+Empty.
 
 Reply
 #####
 
-- d0: success descriptor
-- d1: Region Base Address Register (RBAR) equivalent contents.
-- d2: Region Attribute and Size Register (RASR) equivalent contents.
+- d0: Region Base Address Register (RBAR) equivalent contents.
+- d1: Region Attribute and Size Register (RASR) equivalent contents.
 
 
 .. _memory-method-change:
@@ -109,13 +108,13 @@ should be zero.
 Call
 ####
 
-- d0: descriptor
-- d1: new RASR value
+- d0: new RASR value
 
 Reply
 #####
 
-- d0: success descriptor
+No data.
+
 - k1: new key with requested RASR brand
 
 Exceptions
@@ -156,13 +155,15 @@ returned keys have the same brand as the key used to split.
 Call
 ####
 
-- d0: descriptor
+No data.
+
 - k1: slot key being donated
 
 Reply
 #####
 
-- d0: success descriptor
+No data.
+
 - k1: bottom half
 - k2: top half
 
@@ -232,14 +233,14 @@ of the message fields/keys are given in the table below.
 Call
 ####
 
-- d0: descriptor
-- d1: type code from table above
-- d2: type-specific argument
+- d0: type code from table above
+- d1: type-specific argument
 
 Reply
 #####
 
-- d0: success descriptor
+No data.
+
 - k1: new key
 
 Exceptions
@@ -270,14 +271,12 @@ The key used must confer read access.
 Call
 ####
 
-- d0: descriptor
-- d1: offset
+- d0: offset
 
 Reply
 #####
 
-- d0: success descriptor
-- d1: word of data
+- d0: word of data
 
 Exceptions
 ##########
@@ -305,14 +304,13 @@ The key used must confer write access.
 Call
 ####
 
-- d0: descriptor
-- d1: offset
-- d2: word of data
+- d0: offset
+- d1: word of data
 
 Reply
 #####
 
-- d0: success descriptor
+No data.
 
 Exceptions
 ##########

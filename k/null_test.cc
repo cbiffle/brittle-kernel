@@ -73,7 +73,7 @@ protected:
 };
 
 #define ASSERT_MESSAGE_SUCCESS(__m) \
-  ASSERT_EQ(0, uint32_t((__m).d0))
+  ASSERT_EQ(0, uint32_t((__m).desc))
 
 #define ASSERT_NULL_KEY(__k) \
   ASSERT_EQ(Object::Kind::null, (__k).get()->get_kind())
@@ -106,9 +106,9 @@ protected:
 { \
   auto & __m = (_m); \
   auto __e = (_e); \
-  ASSERT_TRUE(__m.d0.get_error()) \
+  ASSERT_TRUE(__m.desc.get_error()) \
     << "operation should have failed"; \
-  ASSERT_EQ(uint64_t(__e), (uint64_t(__m.d2) << 32) | __m.d1) \
+  ASSERT_EQ(uint64_t(__e), (uint64_t(__m.d1) << 32) | __m.d0) \
     << "operation failed with wrong exception"; \
   ASSERT_ALL_RETURNED_KEYS_NULL(); \
 }

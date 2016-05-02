@@ -12,7 +12,7 @@ bool send(unsigned k, uint8_t value) {
       value,
     });
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 }  // namespace uart

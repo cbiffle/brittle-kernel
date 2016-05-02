@@ -10,7 +10,7 @@ bool set_target(unsigned k, unsigned target_key) {
 
   auto rm = ipc({Descriptor::call(1, k)});
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 bool enable(unsigned k, bool clear_pending) {
@@ -20,7 +20,7 @@ bool enable(unsigned k, bool clear_pending) {
       clear_pending
     });
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 }  // namespace interrupt

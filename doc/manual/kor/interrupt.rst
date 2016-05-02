@@ -44,13 +44,14 @@ The target key can be null, to disable delivery.
 Call
 ####
 
-- d0: descriptor
+No data.
+
 - k1: target
 
 Reply
 #####
 
-- d0: success descriptor
+Empty.
 
 
 Enable (2)
@@ -61,10 +62,9 @@ Enables the interrupt, acknowledging any outstanding interrupt.
 Call
 ####
 
-- d0: descriptor
-- d1: clear pending (1) or leave as-is (0).
+- d0: clear pending (1) or leave as-is (0).
 
 Reply
 #####
 
-- d0: success descriptor
+Empty.

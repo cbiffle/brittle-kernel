@@ -13,7 +13,7 @@ bool set_region(unsigned k, unsigned region_index, unsigned region_key) {
       region_index,
     });
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 bool get_region(unsigned k, unsigned region_index, unsigned region_key_out) {
@@ -24,7 +24,7 @@ bool get_region(unsigned k, unsigned region_index, unsigned region_key_out) {
       region_index,
     });
 
-  if (rm.m.d0.get_error() == false) {
+  if (rm.m.desc.get_error() == false) {
     copy_key(region_key_out, 1);
     return true;
   } else {
@@ -40,7 +40,7 @@ bool set_register(unsigned k, Register r, uint32_t value) {
       value,
     });
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 bool set_key(unsigned k, unsigned index, unsigned source_index) {
@@ -52,13 +52,13 @@ bool set_key(unsigned k, unsigned index, unsigned source_index) {
       index,
     });
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 bool make_runnable(unsigned k) {
   discard_received_keys();
   auto rm = ipc({Descriptor::call(6, k)});
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 bool set_priority(unsigned k, unsigned priority) {
@@ -68,7 +68,7 @@ bool set_priority(unsigned k, unsigned priority) {
       priority,
     });
 
-  return rm.m.d0.get_error() == false;
+  return rm.m.desc.get_error() == false;
 }
 
 }  // namespace context

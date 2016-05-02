@@ -38,7 +38,7 @@ void Memory::deliver_from(Brand brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
 
-  switch (m.d0.get_selector()) {
+  switch (m.desc.get_selector()) {
     case 0: 
       do_inspect(brand, m, k);
       break;
@@ -122,7 +122,7 @@ void Memory::do_change(Brand brand,
                        Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
-  auto rasr_dirty = Region::Rasr(m.d1);
+  auto rasr_dirty = Region::Rasr(m.d0);
 
   // Copy the defined and relevant fields into a new value.  This is equivalent
   // to a very wordy bitmask.
@@ -225,7 +225,7 @@ void Memory::do_become(Brand brand,
 void Memory::do_peek(Brand brand, Message const & m, Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
-  auto offset = m.d1;
+  auto offset = m.d0;
   auto size_in_words = _range.half_size() / 2;
 
   if (offset >= size_in_words) {
@@ -233,14 +233,14 @@ void Memory::do_peek(Brand brand, Message const & m, Keys & k) {
     return;
   }
 
-  reply_sender.get_message().d1 =
+  reply_sender.get_message().d0 =
     reinterpret_cast<uint32_t const *>(_range.base())[offset];
 }
 
 void Memory::do_poke(Brand brand, Message const & m, Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
-  auto offset = m.d1;
+  auto offset = m.d0;
   auto size_in_words = _range.half_size() / 2;
 
   if (offset >= size_in_words) {
@@ -248,7 +248,7 @@ void Memory::do_poke(Brand brand, Message const & m, Keys & k) {
     return;
   }
 
-  reinterpret_cast<uint32_t *>(_range.base())[offset] = m.d2;
+  reinterpret_cast<uint32_t *>(_range.base())[offset] = m.d1;
 }
 
 }  // namespace k

@@ -52,7 +52,7 @@ void become(Memory & memory,
             Message const & m,
             Keys & k,
             ReplySender & reply_sender) {
-  auto maybe_type_code = extract_type_code(m.d1);
+  auto maybe_type_code = extract_type_code(m.d0);
   if (!maybe_type_code) {
     // Can't transmogrify, target object type not recognized.
     reply_sender.get_message() = Message::failure(Exception::bad_argument);
@@ -122,7 +122,7 @@ void become(Memory & memory,
         memory.~Memory();
 
         auto b = new(bodymem)
-          Interrupt::Body{m.d2};
+          Interrupt::Body{m.d1};
         newobj = new(&memory) Interrupt{new_generation, *b};
         break;
       }

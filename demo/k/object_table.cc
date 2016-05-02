@@ -13,7 +13,7 @@ bool mint_key(unsigned k, unsigned index, uint64_t brand, unsigned out_index) {
       uint32_t(brand >> 32),
     });
 
-  if (rm.m.d0.get_error()) return false;
+  if (rm.m.desc.get_error()) return false;
 
   copy_key(out_index, 1);
   return true;
