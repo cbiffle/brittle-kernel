@@ -34,52 +34,9 @@ Region Memory::get_region_for_brand(Brand brand) const {
   };
 }
 
-void Memory::deliver_from(Brand brand, Sender * sender) {
-  Keys k;
-  Message m = sender->on_delivery_accepted(k);
-
-  switch (m.desc.get_selector()) {
-    case 0: 
-      do_inspect(brand, m, k);
-      break;
-
-    case 1:
-      do_change(brand, m, k);
-      break;
-
-    case 2:
-      do_split(brand, m, k);
-      break;
-
-    case 3:
-      do_become(brand, m, k);
-      break;
-
-    case 4:
-      do_peek(brand, m, k);
-      break;
-
-    case 5:
-      do_poke(brand, m, k);
-      break;
-
-    default:
-      do_badop(m, k);
-      break;
-  }
-}
-
-void Memory::do_inspect(Brand brand,
-                        Message const &,
-                        Keys & k) {
-  auto reg = get_region_for_brand(brand);
-
-  ScopedReplySender reply_sender{k.keys[0], {
-    Descriptor::zero(),
-    uint32_t(reg.rbar),
-    uint32_t(reg.rasr),
-  }};
-}
+/*******************************************************************************
+ * Utility functions for reasoning about MPU permissions.
+ */
 
 static bool ap_is_unpredictable(Mpu::AccessPermissions ap) {
   // Per table B3-15 in ARMv7-M ARM
@@ -117,43 +74,111 @@ static bool ap_is_stronger(Mpu::AccessPermissions a, Mpu::AccessPermissions b) {
   return da.priv > db.priv || da.unpriv > db.unpriv;
 }
 
-void Memory::do_change(Brand brand,
-                       Message const & m,
-                       Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0]};
-
-  auto rasr_dirty = Region::Rasr(m.d0);
-
-  // Copy the defined and relevant fields into a new value.  This is equivalent
-  // to a very wordy bitmask.
-  auto rasr = Region::Rasr()
-    .with_xn(rasr_dirty.get_xn())
-    .with_ap(rasr_dirty.get_ap())
-    .with_tex(rasr_dirty.get_tex())
-    .with_s(rasr_dirty.get_s())
-    .with_c(rasr_dirty.get_c())
-    .with_b(rasr_dirty.get_b())
-    .with_srd(rasr_dirty.get_srd());
-
-  auto current = get_region_for_brand(brand).rasr;
-
-  if (ap_is_unpredictable(rasr.get_ap())
-      || ap_is_stronger(rasr.get_ap(), current.get_ap())
-      || (current.get_srd() & ~rasr.get_srd())
-      || (_range.l2_size() < 8 && rasr.get_srd())) {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-    return;
-  }
-
-  auto new_brand = uint32_t(rasr) >> 8;
-  reply_sender.set_key(1, make_key(new_brand).ref());
+/*
+ * Lifts relevant and defined fields from a user-provided RASR value, leaving
+ * undefined and irrelevant bits behind.
+ */
+static constexpr Region::Rasr scrub_rasr(Region::Rasr dirty) {
+  return Region::Rasr()
+    .with_xn(dirty.get_xn())
+    .with_ap(dirty.get_ap())
+    .with_tex(dirty.get_tex())
+    .with_s(dirty.get_s())
+    .with_c(dirty.get_c())
+    .with_b(dirty.get_b())
+    .with_srd(dirty.get_srd());
 }
 
-void Memory::do_split(Brand brand,
-                      Message const & m,
-                      Keys & k) {
+
+/*******************************************************************************
+ * Implementation of the Memory protocol.
+ */
+
+void Memory::deliver_from(Brand brand, Sender * sender) {
+  Keys k;
+  Message m = sender->on_delivery_accepted(k);
+
   ScopedReplySender reply_sender{k.keys[0]};
 
+  switch (m.desc.get_selector()) {
+    case 0:  // inspect
+      {
+        auto reg = get_region_for_brand(brand);
+        reply_sender.message().d0 = uint32_t(reg.rbar);
+        reply_sender.message().d1 = uint32_t(reg.rasr);
+      }
+      return;
+
+    case 1:  // change
+      {
+        auto new_rasr = scrub_rasr(Region::Rasr(m.d0));
+        auto current_rasr = get_region_for_brand(brand).rasr;
+
+        if (ap_is_unpredictable(new_rasr.get_ap())
+            || ap_is_stronger(new_rasr.get_ap(), current_rasr.get_ap())
+            || (current_rasr.get_srd() & ~new_rasr.get_srd())
+            || (_range.l2_size() < 8 && new_rasr.get_srd())) {
+          reply_sender.message() = Message::failure(Exception::bad_argument);
+          return;
+        }
+
+        auto new_brand = uint32_t(new_rasr) >> 8;
+        reply_sender.set_key(1, make_key(new_brand).ref());
+      }
+      return;
+
+    case 2:  // split
+      do_split(reply_sender, brand, m, k);
+      return;
+
+    case 3:  // become
+      {
+        if (get_region_for_brand(brand).rasr.get_srd()) {
+          // Can't transmogrify, some subregions are disabled.
+          reply_sender.message() = Message::failure(Exception::bad_operation);
+          return;
+        }
+
+        become(*this, m, k, reply_sender.rs);
+      }
+      return;
+
+    case 4:  // peek
+    case 5:  // poke
+      {
+        auto offset = m.d0;
+        auto size_in_words = _range.half_size() / 2;
+
+        if (offset >= size_in_words) {
+          reply_sender.message() = Message::failure(Exception::bad_argument);
+          return;
+        }
+
+        // Note: since the address is contained within the body of this Memory
+        // object, we do not need to use ldrt/strt to access it.  This is
+        // important!  ARMv7-M defines areas of address space, particularly
+        // the SysTick Timer, that are *inaccessible* to unprivileged code,
+        // even with MPU adjustments.  This fixes that.
+        auto ptr = reinterpret_cast<uint32_t *>(_range.base()) + offset;
+        if (m.desc.get_selector() == 4) {  // peek
+          reply_sender.message().d0 = *ptr;
+        } else {  // poke
+          *ptr = m.d1;
+        }
+      }
+      return;
+
+    default:
+      reply_sender.message() =
+        Message::failure(Exception::bad_operation, m.desc.get_selector());
+      return;
+  }
+}
+
+void Memory::do_split(ScopedReplySender & reply_sender,
+                      Brand brand,
+                      Message const & m,
+                      Keys & k) {
   auto & donation_key = k.keys[1];
 
   if (get_region_for_brand(brand).rasr.get_srd()) {
@@ -206,49 +231,6 @@ void Memory::do_split(Brand brand,
   // Update MPU, in case the split object was in the current Context's memory
   // map.
   current->apply_to_mpu();
-}
-
-void Memory::do_become(Brand brand,
-                       Message const & m,
-                       Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0]};
-
-  if (get_region_for_brand(brand).rasr.get_srd()) {
-    // Can't transmogrify, some subregions are disabled.
-    reply_sender.message() = Message::failure(Exception::bad_operation);
-    return;
-  }
-
-  become(*this, m, k, reply_sender.rs);
-}
-
-void Memory::do_peek(Brand brand, Message const & m, Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0]};
-
-  auto offset = m.d0;
-  auto size_in_words = _range.half_size() / 2;
-
-  if (offset >= size_in_words) {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-    return;
-  }
-
-  reply_sender.message().d0 =
-    reinterpret_cast<uint32_t const *>(_range.base())[offset];
-}
-
-void Memory::do_poke(Brand brand, Message const & m, Keys & k) {
-  ScopedReplySender reply_sender{k.keys[0]};
-
-  auto offset = m.d0;
-  auto size_in_words = _range.half_size() / 2;
-
-  if (offset >= size_in_words) {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-    return;
-  }
-
-  reinterpret_cast<uint32_t *>(_range.base())[offset] = m.d1;
 }
 
 }  // namespace k

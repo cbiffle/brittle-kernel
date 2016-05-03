@@ -15,6 +15,7 @@ namespace k {
 
 struct Keys;  // see: k/keys.h
 struct Region;  // see: k/region.h
+struct ScopedReplySender;  // see: k/reply_sender.h
 
 class Memory final : public Object {
 public:
@@ -34,12 +35,7 @@ public:
 private:
   P2Range _range;
 
-  void do_inspect(Brand, Message const &, Keys &);
-  void do_change(Brand, Message const &, Keys &);
-  void do_split(Brand, Message const &, Keys &);
-  void do_become(Brand, Message const &, Keys &);
-  void do_peek(Brand, Message const &, Keys &);
-  void do_poke(Brand, Message const &, Keys &);
+  void do_split(ScopedReplySender &, Brand, Message const &, Keys &);
 };
 
 }  // namespace k
