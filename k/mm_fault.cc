@@ -3,7 +3,7 @@
 #include "etl/armv7m/exception_frame.h"
 
 #include "k/panic.h"
-#include "k/unprivileged.h"
+#include "k/unprivileged.h"  // for mm_fault_recovery_handler
 
 namespace k {
 

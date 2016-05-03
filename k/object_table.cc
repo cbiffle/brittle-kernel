@@ -6,7 +6,6 @@
 #include "k/context.h"
 #include "k/panic.h"
 #include "k/reply_sender.h"
-#include "k/unprivileged.h"
 
 namespace k {
 
