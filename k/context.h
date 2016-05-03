@@ -187,35 +187,6 @@ private:
   Keys & get_message_keys() { return *reinterpret_cast<Keys *>(_body.keys); }
 
   Key make_reply_key() const;
-
-  // Factors of deliver_from
-  void do_read_register(ScopedReplySender &, Brand, Message const &, Keys &);
-  void do_write_register(ScopedReplySender &, Brand, Message const &, Keys &);
-
-  void do_read_key(ScopedReplySender &, Brand, Message const &, Keys &);
-  void do_write_key(ScopedReplySender &, Brand, Message const &, Keys &);
-
-  void do_read_region(ScopedReplySender &, Brand, Message const &, Keys &);
-  void do_write_region(ScopedReplySender &, Brand, Message const &, Keys &);
-
-  void do_make_runnable(ScopedReplySender &, Brand, Message const &, Keys &);
-
-  void do_read_priority(ScopedReplySender &, Brand, Message const &, Keys &);
-  void do_write_priority(ScopedReplySender &, Brand, Message const &, Keys &);
-
-  void do_read_low_registers(ScopedReplySender &, Brand, Message const &,
-      Keys &);
-  void do_read_high_registers(ScopedReplySender &, Brand, Message const &,
-      Keys &);
-  void do_read_x_registers(ScopedReplySender &, Brand, Message const &,
-      Keys &, bool high);
-
-  void do_write_low_registers(ScopedReplySender &, Brand, Message const &,
-      Keys &);
-  void do_write_high_registers(ScopedReplySender &, Brand, Message const &,
-      Keys &);
-  void do_write_x_registers(ScopedReplySender &, Brand, Message const &,
-      Keys &, bool high);
 };
 
 }  // namespace k

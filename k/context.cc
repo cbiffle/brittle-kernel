@@ -262,198 +262,118 @@ Key Context::make_reply_key() const {
  * Implementation of Context protocol.
  */
 
-using IpcImpl = void (Context::*)(ScopedReplySender &,
-                                  Brand,
-                                  Message const &,
-                                  Keys &);
-
 void Context::deliver_from(Brand brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery_accepted(k);
 
-  static constexpr IpcImpl dispatch[] {
-    &Context::do_read_register,
-    &Context::do_write_register,
-    &Context::do_read_key,
-    &Context::do_write_key,
-    &Context::do_read_region,
-    &Context::do_write_region,
-    &Context::do_make_runnable,
-    &Context::do_read_priority,
-    &Context::do_write_priority,
-    &Context::do_read_low_registers,
-    &Context::do_read_high_registers,
-    &Context::do_write_low_registers,
-    &Context::do_write_high_registers,
-  };
-  if (m.desc.get_selector() < etl::array_count(dispatch)) {
-    ScopedReplySender reply_sender{k.keys[0]};
-    auto fn = dispatch[m.desc.get_selector()];
-    (this->*fn)(reply_sender, brand, m, k);
-  } else {
-    do_badop(m, k);
+  ScopedReplySender reply_sender{k.keys[0]};
+
+  switch (m.desc.get_selector()) {
+    case 0:  // read_register
+    case 1:  // write_register
+      if (m.d0 >= etl::array_count(_body.save.raw)) {
+        reply_sender.message() = Message::failure(Exception::bad_argument);
+        return;
+      }
+
+      if (m.desc.get_selector() == 0) {  // read
+        reply_sender.message().d0 = _body.save.raw[m.d0];
+      } else {  // write
+        _body.save.raw[m.d0] = m.d1;
+      }
+      return;
+
+    case 2:  // read_key
+    case 3:  // write_key
+      {
+        auto r = m.d0;
+
+        if (r >= config::n_task_keys) {
+          reply_sender.message() = Message::failure(Exception::bad_argument);
+          return;
+        }
+
+        if (m.desc.get_selector() == 2) {  // read
+          reply_sender.set_key(1, key(r));
+        } else {  // write
+          key(r) = k.keys[1];
+        }
+      }
+      return;
+
+    case 4:  // read_region
+    case 5:  // write_region
+      {
+        auto n = m.d0;
+
+        if (n >= config::n_task_regions) {
+          reply_sender.message() = Message::failure(Exception::bad_argument);
+          return;
+        }
+
+        if (m.desc.get_selector() == 4) {  // read
+          reply_sender.set_key(1, _body.memory_regions[n]);
+        } else {  // write
+          _body.memory_regions[n] = k.keys[1];
+          if (current == this) apply_to_mpu();
+        }
+      }
+      return;
+
+    case 6:  // make_runnable
+      make_runnable();
+      pend_switch();
+      return;
+
+    case 7:  // read_priority
+      reply_sender.message().d0 = _body.priority;
+      return;
+
+    case 8:  // write_priority
+      {
+        auto priority = m.d0;
+
+        if (priority >= config::n_priorities) {
+          reply_sender.message() = Message::failure(Exception::bad_argument);
+          return;
+        }
+
+        _body.priority = priority;
+
+        if (_body.ctx_item.is_linked()) _body.ctx_item.reinsert();
+        if (_body.sender_item.is_linked()) _body.sender_item.reinsert();
+      }
+      return;
+
+    case 9:  // read_low_registers
+    case 10:  // read_high_registers
+      {
+        auto index = (m.desc.get_selector() == 9) ? 0 : 5;
+        reply_sender.message().d0 = _body.save.raw[index];
+        reply_sender.message().d1 = _body.save.raw[index + 1];
+        reply_sender.message().d2 = _body.save.raw[index + 2];
+        reply_sender.message().d3 = _body.save.raw[index + 3];
+        reply_sender.message().d4 = _body.save.raw[index + 4];
+      }
+      return;
+
+    case 11:  // write_low_registers
+    case 12:  // write_high_registers
+      {
+        auto index = (m.desc.get_selector() == 11) ? 0 : 5;
+        _body.save.raw[index    ] = reply_sender.message().d0;
+        _body.save.raw[index + 1] = reply_sender.message().d1;
+        _body.save.raw[index + 2] = reply_sender.message().d2;
+        _body.save.raw[index + 3] = reply_sender.message().d3;
+        _body.save.raw[index + 4] = reply_sender.message().d4;
+      }
+      return;
+
+    default:
+      reply_sender.message() =
+        Message::failure(Exception::bad_operation, m.desc.get_selector());
+      return;
   }
-}
-
-void Context::do_read_register(ScopedReplySender & reply_sender,
-                               Brand,
-                               Message const & arg,
-                               Keys &) {
-  if (arg.d0 < etl::array_count(_body.save.raw)) {
-    reply_sender.message().d0 = _body.save.raw[arg.d0];
-  } else {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  }
-}
-
-void Context::do_write_register(ScopedReplySender & reply_sender,
-                                Brand,
-                                Message const & arg,
-                                Keys &) {
-  if (arg.d0 < etl::array_count(_body.save.raw)) {
-    _body.save.raw[arg.d0] = arg.d1;
-  } else {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  }
-}
-
-void Context::do_read_key(ScopedReplySender & reply_sender,
-                          Brand,
-                          Message const & arg,
-                          Keys &) {
-  auto r = arg.d0;
-
-  if (r >= config::n_task_keys) {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  } else {
-    reply_sender.set_key(1, key(r));
-  }
-}
-
-void Context::do_write_key(ScopedReplySender & reply_sender,
-                           Brand,
-                           Message const & arg,
-                           Keys & k) {
-  auto r = arg.d0;
-
-  if (r >= config::n_task_keys) {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  } else {
-    key(r) = k.keys[1];
-  }
-}
-
-void Context::do_read_region(ScopedReplySender & reply_sender,
-                             Brand,
-                             Message const & arg,
-                             Keys &) {
-  auto n = arg.d0;
-
-  if (n < config::n_task_regions) {
-    reply_sender.set_key(1, _body.memory_regions[n]);
-  } else {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  }
-}
-
-void Context::do_write_region(ScopedReplySender & reply_sender,
-                              Brand,
-                              Message const & arg,
-                              Keys & k) {
-  auto n = arg.d0;
-
-  if (n < config::n_task_regions) {
-    _body.memory_regions[n] = k.keys[1];
-  } else {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  }
-
-  if (current == this) apply_to_mpu();
-}
-
-void Context::do_make_runnable(ScopedReplySender &,
-                               Brand,
-                               Message const &,
-                               Keys &) {
-  make_runnable();
-  pend_switch();
-}
-
-void Context::do_read_priority(ScopedReplySender & reply_sender,
-                               Brand,
-                               Message const &,
-                               Keys &) {
-  reply_sender.message().d0 = _body.priority;
-}
-
-void Context::do_write_priority(ScopedReplySender & reply_sender,
-                                Brand,
-                                Message const & arg,
-                                Keys &) {
-  auto priority = arg.d0;
-
-  if (priority < config::n_priorities) {
-    _body.priority = priority;
-  
-    if (_body.ctx_item.is_linked()) _body.ctx_item.reinsert();
-    if (_body.sender_item.is_linked()) _body.sender_item.reinsert();
-  } else {
-    reply_sender.message() = Message::failure(Exception::bad_argument);
-  }
-}
-
-void Context::do_read_low_registers(ScopedReplySender & reply_sender,
-                                    Brand brand,
-                                    Message const & arg,
-                                    Keys & keys) {
-  do_read_x_registers(reply_sender, brand, arg, keys, false);
-}
-
-void Context::do_read_high_registers(ScopedReplySender & reply_sender,
-                                     Brand brand,
-                                     Message const & arg,
-                                     Keys & keys) {
-  do_read_x_registers(reply_sender, brand, arg, keys, true);
-}
-
-void Context::do_read_x_registers(ScopedReplySender & reply_sender,
-                                  Brand,
-                                  Message const & arg,
-                                  Keys &,
-                                  bool high) {
-  auto index = high ? 5 : 0;
-  reply_sender.message().d0 = _body.save.raw[index];
-  reply_sender.message().d1 = _body.save.raw[index + 1];
-  reply_sender.message().d2 = _body.save.raw[index + 2];
-  reply_sender.message().d3 = _body.save.raw[index + 3];
-  reply_sender.message().d4 = _body.save.raw[index + 4];
-}
-
-void Context::do_write_low_registers(ScopedReplySender & reply_sender,
-                                     Brand brand,
-                                     Message const & arg,
-                                     Keys & keys) {
-  do_write_x_registers(reply_sender, brand, arg, keys, false);
-}
-
-void Context::do_write_high_registers(ScopedReplySender & reply_sender,
-                                      Brand brand,
-                                      Message const & arg,
-                                      Keys & keys) {
-  do_write_x_registers(reply_sender, brand, arg, keys, true);
-}
-
-void Context::do_write_x_registers(ScopedReplySender & reply_sender,
-                                   Brand,
-                                   Message const & arg,
-                                   Keys &,
-                                   bool high) {
-  auto index = high ? 5 : 0;
-  _body.save.raw[index    ] = reply_sender.message().d0;
-  _body.save.raw[index + 1] = reply_sender.message().d1;
-  _body.save.raw[index + 2] = reply_sender.message().d2;
-  _body.save.raw[index + 3] = reply_sender.message().d3;
-  _body.save.raw[index + 4] = reply_sender.message().d4;
 }
 
 }  // namespace k
