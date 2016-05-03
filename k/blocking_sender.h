@@ -30,12 +30,12 @@ public:
 
   /*
    * Indicates that an object has accepted delivery of the blocked message.
-   * Analog to Sender::on_delivery_accepted.
+   * Analog to Sender::on_delivery.
    *
    * This ends the blocking send protocol.  If the sender needs to atomically
    * transition to receive state, it should do so here.
    */
-  virtual ReceivedMessage on_blocked_delivery_accepted(Keys &) = 0;
+  virtual ReceivedMessage on_blocked_delivery(Keys &) = 0;
 
   /*
    * Indicates that this object has been removed from a block list and its

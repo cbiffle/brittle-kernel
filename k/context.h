@@ -156,7 +156,7 @@ public:
    * Overridden to indicate success and switch the context into reply state,
    * when relevant.
    */
-  Message on_delivery_accepted(Keys &) override;
+  Message on_delivery(Keys &) override;
 
   /*
    * Overridden to support real blocking if permitted by task code.
@@ -169,7 +169,7 @@ public:
    */
 
   Priority get_priority() const override;
-  ReceivedMessage on_blocked_delivery_accepted(Keys &) override;
+  ReceivedMessage on_blocked_delivery(Keys &) override;
   void on_blocked_delivery_aborted() override;
 
 

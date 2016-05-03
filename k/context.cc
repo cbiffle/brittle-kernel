@@ -97,7 +97,7 @@ void Context::do_key_op(uint32_t sysnum, Descriptor d) {
 }
 
 void Context::complete_receive(BlockingSender * sender) {
-  _body.save.sys = sender->on_blocked_delivery_accepted(get_message_keys());
+  _body.save.sys = sender->on_blocked_delivery(get_message_keys());
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
@@ -128,7 +128,7 @@ void Context::complete_blocked_receive(Brand brand, Sender * sender) {
 
   pend_switch();
 
-  _body.save.sys.m = sender->on_delivery_accepted(get_message_keys());
+  _body.save.sys.m = sender->on_delivery(get_message_keys());
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
@@ -184,7 +184,7 @@ Priority Context::get_priority() const {
   return _body.priority;
 }
 
-Message Context::on_delivery_accepted(Keys & k) {
+Message Context::on_delivery(Keys & k) {
   // We're either synchronously delivering our message, or have been found on a
   // block list and asked to deliver.
 
@@ -230,13 +230,13 @@ void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
   }
 }
 
-ReceivedMessage Context::on_blocked_delivery_accepted(Keys & k) {
+ReceivedMessage Context::on_blocked_delivery(Keys & k) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
 
   pend_switch();
   return {
-    .m = on_delivery_accepted(k),
+    .m = on_delivery(k),
     .brand = _body.saved_brand,
   };
 }
@@ -264,7 +264,7 @@ Key Context::make_reply_key() const {
 
 void Context::deliver_from(Brand brand, Sender * sender) {
   Keys k;
-  Message m = sender->on_delivery_accepted(k);
+  Message m = sender->on_delivery(k);
 
   ScopedReplySender reply_sender{k.keys[0]};
 

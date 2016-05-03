@@ -8,7 +8,7 @@ void Spy::deliver_from(Brand brand, Sender * sender) {
   ++_count;
 
   _received.brand = brand;
-  _received.m = sender->on_delivery_accepted(_keys);
+  _received.m = sender->on_delivery(_keys);
 }
 
 }  // namespace k

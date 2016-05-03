@@ -48,14 +48,14 @@ public:
   /*
    * Implementation of Sender
    */
-  Message on_delivery_accepted(Keys &) override;
+  Message on_delivery(Keys &) override;
   void block_in_send(Brand, List<BlockingSender> &) override;
 
   /*
    * Implementation of BlockingSender
    */
   Priority get_priority() const override;
-  ReceivedMessage on_blocked_delivery_accepted(Keys &) override;
+  ReceivedMessage on_blocked_delivery(Keys &) override;
   void on_blocked_delivery_aborted() override;
 
 private:

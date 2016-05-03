@@ -26,11 +26,9 @@ public:
    *
    * This ends the non-blocking send protocol.  If the sender needs to
    * atomically transition to receive state, it should do so here.
-   *
-   * TODO: the current protocol requires delivers to *always* be accepted, so
    * it's possible this name could get more concise.
    */
-  virtual Message on_delivery_accepted(Keys &) = 0;
+  virtual Message on_delivery(Keys &) = 0;
 
   /*
    * Asks this sender to suspend sending and block on the given list.  The

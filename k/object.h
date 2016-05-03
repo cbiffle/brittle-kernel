@@ -71,7 +71,7 @@ public:
    *
    * If this object can reason about the send right away, it should:
    * - Use sender's member functions to collect information about the message.
-   * - Call the sender's on_delivery_accepted function to end the send phase.
+   * - Call the sender's on_delivery function to end the send phase.
    * - If doing a call-style invocation, generate a reply to sender's k0.
    *
    * This object may not be able to accept the message right away, in which
@@ -82,8 +82,8 @@ public:
    * Should the sender agree to block, this object can inspect the sender's
    * message using its member functions while the sender is blocked.  Once this
    * object decides to unblock the sender and take action on the message, it
-   * should call on_blocked_delivery_accepted in place of normal
-   * on_delivery_accepted and finish the process above.
+   * should call on_blocked_delivery in place of normal on_delivery and finish
+   * the process above.
    *
    * The default implementation reports failure to the sender with a
    * bad_operation exception.
