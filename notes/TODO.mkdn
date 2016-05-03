@@ -28,6 +28,9 @@ Would it make sense to disconnect the MPU key storage from Context, so that
 multiple Contexts could share one?  (It wouldn't share any space, right now,
 because it wouldn't save enough to knock Context beneath 256 bytes.)
 
+Need to distinguish device memory (registers) from normal memory.  The two
+behave the same *except* that device memory cannot Become kernel objects.
+
 
 
 
