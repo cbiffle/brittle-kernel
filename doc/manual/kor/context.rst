@@ -249,77 +249,61 @@ Empty.
 .. warning:: This API may change; priorities may need to be capabilities.
 
 
+Read (Low/High) Registers (9/10)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Save Kernel Registers (9)
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Saves the kernel-maintained registers from this context into memory at
-consecutive addresses.  The caller (not the target Context) must have rights to
-write those addresses.
+Reads a block of five kernel-maintained registers from this Context.  There are
+ten total such registers, so five are the "low" registers, and five are the
+"high".  They are ordered in the same way as for
+:ref:`kor-context-method-read-register`.
 
 This operation is intended to make "swapping" --- multiplexing multiple logical
 tasks across a single Context --- faster.
 
-The kernel-maintained registers are ``r4`` - ``r11`` and ``BASEPRI``.  When
-saved to memory they are written in that order (by ascending address).
+Call
+####
+
+Empty.
+
+Reply
+#####
+
+== ====== ======
+dn Low    High
+== ====== ======
+d0 ``r4`` ``r9``
+d1 ``r5`` ``r10``
+d2 ``r6`` ``r11``
+d3 ``r7`` ``r12``
+d4 ``r8`` ``r13``
+== ====== ======
+
+
+Write (Low/High) Registers (11/12)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Writes a block of five kernel-maintained registers into this Context.  There are
+ten total such registers, so five are the "low" registers, and five are the
+"high".  They are ordered in the same way as for
+:ref:`kor-context-method-read-register`.
+
+This operation is intended to make "swapping" --- multiplexing multiple logical
+tasks across a single Context --- faster.
 
 Call
 ####
 
-- d0: destination base address.
+== ====== ======
+dn Low    High
+== ====== ======
+d0 ``r4`` ``r9``
+d1 ``r5`` ``r10``
+d2 ``r6`` ``r11``
+d3 ``r7`` ``r12``
+d4 ``r8`` ``r13``
+== ====== ======
 
 Reply
 #####
 
 Empty.
-
-Exceptions
-##########
-
-- `k.fault` if any of the nine words starting at the destination address cannot
-  be written by the caller.
-
-.. warning::
-
-  The way memory authority is conferred in this operation, by implicitly using
-  the caller's, is gross and wrong.
-
-
-Restore Kernel Registers (10)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Restores this context's kernel-maintained registers from consecutive memory
-locations.  The caller (not the target Context) must have rights to read from
-the memory locations.
-
-This operation is intended to make "swapping" --- multiplexing multiple logical
-tasks across a single Context --- faster.
-
-The kernel-maintained registers are ``r4`` - ``r11`` and ``BASEPRI``.  When
-restored from memory they are read in that order (by ascending address).
-
-Call
-####
-
-- d0: source base address.
-
-Reply
-#####
-
-Empty.
-
-Exceptions
-##########
-
-- `k.fault` if any of the nine words starting at the source address cannot be
-  read by the caller.
-
-.. warning::
-
-  If the caller has authority to read only *some* of the memory words, the
-  Context's state will be partially restored before the exception is sent.
-
-.. warning::
-
-  The way memory authority is conferred in this operation, by implicitly using
-  the caller's, is gross and wrong.

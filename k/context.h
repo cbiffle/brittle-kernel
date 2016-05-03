@@ -203,10 +203,19 @@ private:
   void do_read_priority(ScopedReplySender &, Brand, Message const &, Keys &);
   void do_write_priority(ScopedReplySender &, Brand, Message const &, Keys &);
 
-  void do_save_kernel_registers(ScopedReplySender &, Brand, Message const &,
+  void do_read_low_registers(ScopedReplySender &, Brand, Message const &,
       Keys &);
-  void do_restore_kernel_registers(ScopedReplySender &, Brand, Message const &,
+  void do_read_high_registers(ScopedReplySender &, Brand, Message const &,
       Keys &);
+  void do_read_x_registers(ScopedReplySender &, Brand, Message const &,
+      Keys &, bool high);
+
+  void do_write_low_registers(ScopedReplySender &, Brand, Message const &,
+      Keys &);
+  void do_write_high_registers(ScopedReplySender &, Brand, Message const &,
+      Keys &);
+  void do_write_x_registers(ScopedReplySender &, Brand, Message const &,
+      Keys &, bool high);
 };
 
 }  // namespace k

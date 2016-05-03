@@ -16,7 +16,6 @@
 #include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
-#include "k/unprivileged.h"
 
 using etl::armv7m::Word;
 
@@ -282,8 +281,10 @@ void Context::deliver_from(Brand brand, Sender * sender) {
     &Context::do_make_runnable,
     &Context::do_read_priority,
     &Context::do_write_priority,
-    &Context::do_save_kernel_registers,
-    &Context::do_restore_kernel_registers,
+    &Context::do_read_low_registers,
+    &Context::do_read_high_registers,
+    &Context::do_write_low_registers,
+    &Context::do_write_high_registers,
   };
   if (m.desc.get_selector() < etl::array_count(dispatch)) {
     ScopedReplySender reply_sender{k.keys[0]};
@@ -401,34 +402,58 @@ void Context::do_write_priority(ScopedReplySender & reply_sender,
   }
 }
 
-void Context::do_save_kernel_registers(ScopedReplySender & reply_sender,
-                                       Brand,
-                                       Message const & arg,
-                                       Keys &) {
-  uint32_t * dest = reinterpret_cast<uint32_t *>(arg.d0);
-
-  for (unsigned i = 0; i < etl::array_count(_body.save.raw); ++i) {
-    if (!ustore(&dest[i], _body.save.raw[i])) {
-      reply_sender.message() = Message::failure(Exception::fault);
-      return;
-    }
-  }
+void Context::do_read_low_registers(ScopedReplySender & reply_sender,
+                                    Brand brand,
+                                    Message const & arg,
+                                    Keys & keys) {
+  do_read_x_registers(reply_sender, brand, arg, keys, false);
 }
 
-void Context::do_restore_kernel_registers(ScopedReplySender & reply_sender,
-                                          Brand,
-                                          Message const & arg,
-                                          Keys &) {
-  uint32_t const * src = reinterpret_cast<uint32_t const *>(arg.d0);
+void Context::do_read_high_registers(ScopedReplySender & reply_sender,
+                                     Brand brand,
+                                     Message const & arg,
+                                     Keys & keys) {
+  do_read_x_registers(reply_sender, brand, arg, keys, true);
+}
 
-  for (unsigned i = 0; i < etl::array_count(_body.save.raw); ++i) {
-    if (auto mval = uload(&src[i])) {
-      _body.save.raw[i] = mval.ref();
-    } else {
-      reply_sender.message() = Message::failure(Exception::fault);
-      return;
-    }
-  }
+void Context::do_read_x_registers(ScopedReplySender & reply_sender,
+                                  Brand,
+                                  Message const & arg,
+                                  Keys &,
+                                  bool high) {
+  auto index = high ? 5 : 0;
+  reply_sender.message().d0 = _body.save.raw[index];
+  reply_sender.message().d1 = _body.save.raw[index + 1];
+  reply_sender.message().d2 = _body.save.raw[index + 2];
+  reply_sender.message().d3 = _body.save.raw[index + 3];
+  reply_sender.message().d4 = _body.save.raw[index + 4];
+}
+
+void Context::do_write_low_registers(ScopedReplySender & reply_sender,
+                                     Brand brand,
+                                     Message const & arg,
+                                     Keys & keys) {
+  do_write_x_registers(reply_sender, brand, arg, keys, false);
+}
+
+void Context::do_write_high_registers(ScopedReplySender & reply_sender,
+                                      Brand brand,
+                                      Message const & arg,
+                                      Keys & keys) {
+  do_write_x_registers(reply_sender, brand, arg, keys, true);
+}
+
+void Context::do_write_x_registers(ScopedReplySender & reply_sender,
+                                   Brand,
+                                   Message const & arg,
+                                   Keys &,
+                                   bool high) {
+  auto index = high ? 5 : 0;
+  _body.save.raw[index    ] = reply_sender.message().d0;
+  _body.save.raw[index + 1] = reply_sender.message().d1;
+  _body.save.raw[index + 2] = reply_sender.message().d2;
+  _body.save.raw[index + 3] = reply_sender.message().d3;
+  _body.save.raw[index + 4] = reply_sender.message().d4;
 }
 
 }  // namespace k
