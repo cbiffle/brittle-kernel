@@ -1,5 +1,7 @@
 #include "k/reply_sender.h"
 
+#include "etl/array_count.h"
+
 #include "k/object.h"
 #include "k/panic.h"
 
@@ -18,8 +20,10 @@ void ReplySender::set_key(unsigned index, Key const & k) {
   _keys.keys[index] = k;
 }
 
-Message ReplySender::on_delivery(Keys & keys) {
-  keys = _keys;
+Message ReplySender::on_delivery(KeysRef keys) {
+  for (unsigned i = 0; i < etl::array_count(_keys.keys); ++i) {
+    keys[i] = _keys.keys[i];
+  }
   return _m;
 }
 

@@ -35,7 +35,7 @@ public:
    * This ends the blocking send protocol.  If the sender needs to atomically
    * transition to receive state, it should do so here.
    */
-  virtual ReceivedMessage on_blocked_delivery(Keys &) = 0;
+  virtual ReceivedMessage on_blocked_delivery(KeysRef) = 0;
 
   /*
    * Indicates that this object has been removed from a block list and its

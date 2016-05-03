@@ -94,7 +94,7 @@ public:
 
   void set_reply_gate(ReplyGate &);
 
-  void nullify_exchanged_keys(unsigned preserved = 0);
+  void nullify_received_keys();
 
   uint32_t do_ipc(uint32_t stack, Descriptor);
   void do_key_op(uint32_t sysnum, Descriptor);
@@ -156,7 +156,7 @@ public:
    * Overridden to indicate success and switch the context into reply state,
    * when relevant.
    */
-  Message on_delivery(Keys &) override;
+  Message on_delivery(KeysRef) override;
 
   /*
    * Overridden to support real blocking if permitted by task code.
@@ -169,7 +169,7 @@ public:
    */
 
   Priority get_priority() const override;
-  ReceivedMessage on_blocked_delivery(Keys &) override;
+  ReceivedMessage on_blocked_delivery(KeysRef) override;
   void on_blocked_delivery_aborted() override;
 
 
@@ -184,9 +184,11 @@ private:
   Body & _body;
 
   Descriptor get_descriptor() const { return _body.save.sys.m.desc; }
-  Keys & get_message_keys() { return *reinterpret_cast<Keys *>(_body.keys); }
 
   Key make_reply_key() const;
+
+  KeysRef get_receive_keys();
+  Key const & sent_key(unsigned) const;
 };
 
 }  // namespace k

@@ -9,7 +9,7 @@ namespace k {
 
 struct BlockingSender;  // see: k/blocking_sender.h
 struct Context;         // see: k/context.h
-struct Keys;            // see: k/keys.h
+struct KeysRef;         // see: k/keys.h
 template<typename> struct List;  // see: k/list.h
 
 /*
@@ -28,7 +28,7 @@ public:
    * atomically transition to receive state, it should do so here.
    * it's possible this name could get more concise.
    */
-  virtual Message on_delivery(Keys &) = 0;
+  virtual Message on_delivery(KeysRef) = 0;
 
   /*
    * Asks this sender to suspend sending and block on the given list.  The

@@ -16,7 +16,7 @@ Maybe<Key> Object::make_key(Brand brand) {
 
 void Object::deliver_from(Brand, Sender * sender) {
   Keys k;
-  auto m = sender->on_delivery(k);
+  auto m = sender->on_delivery(KeysRef{k.keys});
   do_badop(m, k);
 }
 

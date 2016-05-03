@@ -39,7 +39,7 @@ void Interrupt::trigger() {
 
 void Interrupt::deliver_from(Brand brand, Sender * sender) {
   Keys k;
-  Message m = sender->on_delivery(k);
+  Message m = sender->on_delivery(KeysRef{k.keys});
   switch (m.desc.get_selector()) {
     case 1:
       do_set_target(brand, m, k);
@@ -77,10 +77,10 @@ Priority Interrupt::get_priority() const {
   return _body.priority;
 }
 
-Message Interrupt::on_delivery(Keys & k) {
-  k.keys[0] = make_key(0).ref();
+Message Interrupt::on_delivery(KeysRef k) {
+  k[0] = make_key(0).ref();
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
-    k.keys[ki] = Key::null();
+    k[ki] = Key::null();
   }
   return {
     Descriptor::zero().with_selector(1),
@@ -94,7 +94,7 @@ void Interrupt::block_in_send(Brand brand,
   list.insert(&_body.sender_item);
 }
 
-ReceivedMessage Interrupt::on_blocked_delivery(Keys & k) {
+ReceivedMessage Interrupt::on_blocked_delivery(KeysRef k) {
   return {
     .m = on_delivery(k),
     .brand = _body.saved_brand,

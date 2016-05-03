@@ -72,7 +72,7 @@ public:
    * Implementation of Sender
    */
 
-  Message on_delivery(Keys &) override;
+  Message on_delivery(KeysRef) override;
   void block_in_send(Brand, List<BlockingSender> &) override;
 
 private:

@@ -41,7 +41,7 @@ Context::Context(Generation g, Body & body)
   body.sender_item.owner = this;
 }
 
-void Context::nullify_exchanged_keys(unsigned preserved) {
+void Context::nullify_received_keys() {
   // Had to do this somewhere, this is as good a place as any.
   // (The fields in question are private, so this can't be at top level.)
   // (Putting it in the ctor hits the ill-defined non-trivial ctor rules.)
@@ -49,7 +49,7 @@ void Context::nullify_exchanged_keys(unsigned preserved) {
                 "K_CONTEXT_BODY_OFFSET is wrong");
 
   // Right, actual implementation now:
-  for (unsigned i = preserved; i < config::n_message_keys; ++i) {
+  for (unsigned i = 0; i < config::n_message_keys; ++i) {
     _body.keys[i] = Key::null();
   }
 }
@@ -59,6 +59,16 @@ void Context::set_reply_gate(ReplyGate & g) {
 
   _body.reply_gate = &g;
   g.set_owner(this);
+}
+
+KeysRef Context::get_receive_keys() {
+  // For now, we always receive keys into the first four registers.
+  return {{_body.keys, 4}};
+}
+
+Key const & Context::sent_key(unsigned index) const {
+  // For now, the sent keys come directly from the registers.
+  return _body.keys[index];
 }
 
 uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
@@ -97,12 +107,13 @@ void Context::do_key_op(uint32_t sysnum, Descriptor d) {
 }
 
 void Context::complete_receive(BlockingSender * sender) {
-  _body.save.sys = sender->on_blocked_delivery(get_message_keys());
+  _body.save.sys = sender->on_blocked_delivery(get_receive_keys());
+  // TODO: huh, should really record the brand here.
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
   _body.save.sys = { Message::failure(e, param), 0 };
-  nullify_exchanged_keys();
+  nullify_received_keys();
 }
 
 void Context::block_in_receive(List<Context> & list) {
@@ -124,11 +135,11 @@ void Context::block_in_reply() {
 void Context::complete_blocked_receive(Brand brand, Sender * sender) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
-  _body.save.sys.brand = brand;
 
   pend_switch();
 
-  _body.save.sys.m = sender->on_delivery(get_message_keys());
+  _body.save.sys.m = sender->on_delivery(get_receive_keys());
+  _body.save.sys.brand = brand;
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
@@ -184,7 +195,7 @@ Priority Context::get_priority() const {
   return _body.priority;
 }
 
-Message Context::on_delivery(Keys & k) {
+Message Context::on_delivery(KeysRef k) {
   // We're either synchronously delivering our message, or have been found on a
   // block list and asked to deliver.
 
@@ -196,15 +207,15 @@ Message Context::on_delivery(Keys & k) {
   // this because we may be about to receive into the same memory, below.
   auto m = _body.save.sys.m.sanitized();
 
-  k.keys[0] = d.is_call() ? make_reply_key() : key(0);
+  k[0] = d.is_call() ? make_reply_key() : sent_key(0);
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
-    k.keys[ki] = key(ki);
+    k[ki] = sent_key(ki);
   }
 
   // Atomically transition to receive state if requested by the program.
   if (d.get_receive_enabled()) {
     // If we're calling, reuse the reply key we just minted:
-    auto & source = d.is_call() ? k.keys[0]
+    auto & source = d.is_call() ? k[0]
                                 : key(d.get_source());
     // And this is where our outgoing message would be overwritten; thus the
     // copy above.
@@ -230,7 +241,7 @@ void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
   }
 }
 
-ReceivedMessage Context::on_blocked_delivery(Keys & k) {
+ReceivedMessage Context::on_blocked_delivery(KeysRef k) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
 
@@ -264,7 +275,7 @@ Key Context::make_reply_key() const {
 
 void Context::deliver_from(Brand brand, Sender * sender) {
   Keys k;
-  Message m = sender->on_delivery(k);
+  Message m = sender->on_delivery(KeysRef{k.keys});
 
   ScopedReplySender reply_sender{k.keys[0]};
 

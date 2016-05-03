@@ -36,7 +36,7 @@ void ObjectTable::set_entries(RangePtr<Entry> entries) {
 
 void ObjectTable::deliver_from(Brand brand, Sender * sender) {
   Keys k;
-  Message m = sender->on_delivery(k);
+  Message m = sender->on_delivery(KeysRef{k.keys});
   switch (m.desc.get_selector()) {
     case 0:
       do_mint_key(brand, m, k);
