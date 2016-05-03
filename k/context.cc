@@ -62,8 +62,7 @@ void Context::set_reply_gate(ReplyGate & g) {
 }
 
 KeysRef Context::get_receive_keys() {
-  // For now, we always receive keys into the first four registers.
-  return {{_body.keys, 4}};
+  return KeysRef{_body.keys, 0x76543210};
 }
 
 Key const & Context::sent_key(unsigned index) const {
@@ -275,7 +274,7 @@ Key Context::make_reply_key() const {
 
 void Context::deliver_from(Brand brand, Sender * sender) {
   Keys k;
-  Message m = sender->on_delivery(KeysRef{k.keys});
+  Message m = sender->on_delivery(k);
 
   ScopedReplySender reply_sender{k.keys[0]};
 

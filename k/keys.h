@@ -15,19 +15,35 @@ struct Keys {
 };
 
 /*
- * Pointer-like reference to some Keys.
+ * Pointer-like reference to some Keys, which can be arbitrarily shuffled by
+ * a keymap.
  */
 class KeysRef {
 public:
-  constexpr KeysRef(RangePtr<Key> storage)
-    : _storage{storage} {}
+  /*
+   * Constructor for a fixed-size bank of four keys, commonly used within the
+   * kernel with a default map.  The map indices are small enough to avoid
+   * overrun.
+   */
+  constexpr KeysRef(Keys & keys)
+    : _storage{keys.keys},
+      _map{0x3210} {}
+
+  /*
+   * Constructor for a larger array of Keys, presumed to have at least 16
+   * entries and ordered using an explicit map.
+   */
+  constexpr explicit KeysRef(Key keys[], uint32_t map)
+    : _storage{keys},
+      _map{map} {}
 
   constexpr Key & operator[](unsigned index) const {
-    return _storage[index];
+    return _storage[(_map >> (4 * index)) & 0xF];
   }
 
 private:
-  RangePtr<Key> _storage;
+  Key * _storage;
+  uint32_t _map;
 };
 
 }  // namespace k

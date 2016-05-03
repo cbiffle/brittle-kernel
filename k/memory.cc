@@ -96,7 +96,7 @@ static constexpr Region::Rasr scrub_rasr(Region::Rasr dirty) {
 
 void Memory::deliver_from(Brand brand, Sender * sender) {
   Keys k;
-  Message m = sender->on_delivery(KeysRef{k.keys});
+  Message m = sender->on_delivery(k);
 
   ScopedReplySender reply_sender{k.keys[0]};
 
