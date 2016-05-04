@@ -10,7 +10,7 @@ bool send(unsigned k, uint8_t value) {
   auto rm = ipc({
       Descriptor::call(1, k),
       value,
-    });
+    }, 0, 0);
 
   return rm.m.desc.get_error() == false;
 }

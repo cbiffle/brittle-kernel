@@ -8,8 +8,18 @@
 #include "common/message.h"
 
 ReceivedMessage ipc(Message const &,
-                    uint32_t send_map = 0x3210,
-                    uint32_t receive_map = 0x3210);
+                    uint32_t send_map,
+                    uint32_t receive_map);
+
+static constexpr uint32_t keymap(unsigned k0,
+                                 unsigned k1,
+                                 unsigned k2,
+                                 unsigned k3) {
+  return (k0 & 0xF)
+       | ((k1 & 0xF) << 4)
+       | ((k2 & 0xF) << 8)
+       | ((k3 & 0xF) << 12);
+}
 
 ETL_INLINE
 void copy_key(unsigned to, unsigned from) {
@@ -43,11 +53,6 @@ void discard_keys(unsigned first, unsigned last) {
       : /* no outputs */
       : "r"(d_bits)
       );
-}
-
-ETL_INLINE
-void discard_received_keys() {
-  discard_keys(0, 3);
 }
 
 #endif  // DEMO_RUNTIME_IPC_H

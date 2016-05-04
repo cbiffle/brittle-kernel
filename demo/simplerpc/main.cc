@@ -87,7 +87,7 @@ static void demo_main() {
         oi_object_table,
         0,
         0,
-        });
+        }, 0, 0);
   }
 }
 

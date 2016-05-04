@@ -32,10 +32,12 @@ namespace uart {
 
 // Our use of key registers:
 static constexpr unsigned
+  k_discard = 0,
   k_gate = 4,
   k_irq_gate = 5,
   k_irq = 6,
-  k_saved_reply = 7;
+  k_sender_reply = 7,
+  k_irq_reply = 8;
 
 // Diagnostic variables for GDB.
 volatile uint32_t receive_count;
@@ -77,12 +79,14 @@ static void initialize_hardware() {
 }
 
 // Utility function for blocking receive.
-static ReceivedMessage blocking_receive(unsigned k) {
+static ReceivedMessage blocking_receive(unsigned k, uint32_t recv_map) {
   return ipc({
       Descriptor::zero()
       .with_receive_enabled(true)
       .with_source(k)
-      .with_block(true)});
+      .with_block(true)},
+      0,
+      recv_map);
 }
 
 /*
@@ -91,7 +95,8 @@ static ReceivedMessage blocking_receive(unsigned k) {
  */
 static void wait_for_txe() {
   // Receive from the IRQ gate, blocking.
-  auto rm = blocking_receive(k_irq_gate);
+  auto rm = blocking_receive(k_irq_gate,
+      keymap(k_irq_reply, k_discard, k_discard, k_discard));
   // The IRQ object should not be sending errors!
   ETL_ASSERT(rm.m.desc.get_error() == false);
 
@@ -99,7 +104,7 @@ static void wait_for_txe() {
   usart2.write_cr1(usart2.read_cr1().with_txeie(false));
 
   // Re-enable interrupts.
-  auto r = interrupt::enable(k_irq, true);
+  auto r = interrupt::enable(k_irq_reply, true);
   ETL_ASSERT(r);
 }
 
@@ -110,7 +115,8 @@ void main() {
   initialize_hardware();
 
   while (true) {
-    auto rm = blocking_receive(k_gate);
+    auto rm = blocking_receive(k_gate,
+        keymap(k_sender_reply, k_discard, k_discard, k_discard));
     ++receive_count;
 
     if (rm.m.desc.get_error()) {
@@ -124,8 +130,6 @@ void main() {
     switch (rm.m.desc.get_selector()) {
       case 1:  // Send!
         ++send_count;
-        // Back up reply key, as we're about to receive from the IRQ.
-        copy_key(k_saved_reply, 0);
         // Load character into data register.
         usart2.write_dr(rm.m.d0 & 0xFF);
         // Enable TX Empty interrupt (signals data register available)
@@ -136,8 +140,8 @@ void main() {
         ipc({
             Descriptor::zero()
               .with_send_enabled(true)
-              .with_target(k_saved_reply)
-              });
+              .with_target(k_sender_reply)
+              }, 0, 0);
         continue;
 
       default:  // Bogus message selector.
@@ -150,7 +154,7 @@ void main() {
               .with_send_enabled(true)
               .with_target(0)
               .with_error(true)
-              });
+              }, 0, 0);
         continue;
     }
   }

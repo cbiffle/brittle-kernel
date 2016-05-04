@@ -5,18 +5,15 @@
 namespace object_table {
 
 bool mint_key(unsigned k, unsigned index, uint64_t brand, unsigned out_index) {
-  discard_received_keys();
+  auto recv_map = keymap(0, out_index, 0, 0);
   ReceivedMessage rm = ipc({
       Descriptor::call(0, k),
       index,
       uint32_t(brand),
       uint32_t(brand >> 32),
-    });
+    }, 0, recv_map);
 
-  if (rm.m.desc.get_error()) return false;
-
-  copy_key(out_index, 1);
-  return true;
+  return !rm.m.desc.get_error();
 }
 
 }  // namespace object_table
