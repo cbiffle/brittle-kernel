@@ -7,7 +7,9 @@
 #include "common/descriptor.h"
 #include "common/message.h"
 
-ReceivedMessage ipc(Message const &);
+ReceivedMessage ipc(Message const &,
+                    uint32_t send_map = 0x3210,
+                    uint32_t receive_map = 0x3210);
 
 ETL_INLINE
 void copy_key(unsigned to, unsigned from) {

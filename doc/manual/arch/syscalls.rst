@@ -162,10 +162,11 @@ Each phase of an IPC transfers a single message.  A message consists of
 
 - Five words of data.
 
-- Three keys.
+- Four keys.
 
 When a program receives a message, one more word of data is included: the brand
 of the key used to send the message through a Gate.
+
 
 Message Descriptors
 ~~~~~~~~~~~~~~~~~~~
@@ -222,6 +223,46 @@ The first word in a message is called the *descriptor*, and controls the IPC ope
     - Varies
 
 
+Key Maps
+~~~~~~~~
+
+When keys are sent from or received into key registers, the registers are chosen
+according to an additional syscall parameter, the *key map*.  A key map packs
+several four-bit key register indices into a single word.
+
+For the purposes of this section, and for the definition of kernel methods
+presented in the :ref:`kor`, the registers named by the four positions in the
+keymap will be referred to as ``k0`` through ``k3``.
+
+.. list-table:: Key Map Bit Fields
+  :header-rows: 1
+
+  * - Hi
+    - Lo
+    - Name
+  * - 15
+    - 12
+    - k3
+  * - 11
+    - 8
+    - k2
+  * - 7
+    - 4
+    - k1
+  * - 3
+    - 0
+    - k0
+
+.. note:: The top 16 bits of the key map is currently unused to allow for future
+  expansion.  It should be zero.
+
+The same register index may appear *multiple times* in a key map.  For sent
+keys, this causes the same key to be sent in multiple positions.  For received
+keys, this causes multiple keys to be delivered to the same register, and
+*it is not defined* which comes last.  (This is primarily intended to make it
+easy to discard unwanted keys.)
+
+
 The Send Phase
 ~~~~~~~~~~~~~~
 
@@ -229,28 +270,34 @@ A sent message contains
 
 - The descriptor in ``r4``.
 - Five data words taken from registers ``r5`` through ``r9``.
-- Four keys taken from key registers ``k0`` through ``k3``.
+- A key map in ``r10``.
+- Four keys taken from the ``k0`` - ``k3`` registers named by the key map.
 
-If the IPC operation is a call, the first key transmitted is not taken from
-``k0``, but is rather a freshly-minted Reply Key.
+If the IPC operation is a call, the first key transmitted (``k0``) is not chosen
+by the key map, but is rather a freshly-minted Reply Key.
 
 
 The Receive Phase
 ~~~~~~~~~~~~~~~~~
 
-A received message contains
+The receive phase uses the same descriptor in ``r4`` as the send phase, but
+ignores the contents of ``r5`` through ``r10``.  IPC involving a receive phase
+takes an additional key map in ``r11``.
+
+After receipt of a message, the program gets:
 
 - A sanitized version of the descriptor in ``r4``.
 - Five data words in registers ``r5`` through ``r9``.
-- Four keys, in key registers ``k0`` through ``k3``.
 - The brand of the Gate key used to send the message, in ``r10``.
+- Four keys, delivered into the ``k0`` - ``k3`` registers named by the key map.
 
 The received descriptor is *sanitized*: the key index fields are zeroed, so that
 the recipient doesn't learn anything about how the sender organizes their keys.
 
-The key delivered in ``k0`` is conventionally a reply key, whether it's a
-real-live key to a Reply Gate, or not.  Servers that expect call-style IPCs
-agree to send a response back on the reply key in ``k0``.
+The key delivered into the first position chosen by the key map (``k0``) is
+conventionally a reply key, whether it's a real-live key to a Reply Gate, or
+not.  Servers that expect call-style IPCs agree to send a response back on the
+reply key.
 
-The received Gate key brand can be used to distinguish callers from one another,
-encode application-defined permissions, etc.
+The received Gate key brand (in ``r10``) can be used to distinguish callers from
+one another, encode application-defined permissions, etc.

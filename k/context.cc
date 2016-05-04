@@ -62,11 +62,11 @@ void Context::set_reply_gate(ReplyGate & g) {
 }
 
 KeysRef Context::get_receive_keys() {
-  return KeysRef{_body.keys, 0x76543210};
+  return KeysRef{_body.keys, _body.save.named.r11};
 }
 
 KeysRef Context::get_sent_keys() {
-  return KeysRef{_body.keys, 0x76543210};
+  return KeysRef{_body.keys, _body.save.named.r10};
 }
 
 uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
