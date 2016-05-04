@@ -65,9 +65,8 @@ KeysRef Context::get_receive_keys() {
   return KeysRef{_body.keys, 0x76543210};
 }
 
-Key const & Context::sent_key(unsigned index) const {
-  // For now, the sent keys come directly from the registers.
-  return _body.keys[index];
+KeysRef Context::get_sent_keys() {
+  return KeysRef{_body.keys, 0x76543210};
 }
 
 uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
@@ -107,7 +106,6 @@ void Context::do_key_op(uint32_t sysnum, Descriptor d) {
 
 void Context::complete_receive(BlockingSender * sender) {
   _body.save.sys = sender->on_blocked_delivery(get_receive_keys());
-  // TODO: huh, should really record the brand here.
 }
 
 void Context::complete_receive(Exception e, uint32_t param) {
@@ -206,9 +204,10 @@ Message Context::on_delivery(KeysRef k) {
   // this because we may be about to receive into the same memory, below.
   auto m = _body.save.sys.m.sanitized();
 
-  k[0] = d.is_call() ? make_reply_key() : sent_key(0);
+  auto sent_keys = get_sent_keys();
+  k[0] = d.is_call() ? make_reply_key() : sent_keys[0];
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
-    k[ki] = sent_key(ki);
+    k[ki] = sent_keys[ki];
   }
 
   // Atomically transition to receive state if requested by the program.

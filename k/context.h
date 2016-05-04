@@ -188,7 +188,7 @@ private:
   Key make_reply_key() const;
 
   KeysRef get_receive_keys();
-  Key const & sent_key(unsigned) const;
+  KeysRef get_sent_keys();
 };
 
 }  // namespace k
