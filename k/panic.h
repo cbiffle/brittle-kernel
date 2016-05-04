@@ -54,13 +54,13 @@ void panic(char const *);
 #else  // defined(DISABLE_KERNEL_CONSISTENCY_CHECKS)
 
   /*
-   * We still evaluate the conditions when checks are disabled.  For checks
-   * that have no side effects, the optimizer will clean up after us.  For
-   * checks *with* side effects this avoids subtle behavioral changes.
+   * We do not evaluate either expression when checks are disabled, even though
+   * this exposes us to subtle behavioral changes in "fast" builds.  Test the
+   * bits you ship!
    */
 
-  #define PANIC_UNLESS(__condition, __) ((void) (__condition))
-  #define PANIC_IF(__condition, __) ((void) (__condition))
+  #define PANIC_UNLESS(__c, __r) ((void) 0)
+  #define PANIC_IF(__c, __r) ((void) 0)
 
 #endif
 

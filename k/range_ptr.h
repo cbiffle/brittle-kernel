@@ -31,12 +31,18 @@ struct PanicRangeCheckPolicy {
   }
 };
 
+#ifdef DISABLE_KERNEL_CONSISTENCY_CHECKS
+  using KernelRangeCheckPolicy = etl::data::LaxRangeCheckPolicy;
+#else
+  using KernelRangeCheckPolicy = PanicRangeCheckPolicy;
+#endif
+
 /*
  * Import the ETL RangePtr type into our namespace, specialized for our check
  * policy.
  */
 template <typename T>
-using RangePtr = etl::data::RangePtr<T, PanicRangeCheckPolicy>;
+using RangePtr = etl::data::RangePtr<T, KernelRangeCheckPolicy>;
 
 }  // namespace k
 

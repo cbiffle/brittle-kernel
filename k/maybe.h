@@ -17,6 +17,12 @@ struct PanicMaybeCheckPolicy {
   }
 };
 
+#ifdef DISABLE_KERNEL_CONSISTENCY_CHECKS
+  using KernelMaybeCheckPolicy = etl::data::LaxMaybeCheckPolicy;
+#else
+  using KernelMaybeCheckPolicy = PanicMaybeCheckPolicy;
+#endif
+
 /*
  * Import the ETL Maybe type into our namespace, specialized with our checking
  * policy.
