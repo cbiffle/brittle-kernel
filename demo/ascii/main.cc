@@ -337,8 +337,8 @@ static void demo_main() {
   copy_key(5, k_irq_gate);
   copy_key(6, k_irq);
 
-  discard_keys(0, 3);
-  discard_keys(7, 15);
+  for (unsigned i = 0; i < 4; ++i) copy_key(i, 0);
+  for (unsigned i = 7; i < 16; ++i) copy_key(i, 0);
 
   drv::uart::main();
 }

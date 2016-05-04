@@ -72,6 +72,9 @@ KeysRef Context::get_sent_keys() {
 uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
   set_stack(stack);
 
+  // TODO: this is a temporarily paranoid check.
+  PANIC_IF(key(0).get()->get_kind() != Kind::null, "kr0 written");
+
   // Perform first phase of IPC.
   if (d.get_send_enabled()) {
     key(d.get_target()).deliver_from(this);
@@ -88,13 +91,9 @@ uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
 
 void Context::do_key_op(uint32_t sysnum, Descriptor d) {
   switch (sysnum) {
-    case 1:  // Copy Key
-      key(d.get_target()) = key(d.get_source());
-      return;
-
-    case 2:  // Discard Keys
-      for (unsigned k = d.get_source(); k <= d.get_target(); ++k) {
-        key(k) = Key::null();
+    case 1:  // Copy Key - blunt writes to kr0
+      if (d.get_target()) {
+        key(d.get_target()) = key(d.get_source());
       }
       return;
 
@@ -297,13 +296,14 @@ void Context::deliver_from(Brand brand, Sender * sender) {
     case 3:  // write_key
       {
         auto r = m.d0;
+        bool is_read = m.desc.get_selector() == 2;
 
-        if (r >= config::n_task_keys) {
+        if (r >= config::n_task_keys || (!is_read && r == 0)) {
           reply_sender.message() = Message::failure(Exception::bad_argument);
           return;
         }
 
-        if (m.desc.get_selector() == 2) {  // read
+        if (is_read) {  // read
           reply_sender.set_key(1, key(r));
         } else {  // write
           key(r) = k.keys[1];

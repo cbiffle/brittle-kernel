@@ -262,6 +262,10 @@ keys, this causes multiple keys to be delivered to the same register, and
 *it is not defined* which comes last.  (This is primarily intended to make it
 easy to discard unwanted keys.)
 
+A Context's key register 0 permanently contains a key to :ref:`kor-null`.  This
+means register index 0 can be used in a key map in any "don't-care" positions
+without accidentally transmitting or receiving authority.
+
 
 The Send Phase
 ~~~~~~~~~~~~~~

@@ -27,7 +27,8 @@ public:
    */
   constexpr KeysRef(Keys & keys)
     : _storage{keys.keys},
-      _map{0x3210} {}
+      _map{0x3210},
+      _defend_k0{false} {}
 
   /*
    * Constructor for a larger array of Keys, presumed to have at least 16
@@ -35,7 +36,8 @@ public:
    */
   constexpr explicit KeysRef(Key keys[], uint32_t map)
     : _storage{keys},
-      _map{map} {}
+      _map{map},
+      _defend_k0{true} {}
 
   constexpr unsigned map(unsigned index) const {
     return (_map >> (4 * index)) & 0xF;
@@ -46,12 +48,15 @@ public:
   }
 
   void set(unsigned index, Key const & k) const {
-    _storage[map(index)] = k;
+    auto m = map(index);
+    if (m == 0 && _defend_k0) return;
+    _storage[m] = k;
   }
 
 private:
   Key * _storage;
   uint32_t _map;
+  bool _defend_k0;
 };
 
 }  // namespace k

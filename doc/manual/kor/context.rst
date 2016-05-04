@@ -84,6 +84,8 @@ Read Key Register (2)
 Reads a key from one of this context's key registers, by index.  Note that there
 are currently 16 key registers.
 
+Key register 0 always reads as null.
+
 Call
 ####
 
@@ -106,7 +108,10 @@ Write Key Register (3)
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Writes a key into one of this context's key registers, by index.  Note that
-there are currently 16 key registers.
+there are currently 16 key registers.  Because key register 0 is permanently
+null, index 0 is treated as invalid for this operation and will return an
+exception.
+
 
 Call
 ####
@@ -122,7 +127,7 @@ Empty.
 Exceptions
 ##########
 
-- ``k.bad_argument`` if the key index is not valid.
+- ``k.bad_argument`` if the key index is not valid (including 0).
 
 
 Read MPU Region Register (4)
