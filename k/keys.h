@@ -37,8 +37,16 @@ public:
     : _storage{keys},
       _map{map} {}
 
-  constexpr Key & operator[](unsigned index) const {
-    return _storage[(_map >> (4 * index)) & 0xF];
+  constexpr unsigned map(unsigned index) const {
+    return (_map >> (4 * index)) & 0xF;
+  }
+
+  constexpr Key const & get(unsigned index) const {
+    return _storage[map(index)];
+  }
+
+  void set(unsigned index, Key const & k) const {
+    _storage[map(index)] = k;
   }
 
 private:

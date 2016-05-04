@@ -78,9 +78,9 @@ Priority Interrupt::get_priority() const {
 }
 
 Message Interrupt::on_delivery(KeysRef k) {
-  k[0] = make_key(0).ref();
+  k.set(0, make_key(0).ref());
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
-    k[ki] = Key::null();
+    k.set(ki, Key::null());
   }
   return {
     Descriptor::zero().with_selector(1),

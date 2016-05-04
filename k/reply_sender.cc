@@ -22,7 +22,7 @@ void ReplySender::set_key(unsigned index, Key const & k) {
 
 Message ReplySender::on_delivery(KeysRef keys) {
   for (unsigned i = 0; i < etl::array_count(_keys.keys); ++i) {
-    keys[i] = _keys.keys[i];
+    keys.set(i, _keys.keys[i]);
   }
   return _m;
 }

@@ -205,15 +205,16 @@ Message Context::on_delivery(KeysRef k) {
   auto m = _body.save.sys.m.sanitized();
 
   auto sent_keys = get_sent_keys();
-  k[0] = d.is_call() ? make_reply_key() : sent_keys[0];
+  auto k0 = d.is_call() ? make_reply_key() : sent_keys.get(0);
+  k.set(0, k0);
   for (unsigned ki = 1; ki < config::n_message_keys; ++ki) {
-    k[ki] = sent_keys[ki];
+    k.set(ki, sent_keys.get(ki));
   }
 
   // Atomically transition to receive state if requested by the program.
   if (d.get_receive_enabled()) {
     // If we're calling, reuse the reply key we just minted:
-    auto & source = d.is_call() ? k[0]
+    auto & source = d.is_call() ? k0
                                 : key(d.get_source());
     // And this is where our outgoing message would be overwritten; thus the
     // copy above.
