@@ -73,7 +73,7 @@ public:
    */
 
   Message on_delivery(KeysRef) override;
-  void block_in_send(Brand, List<BlockingSender> &) override;
+  void block_in_send(Brand const &, List<BlockingSender> &) override;
 
 private:
   Message _m;

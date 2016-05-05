@@ -63,7 +63,7 @@ public:
    * acceptable for this object.  The default implementation accepts all
    * brands.  Subclasses can implement this to be more selective.
    */
-  virtual Maybe<Key> make_key(Brand);
+  virtual Maybe<Key> make_key(Brand const &);
 
   /*
    * Delivers a message from 'sender' to this object, through a key bearing
@@ -88,7 +88,7 @@ public:
    * The default implementation reports failure to the sender with a
    * bad_operation exception.
    */
-  virtual void deliver_from(Brand, Sender *);
+  virtual void deliver_from(Brand const &, Sender *);
 
   /*
    * The given Context wants to receive a message from this object.  This
@@ -121,7 +121,7 @@ public:
    * implementation for non-Memory objects returns zeroes, producing a disabled
    * region.
    */
-  virtual Region get_region_for_brand(Brand) const;
+  virtual Region get_region_for_brand(Brand const &) const;
 
 protected:
   Object(Generation);

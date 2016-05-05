@@ -6,7 +6,7 @@
 
 namespace k {
 
-Key Key::filled(Object * ptr, Brand brand) {
+Key Key::filled(Object * ptr, Brand const & brand) {
   PANIC_UNLESS(ptr, "nullptr in Key::filled");
 
   Key k;

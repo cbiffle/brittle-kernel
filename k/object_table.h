@@ -103,14 +103,14 @@ public:
 
   // Implementation of Object.
   Kind get_kind() const override { return Kind::object_table; }
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
 private:
   RangePtr<Entry> _objects;
 
-  void do_mint_key(Brand, Message const &, Keys &);
-  void do_read_key(Brand, Message const &, Keys &);
-  void do_get_kind(Brand, Message const &, Keys &);
+  void do_mint_key(Brand const &, Message const &, Keys &);
+  void do_read_key(Brand const &, Message const &, Keys &);
+  void do_get_kind(Brand const &, Message const &, Keys &);
 };
 
 /*

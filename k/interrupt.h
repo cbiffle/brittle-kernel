@@ -43,13 +43,13 @@ public:
    */
 
   Kind get_kind() const override { return Kind::interrupt; }
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
   /*
    * Implementation of Sender
    */
   Message on_delivery(KeysRef) override;
-  void block_in_send(Brand, List<BlockingSender> &) override;
+  void block_in_send(Brand const &, List<BlockingSender> &) override;
 
   /*
    * Implementation of BlockingSender
@@ -63,8 +63,8 @@ private:
 
   uint32_t get_identifier() const { return _body.identifier; }
 
-  void do_set_target(Brand, Message const &, Keys &);
-  void do_enable(Brand, Message const &, Keys &);
+  void do_set_target(Brand const &, Message const &, Keys &);
+  void do_enable(Brand const &, Message const &, Keys &);
 
   void disable_interrupt();
   void clear_pending_interrupt();

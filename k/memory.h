@@ -27,15 +27,15 @@ public:
    * Translates a key to this Memory (described by its brand) into the actual
    * settings that would be loaded into the MPU.
    */
-  Region get_region_for_brand(Brand) const override;
+  Region get_region_for_brand(Brand const &) const override;
 
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
   Kind get_kind() const override { return Kind::memory; }
 
 private:
   P2Range _range;
 
-  void do_split(ScopedReplySender &, Brand, Message const &, Keys &);
+  void do_split(ScopedReplySender &, Brand const &, Message const &, Keys &);
 };
 
 }  // namespace k

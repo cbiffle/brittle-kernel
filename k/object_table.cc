@@ -34,7 +34,7 @@ void ObjectTable::set_entries(RangePtr<Entry> entries) {
   _objects = entries;
 }
 
-void ObjectTable::deliver_from(Brand brand, Sender * sender) {
+void ObjectTable::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery(k);
   switch (m.desc.get_selector()) {
@@ -56,7 +56,7 @@ void ObjectTable::deliver_from(Brand brand, Sender * sender) {
   }
 }
 
-void ObjectTable::do_mint_key(Brand,
+void ObjectTable::do_mint_key(Brand const &,
                               Message const & args,
                               Keys & keys) {
   auto index = args.d0;
@@ -76,7 +76,7 @@ void ObjectTable::do_mint_key(Brand,
   }
 }
 
-void ObjectTable::do_read_key(Brand,
+void ObjectTable::do_read_key(Brand const &,
                               Message const &,
                               Keys & keys) {
   auto & k = keys.keys[1];
@@ -91,7 +91,7 @@ void ObjectTable::do_read_key(Brand,
   }};
 }
 
-void ObjectTable::do_get_kind(Brand,
+void ObjectTable::do_get_kind(Brand const &,
                               Message const & args,
                               Keys & keys) {
   auto index = args.d0;

@@ -37,7 +37,7 @@ void Interrupt::trigger() {
   _body.target.deliver_from(this);
 }
 
-void Interrupt::deliver_from(Brand brand, Sender * sender) {
+void Interrupt::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery(k);
   switch (m.desc.get_selector()) {
@@ -55,7 +55,7 @@ void Interrupt::deliver_from(Brand brand, Sender * sender) {
   }
 }
 
-void Interrupt::do_set_target(Brand, Message const &, Keys & k) {
+void Interrupt::do_set_target(Brand const &, Message const &, Keys & k) {
   auto & reply = k.keys[0];
   auto & target = k.keys[1];
 
@@ -64,7 +64,7 @@ void Interrupt::do_set_target(Brand, Message const &, Keys & k) {
   _body.target = target;
 }
 
-void Interrupt::do_enable(Brand, Message const & m, Keys & k) {
+void Interrupt::do_enable(Brand const &, Message const & m, Keys & k) {
   ScopedReplySender reply_sender{k.keys[0]};
 
   bool clear_pending = m.d0 != 0;
@@ -88,7 +88,7 @@ Message Interrupt::on_delivery(KeysRef k) {
   };
 }
 
-void Interrupt::block_in_send(Brand brand,
+void Interrupt::block_in_send(Brand const & brand,
                               List<BlockingSender> & list) {
   _body.saved_brand = brand;
   list.insert(&_body.sender_item);

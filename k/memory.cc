@@ -24,7 +24,7 @@ template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
 Memory::Memory(Generation g, P2Range range)
   : Object{g}, _range{range} {}
 
-Region Memory::get_region_for_brand(Brand brand) const {
+Region Memory::get_region_for_brand(Brand const & brand) const {
   return {
     Region::Rbar()
       .with_addr_27(_range.base() >> 5),
@@ -94,7 +94,7 @@ static constexpr Region::Rasr scrub_rasr(Region::Rasr dirty) {
  * Implementation of the Memory protocol.
  */
 
-void Memory::deliver_from(Brand brand, Sender * sender) {
+void Memory::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery(k);
 
@@ -176,7 +176,7 @@ void Memory::deliver_from(Brand brand, Sender * sender) {
 }
 
 void Memory::do_split(ScopedReplySender & reply_sender,
-                      Brand brand,
+                      Brand const & brand,
                       Message const & m,
                       Keys & k) {
   auto & donation_key = k.keys[1];

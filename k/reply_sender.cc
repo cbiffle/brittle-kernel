@@ -27,7 +27,7 @@ Message ReplySender::on_delivery(KeysRef keys) {
   return _m;
 }
 
-void ReplySender::block_in_send(Brand, List<BlockingSender> &) {
+void ReplySender::block_in_send(Brand const &, List<BlockingSender> &) {
   // No.
 }
 

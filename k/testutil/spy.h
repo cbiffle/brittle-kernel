@@ -30,7 +30,7 @@ public:
   void set_kind(Kind k) { _kind = k; }
 
   Kind get_kind() const override { return _kind; }
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
 
 private:
   ReceivedMessage _received;

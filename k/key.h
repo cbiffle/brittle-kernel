@@ -17,7 +17,7 @@ public:
    * Static factory function for producing a key filled in with the
    * given object and brand.
    */
-  static Key filled(Object *, Brand brand);
+  static Key filled(Object *, Brand const & brand);
 
   /*
    * Static factory function for producing a null key.
@@ -27,7 +27,7 @@ public:
   /*
    * Gets the brand stored within this key.
    */
-  Brand get_brand() const { return _brand; }
+  Brand const & get_brand() const { return _brand; }
 
   Generation get_generation() const { return _generation; }
 

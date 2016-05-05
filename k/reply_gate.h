@@ -49,9 +49,9 @@ public:
    */
 
   Kind get_kind() const override { return Kind::reply_gate; }
-  void deliver_from(Brand, Sender *) override;
+  void deliver_from(Brand const &, Sender *) override;
   void deliver_to(Context *) override;
-  Maybe<Key> make_key(Brand) override;
+  Maybe<Key> make_key(Brand const &) override;
 
 private:
   Body & _body;

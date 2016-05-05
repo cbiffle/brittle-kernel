@@ -128,7 +128,7 @@ void Context::block_in_reply() {
   pend_switch();
 }
 
-void Context::complete_blocked_receive(Brand brand, Sender * sender) {
+void Context::complete_blocked_receive(Brand const & brand, Sender * sender) {
   runnable.insert(&_body.ctx_item);
   _body.state = State::runnable;
 
@@ -223,7 +223,7 @@ Message Context::on_delivery(KeysRef k) {
   return m;
 }
 
-void Context::block_in_send(Brand brand, List<BlockingSender> & list) {
+void Context::block_in_send(Brand const & brand, List<BlockingSender> & list) {
   PANIC_UNLESS(this == current, "non-current Context block_in_send");
 
   if (get_descriptor().get_block()) {
@@ -271,7 +271,7 @@ Key Context::make_reply_key() const {
  * Implementation of Context protocol.
  */
 
-void Context::deliver_from(Brand brand, Sender * sender) {
+void Context::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery(k);
 
