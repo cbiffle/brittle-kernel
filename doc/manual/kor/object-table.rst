@@ -41,7 +41,8 @@ Call
 ####
 
 - d0: object index in table
-- d1: brand
+- d1: brand low bits
+- d2: brand high bits
 
 Reply
 #####
@@ -75,7 +76,8 @@ Reply
 #####
 
 - d0: table index
-- d1: brand
+- d1: brand low bits
+- d2: brand high bits
 
 
 Get Kind (2)

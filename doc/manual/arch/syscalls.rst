@@ -292,7 +292,7 @@ After receipt of a message, the program gets:
 
 - A sanitized version of the descriptor in ``r4``.
 - Five data words in registers ``r5`` through ``r9``.
-- The brand of the Gate key used to send the message, in ``r10``.
+- The brand of the Gate key used to send the message, in ``r10``/``r11``.
 - Four keys, delivered into the ``k0`` - ``k3`` registers named by the key map.
 
 The received descriptor is *sanitized*: the key index fields are zeroed, so that
@@ -303,5 +303,5 @@ conventionally a reply key, whether it's a real-live key to a Reply Gate, or
 not.  Servers that expect call-style IPCs agree to send a response back on the
 reply key.
 
-The received Gate key brand (in ``r10``) can be used to distinguish callers from
-one another, encode application-defined permissions, etc.
+The received Gate key brand (in ``r10``/``r11``) can be used to distinguish
+callers from one another, encode application-defined permissions, etc.
