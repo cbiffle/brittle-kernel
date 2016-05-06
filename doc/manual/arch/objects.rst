@@ -116,36 +116,6 @@ themselves don't need to provide any storage for messages: messages are directly
 conveyed *through* Gates from sender to recipient.
 
 
-.. _reply-gate-object:
-
-Reply Gates
------------
-
-*Reply Gates* are a special variety of Gate that is closely connected to a
-Context.
-
-When a Context issues an IPC, it has the option of sending a "call-style" IPC,
-where it delivers its message and then waits to receive a reply.  The reply is
-also a message, and is delivered through the Context's Reply Gate.
-
-When a Context performs a call-style IPC, the recipient of the message is handed
-a key to the Context's Reply Gate.  It can store that key, send it to others ---
-all the usual things one can do with a key.  But keys to Reply Gates are *single
-use*.  When some program eventually sends a response, every copy of the Reply
-Gate key is atomically revoked.
-
-This helps to ensure that, when a program waits for a reply, it wakes up only on
-the *correct* reply, and not a message from a buggy or malicious peer that saved
-an old Reply Gate key.
-
-.. note::
-  In practice, programs rarely have to think about Reply Gates, because they're
-  managed under the hood by the kernel.  The exception is when a program wants
-  to create a Context by donating Memory to the kernel; in this case, the
-  program must specify the Context's corresponding Reply Gate, and probably
-  create it.
-
-
 .. _interrupt-object:
 
 Interrupts

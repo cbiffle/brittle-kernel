@@ -44,7 +44,7 @@ SECTIONS {
   } >rom
 
   .stack (NOLOAD) : ALIGN(4) {
-    . += 512;  /* Leave room for a stack. */
+    . += 1024;  /* Leave room for a stack. */
     PROVIDE(etl_armv7m_initial_stack_top = .);
   } >ccm
 

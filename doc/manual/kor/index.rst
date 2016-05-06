@@ -11,5 +11,4 @@ Kernel Object Reference
   memory
   null
   object-table
-  reply-gate
   slot

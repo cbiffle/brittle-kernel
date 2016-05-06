@@ -149,9 +149,9 @@ special variety:
    to reply to one request and accept the next.
 
 4. *Call.*  A specialized form of send-then-receive, a call IPC fabricates a
-   *reply key* for the program's bound Reply Gate and sends it with the message.
-   The object receiving the message can use the reply key to issue a single
-   reply back to the sender.
+   *reply key* for the program's Context and sends it with the message.  The
+   object receiving the message can use the reply key to issue a single reply
+   back to the sender.
 
 .. note:: Technically there is a fifth variety: if neither phase is requested,
   the syscall simply returns to the caller.  This is not very interesting.
@@ -299,9 +299,9 @@ The received descriptor is *sanitized*: the key index fields are zeroed, so that
 the recipient doesn't learn anything about how the sender organizes their keys.
 
 The key delivered into the first position chosen by the key map (``k0``) is
-conventionally a reply key, whether it's a real-live key to a Reply Gate, or
-not.  Servers that expect call-style IPCs agree to send a response back on the
-reply key.
+conventionally a reply key, whether it's a real-live Reply Key to a Context, or
+something else (such as a Gate key for a testing framework).  Servers that
+expect call-style IPCs agree to send a response back on the reply key.
 
 The received Gate key brand (in ``r10``/``r11``) can be used to distinguish
 callers from one another, encode application-defined permissions, etc.

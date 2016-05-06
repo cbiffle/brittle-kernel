@@ -21,9 +21,6 @@ new object.
 Implement a destruction permission using a brand bit, at least for Memory for
 now.
 
-Need a way to set, and subsequently replace, a Context's Reply Gate link using a
-message after construction.
-
 Would it make sense to disconnect the MPU key storage from Context, so that
 multiple Contexts could share one?  (It wouldn't share any space, right now,
 because it wouldn't save enough to knock Context beneath 256 bytes.)

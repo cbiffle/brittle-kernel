@@ -29,7 +29,6 @@
 
 namespace k {
 
-struct ReplyGate;  // see: k/reply_gate.h
 struct ScopedReplySender;  // see: k/reply_sender.h
 
 /*
@@ -65,9 +64,9 @@ public:
     // use later even if the key gets modified.
     Brand saved_brand{0};
 
-    Maybe<Object *> reply_gate{nothing};
-
     Key memory_regions[config::n_task_regions]{};
+
+    Brand expected_reply_brand{0};
   };
 
   Context(Generation g, Body &);
@@ -91,8 +90,6 @@ public:
   bool is_awaiting_reply() const {
     return _body.state == State::receiving && !_body.ctx_item.is_linked();
   }
-
-  void set_reply_gate(ReplyGate &);
 
   void nullify_received_keys();
 
@@ -122,11 +119,6 @@ public:
    * of either complete_blocked_receive or interrupt.
    */
   void block_in_receive(List<Context> &);
-
-  /*
-   * Analog of block_in_receive for particular use by ReplyGate.
-   */
-  void block_in_reply();
 
   /*
    * Takes a context out of receive state due to reception of a message from
@@ -178,6 +170,7 @@ public:
    */
 
   void deliver_from(Brand const &, Sender *) override;
+  void deliver_to(Brand const &, Context *) override;
   Kind get_kind() const override { return Kind::context; }
 
 private:
@@ -185,10 +178,14 @@ private:
 
   Descriptor get_descriptor() const { return _body.save.sys.m.desc; }
 
-  Key make_reply_key() const;
+  Key make_reply_key();
+  static bool is_reply_brand(Brand const &);
 
   KeysRef get_receive_keys();
   KeysRef get_sent_keys();
+
+  void handle_protocol(Brand const &, Sender *);
+  void block_in_reply();
 };
 
 }  // namespace k

@@ -34,7 +34,6 @@ public:
     memory,
     context,
     gate,
-    reply_gate,
     interrupt,
   };
 

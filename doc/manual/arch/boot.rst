@@ -40,10 +40,9 @@ The kernel processes ``AppInfo`` and sets up
 2. A table mapping hardware interrupt requests to :ref:`Interrupt objects
    <interrupt-object>`.
 
-3. An initial :ref:`Context <context-object>` and :ref:`Reply Gate
-   <reply-gate-object>`.
+3. An initial :ref:`Context <context-object>`.
 
-The first four slots in the Object Table are always occupied by four
+The first three slots in the Object Table are always occupied by three
 *well-known objects*, created at this time:
 
 ===== ============================================
@@ -52,7 +51,6 @@ Index Object
 0     The :ref:`kor-null` object.
 1     The :ref:`kor-object-table`.
 2     The initial :ref:`kor-context`.
-3     The initial Context's :ref:`kor-reply-gate`.
 ===== ============================================
 
 Starting at index 4 are the Memory objects requested in the ``AppInfo`` block.

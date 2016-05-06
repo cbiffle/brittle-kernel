@@ -14,7 +14,6 @@
 #include "k/object_table.h"
 #include "k/p2range.h"
 #include "k/region.h"
-#include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 #include "k/slot.h"
@@ -34,10 +33,7 @@ protected:
   Context::Body _fake_context_body;
   Context _fake_context{0, _fake_context_body};
 
-  ReplyGate::Body _fake_reply_gate_body;
-  ReplyGate _fake_reply_gate{0, _fake_reply_gate_body};
-
-  Spy _spy{0, Object::Kind::reply_gate};
+  Spy _spy{0, Object::Kind::context};
   ReplySender _sender;
 
   void SetUp() override {
@@ -115,7 +111,7 @@ protected:
 
 TEST_F(NullTest, basic) {
   /*
-   * Here the spy looks like a ReplyGate, so Null should respond.
+   * Here the spy looks like a Context, so Null should respond.
    */
   auto & m = send_from_spy({Descriptor::call(0, 0)});
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);

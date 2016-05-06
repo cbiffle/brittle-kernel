@@ -1,6 +1,8 @@
 #include "k/context.h"
 
 #include "etl/array_count.h"
+#include "etl/prediction.h"
+
 #include "etl/armv7m/mpu.h"
 #include "etl/armv7m/types.h"
 
@@ -13,7 +15,6 @@
 #include "k/object_table.h"
 #include "k/panic.h"
 #include "k/registers.h"
-#include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 
@@ -30,6 +31,9 @@ static_assert(K_CONTEXT_BODY_STACK_OFFSET ==
     __builtin_offsetof(Context::Body, save.named.stack),
     "K_CONTEXT_BODY_STACK_OFFSET is wrong");
 
+static constexpr Brand reply_brand_mask = Brand(1) << 63;
+
+
 /*******************************************************************************
  * Context-specific stuff
  */
@@ -39,6 +43,7 @@ Context::Context(Generation g, Body & body)
     _body(body) {
   body.ctx_item.owner = this;
   body.sender_item.owner = this;
+  body.expected_reply_brand = reply_brand_mask;
 }
 
 void Context::nullify_received_keys() {
@@ -52,13 +57,6 @@ void Context::nullify_received_keys() {
   for (unsigned i = 0; i < config::n_message_keys; ++i) {
     _body.keys[i] = Key::null();
   }
-}
-
-void Context::set_reply_gate(ReplyGate & g) {
-  PANIC_IF(g.is_bound(), "ReplyGate double bind");
-
-  _body.reply_gate = &g;
-  g.set_owner(this);
 }
 
 KeysRef Context::get_receive_keys() {
@@ -259,12 +257,16 @@ void Context::on_blocked_delivery_aborted() {
   _body.save.sys = { Message::failure(Exception::would_block), 0 };
 }
 
-Key Context::make_reply_key() const {
-  if (_body.reply_gate) {
-    auto maybe_key = _body.reply_gate.ref()->make_key(0);
-    if (maybe_key) return maybe_key.ref();
-  }
-  return Key::null();
+Key Context::make_reply_key() {
+  auto maybe_key = make_key(_body.expected_reply_brand);
+  PANIC_UNLESS(maybe_key, "ctx refused reply key");
+  return maybe_key.ref();
+}
+
+bool Context::is_reply_brand(Brand const & brand) {
+  static_assert(uint32_t(reply_brand_mask) == 0,
+      "Here we assume that reply_brand_mask has only top bits set.");
+  return (uint32_t(brand >> 32) & uint32_t(reply_brand_mask >> 32));
 }
 
 
@@ -273,9 +275,45 @@ Key Context::make_reply_key() const {
  */
 
 void Context::deliver_from(Brand const & brand, Sender * sender) {
-  Keys k;
-  Message m = sender->on_delivery(k);
+  // Handle all reply messages, even with the *wrong* reply brand, differently.
+  if (ETL_LIKELY(is_reply_brand(brand))) {
+    // Fail all messages if the brand is wrong (use of a stale reply key).
+    // TODO: this is the approach I've used historically, but should we really
+    // *reply* to errant replies?
+    if (ETL_UNLIKELY(brand != _body.expected_reply_brand)) {
+      Object::deliver_from(brand, sender);
+      return;
+    }
 
+    // Advance our expected brand, implicitly invalidating the current key.
+    _body.expected_reply_brand =
+      (_body.expected_reply_brand + 1) | reply_brand_mask;
+
+    // Unblocking from awaiting reply is supposed to advance the expected reply
+    // brand, which should prevent us from reaching this point.
+    PANIC_UNLESS(is_awaiting_reply(), "context not awaiting reply");
+
+    complete_blocked_receive(brand, sender);
+  } else {
+    // Context service message.
+    handle_protocol(brand, sender);
+  }
+}
+
+void Context::deliver_to(Brand const & brand, Context * ctx) {
+  // This detects errant receive from Contexts ... but also receive from our
+  // own reply key.  Distinguish the two.
+  if (brand != _body.expected_reply_brand || ctx != this) {
+    Object::deliver_to(brand, ctx);
+    return;
+  }
+
+  block_in_reply();
+}
+
+void Context::handle_protocol(Brand const &, Sender * sender) {
+  Keys k;
+  auto m = sender->on_delivery(k);
   ScopedReplySender reply_sender{k.keys[0]};
 
   switch (m.desc.get_selector()) {

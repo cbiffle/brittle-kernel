@@ -12,7 +12,6 @@
 #include "k/memory.h"
 #include "k/object_table.h"
 #include "k/region.h"
-#include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 #include "k/sender.h"
@@ -25,8 +24,7 @@ namespace k {
 enum class TypeCode {
   context = 0,
   gate = 1,
-  reply_gate = 2,
-  interrupt = 3,
+  interrupt = 3,  // TODO renumber
 };
 
 static Maybe<TypeCode> extract_type_code(uint32_t arg) {
@@ -41,7 +39,6 @@ static unsigned l2_size_for_type_code(TypeCode tc) {
   switch (tc) {
     case TypeCode::context: return kabi::context_l2_size;
     case TypeCode::gate: return kabi::gate_l2_size;
-    case TypeCode::reply_gate: return kabi::reply_gate_l2_size;
     case TypeCode::interrupt: return kabi::interrupt_l2_size;
     default:
       return 0;
@@ -79,26 +76,10 @@ void become(Memory & memory,
   switch (type_code) {
     case TypeCode::context:
       {
-        // Ensure that the key provided by the caller is an unbound reply gate.
-        auto & alleged_gate_key = k.keys[1];
-        auto alleged_gate_ptr = alleged_gate_key.get();
-        if (alleged_gate_ptr->get_kind() != Object::Kind::reply_gate) {
-          reply_sender.message() = Message::failure(Exception::bad_kind);
-          return;
-        }
-
-        auto gate_ptr = static_cast<ReplyGate *>(alleged_gate_ptr);
-        if (gate_ptr->is_bound()) {
-          reply_sender.message() = Message::failure(Exception::bad_kind);
-          return;
-        }
-
         memory.~Memory();
 
         auto b = new(bodymem) Context::Body;
-        auto c = new(&memory) Context{new_generation, *b};
-        c->set_reply_gate(*gate_ptr);
-        newobj = c;
+        newobj = new(&memory) Context{new_generation, *b};
         break;
       }
     case TypeCode::gate:
@@ -107,14 +88,6 @@ void become(Memory & memory,
 
         auto b = new(bodymem) Gate::Body;
         newobj = new(&memory) Gate{new_generation, *b};
-        break;
-      }
-    case TypeCode::reply_gate:
-      {
-        memory.~Memory();
-
-        auto b = new(bodymem) ReplyGate::Body;
-        newobj = new(&memory) ReplyGate{new_generation, *b};
         break;
       }
     case TypeCode::interrupt:

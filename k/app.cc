@@ -20,7 +20,6 @@
 #include "k/object_table.h"
 #include "k/panic.h"
 #include "k/registers.h"
-#include "k/reply_gate.h"
 #include "k/range_ptr.h"
 #include "k/scheduler.h"
 #include "k/slot.h"
@@ -93,12 +92,10 @@ static void initialize_well_known_objects(
   }
 
   {
-    auto gb = new(arena.allocate(kabi::reply_gate_size)) ReplyGate::Body;
-    auto g = new(&entries[3]) ReplyGate{0, *gb};
+    (void) new(&entries[3]) Slot{0};  // TODO recover well-known slot
 
     auto b = new(arena.allocate(kabi::context_size)) Context::Body;
     first_context = new(&entries[2]) Context{0, *b};
-    first_context->set_reply_gate(*g);
   }
 }
 

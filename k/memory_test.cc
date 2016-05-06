@@ -14,7 +14,6 @@
 #include "k/object_table.h"
 #include "k/p2range.h"
 #include "k/region.h"
-#include "k/reply_gate.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
 #include "k/slot.h"
@@ -37,10 +36,7 @@ protected:
   Context::Body _fake_context_body;
   Context _fake_context{0, _fake_context_body};
 
-  ReplyGate::Body _fake_reply_gate_body;
-  ReplyGate _fake_reply_gate{0, _fake_reply_gate_body};
-
-  Spy _spy{0, Object::Kind::reply_gate};
+  Spy _spy{0, Object::Kind::context};
   ReplySender _sender;
 
   void SetUp() override {
@@ -395,7 +391,6 @@ protected:
 
 using MemoryTest_BecomeContext = MemoryTest_Become<kabi::context_l2_size>;
 TEST_F(MemoryTest_BecomeContext, ok) {
-  _sender.set_key(1, _fake_reply_gate.make_key(0).ref());
   auto & m = send_become(rw_rasr, 0);
 
   ASSERT_FALSE(m.desc.get_error())
@@ -429,27 +424,6 @@ TEST_F(MemoryTest_BecomeGate, ok) {
     << "The consumed memory's generation should have advanced.";
   ASSERT_TRUE(dynamic_cast<Gate *>(&object()))
     << "The consumed memory should be a gate now.";
-
-  ASSERT_RETURNED_KEY_NULL(0);
-  ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
-  ASSERT_RETURNED_KEY_NULL(2);
-  ASSERT_RETURNED_KEY_NULL(3);
-}
-
-using MemoryTest_BecomeReplyGate = MemoryTest_Become<kabi::reply_gate_l2_size>;
-TEST_F(MemoryTest_BecomeReplyGate, ok) {
-  auto & m = send_become(rw_rasr, 2);
-
-  ASSERT_FALSE(m.desc.get_error())
-    << "this memory should be able to become a reply gate; exception: "
-    << std::hex
-    << m.d1 << m.d0
-    << std::dec << " " << m.d2;
-
-  ASSERT_EQ(1, object().get_generation())
-    << "The consumed memory's generation should have advanced.";
-  ASSERT_TRUE(dynamic_cast<ReplyGate *>(&object()))
-    << "The consumed memory should be a reply gate now.";
 
   ASSERT_RETURNED_KEY_NULL(0);
   ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);

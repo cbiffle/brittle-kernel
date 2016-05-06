@@ -265,12 +265,9 @@ static void init_ipc() {
 }
 
 static void spawn_idle() {
-  // Create the idle task's reply gate.
-  (void) alloc_mem(kabi::reply_gate_l2_size - 1, k_tmp0);
-  memory::become(k_tmp0, memory::ObjectType::reply_gate, 0);
   // Create a Context to describe the idle task.
   alloc_mem(kabi::context_l2_size - 1, k_idle);
-  memory::become(k_idle, memory::ObjectType::context, 0, k_tmp0);
+  memory::become(k_idle, memory::ObjectType::context, 0);
 
   // Load its memory region keys so it can actually run.  For now, we'll just
   // share our memory authority.  TODO: it could be limited further.
@@ -291,12 +288,9 @@ static void spawn_idle() {
 static uint32_t client_stack[128];
 
 static void spawn_client() {
-  // Create the client task's reply gate.
-  (void) alloc_mem(kabi::reply_gate_l2_size - 1, k_tmp0);
-  memory::become(k_tmp0, memory::ObjectType::reply_gate, 0);
   // Create a Context for the client task.
   alloc_mem(kabi::context_l2_size - 1, k_second);
-  memory::become(k_second, memory::ObjectType::context, 0, k_tmp0);
+  memory::become(k_second, memory::ObjectType::context, 0);
 
   // Load its memory region keys so it can actually run.  For now, we'll just
   // share our memory authority.  TODO: it could be limited further.

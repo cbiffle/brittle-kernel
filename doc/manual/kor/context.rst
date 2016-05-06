@@ -6,7 +6,21 @@ Context
 Branding
 --------
 
-The brands of Context keys should be zero.
+Brands separate Context keys into two classes, *reply keys* and *service keys*.
+
+A reply key grants the authority to deliver a single reply message to the
+program inhabiting the Context.  Reply keys have the top bit of their brand
+*set*; the other 63 bits encode a *call count*.  The Context internally tracks
+the call count, and only honors reply keys with the right count, to ensure that
+reply keys cannot be reused.
+
+Reply keys are *transparent* --- they implement no native methods, and instead
+just forward any received messages through to the program inhabiting the
+Context.
+
+A service key grants the authority to perform maintenance on the Context, e.g.
+inspecting and altering register values.  Service keys have the top bit of
+their brand *clear*, and implement the methods described below.
 
 
 Methods

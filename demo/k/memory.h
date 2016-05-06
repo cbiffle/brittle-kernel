@@ -9,9 +9,8 @@ void split(unsigned k, unsigned slot_key, unsigned top_key_out);
 
 enum class ObjectType : uint32_t {
   context = 0,
-  gate,
-  reply_gate,
-  interrupt,
+  gate = 1,
+  interrupt = 3,  // TODO synchronize with TypeCode in kernel
 };
 
 void become(unsigned k, ObjectType, unsigned arg, unsigned arg_key = 0);

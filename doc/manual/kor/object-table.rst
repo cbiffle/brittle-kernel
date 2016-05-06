@@ -95,8 +95,7 @@ Code Kind
 3    :ref:`kor-memory`
 4    :ref:`kor-context`
 5    :ref:`kor-gate`
-6    :ref:`kor-reply-gate`
-7    :ref:`kor-interrupt`
+6    :ref:`kor-interrupt`
 ==== =========================
 
 
