@@ -33,8 +33,8 @@ keys.
 - The MPU Region Registers virtualize the hardware's MPU registers, so that each
   Context effectively gets its own copy of the MPU.  These registers either hold
   keys to :ref:`Memory Objects <memory-object>`, to allow a program running in
-  the Context to access memory or peripherals, or :ref:`null keys <null-key>`
-  to leave a region unused.
+  the Context to access memory or peripherals, or :ref:`kor-null` to leave a
+  region unused.
 
 - The Key Registers hold keys of any type for use with the IPC operation
   (below).
@@ -50,7 +50,6 @@ syscalls:
 
 It's important to recognize that a program's authority is *entirely* embodied in
 the contents of its Context's virtual registers (MPU Region and Key).
-
  
 - A program cannot operate on, refer to, or even demonstrate the existence of,
   any object except those whose keys are held in the Key Registers of its

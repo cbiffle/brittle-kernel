@@ -36,12 +36,10 @@ general, *escalate* their authority except in carefully designed ways.  A
 program can only gain new authority (over kernel facilities *or* resources) by
 receiving a key from another program that already had that authority.
 
-.. _null-key:
-
 Certain events can cause an object to be *invalidated* and its keys *revoked*.
 All keys to an object are revoked simultaneously, system-wide.  After
-revocation, a key behaves as a *null key*, which rejects all IPC operations
-with an error code.
+revocation, a key behaves as a *null key* (a key to :ref:`kor-null`), which
+rejects all IPC operations with an error code.
 
 
 .. rubric:: Footnotes
