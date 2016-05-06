@@ -91,9 +91,10 @@ public:
   virtual void deliver_from(Brand const &, Sender *);
 
   /*
-   * The given Context wants to receive a message from this object.  This
-   * operation is typically valid only on Gates, but is implemented uniformly
-   * on all objects to avoid the need for a cast.
+   * The given Context wants to receive a message from this object, through a
+   * key bearing the given Brand.  This operation is typically valid only on
+   * Gates, but is implemented uniformly on all objects to avoid the need for a
+   * cast.
    *
    * If this object has something to say right now, it should:
    * - Call the context's complete_receive member function, providing a
@@ -113,7 +114,7 @@ public:
    *
    * The default implementation fails with a bad_operation Exception.
    */
-  virtual void deliver_to(Context *);
+  virtual void deliver_to(Brand const &, Context *);
 
   /*
    * Returns the MPU Region that should be loaded if a key to this object with

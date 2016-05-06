@@ -79,7 +79,8 @@ uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
   if (d.get_send_enabled()) {
     key(d.get_target()).deliver_from(this);
   } else if (d.get_receive_enabled()) {
-    key(d.get_source()).get()->deliver_to(this);
+    auto & k = key(d.get_source());
+    k.get()->deliver_to(k.get_brand(), this);
   }
   // Note that if neither bit is set, we'll just return with the registers
   // unchanged.
@@ -217,7 +218,7 @@ Message Context::on_delivery(KeysRef k) {
                                 : key(d.get_source());
     // And this is where our outgoing message would be overwritten; thus the
     // copy above.
-    source.get()->deliver_to(this);
+    source.get()->deliver_to(source.get_brand(), this);
   }
 
   return m;

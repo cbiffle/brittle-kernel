@@ -20,7 +20,7 @@ void Object::deliver_from(Brand const &, Sender * sender) {
   do_badop(m, k);
 }
 
-void Object::deliver_to(Context * ctx) {
+void Object::deliver_to(Brand const &, Context * ctx) {
   ctx->complete_receive(Exception::bad_operation);
 }
 

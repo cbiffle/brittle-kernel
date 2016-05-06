@@ -30,7 +30,7 @@ void ReplyGate::deliver_from(Brand const & brand, Sender * sender) {
   }
 }
 
-void ReplyGate::deliver_to(Context * context) {
+void ReplyGate::deliver_to(Brand const &, Context * context) {
   if (context != _body.owner) {
     // Who are you, and what are you doing?
     context->complete_receive(Exception::bad_operation);

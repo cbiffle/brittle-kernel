@@ -16,7 +16,7 @@ void Gate::deliver_from(Brand const & brand, Sender * sender) {
   }
 }
 
-void Gate::deliver_to(Context * receiver) {
+void Gate::deliver_to(Brand const &, Context * receiver) {
   if (auto partner = _body.senders.take()) {
     receiver->complete_receive(partner.ref());
   } else {
