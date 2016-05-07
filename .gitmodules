@@ -7,3 +7,6 @@
 [submodule "etl"]
 	path = etl
 	url = https://github.com/cbiffle/etl.git
+[submodule "doc/manual/_themes/sphinx_rtd_theme"]
+	path = doc/manual/_themes/sphinx_rtd_theme
+	url = https://github.com/snide/sphinx_rtd_theme.git
