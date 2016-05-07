@@ -1,5 +1,6 @@
 #include "k/become.h"
 
+#include "etl/destroy.h"
 #include "etl/armv7m/mpu.h"
 
 #include "common/abi_sizes.h"
@@ -70,32 +71,27 @@ void become(Memory & memory,
   // At this point it becomes dangerous (or at least suspicious) to use
   // 'memory' in any way, since we're going to start rewriting it shortly.
 
-  Object * newobj;
   auto bodymem = reinterpret_cast<void *>(range.base());
+  Object * newobj;
+
+  etl::destroy(memory);
 
   switch (type_code) {
     case TypeCode::context:
       {
-        memory.~Memory();
-
         auto b = new(bodymem) Context::Body;
         newobj = new(&memory) Context{new_generation, *b};
         break;
       }
     case TypeCode::gate:
       {
-        memory.~Memory();
-
         auto b = new(bodymem) Gate::Body;
         newobj = new(&memory) Gate{new_generation, *b};
         break;
       }
     case TypeCode::interrupt:
       {
-        memory.~Memory();
-
-        auto b = new(bodymem)
-          Interrupt::Body{m.d1};
+        auto b = new(bodymem) Interrupt::Body{m.d1};
         newobj = new(&memory) Interrupt{new_generation, *b};
         break;
       }
