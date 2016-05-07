@@ -1,6 +1,8 @@
 The Brittle Kernel
 ==================
 
+[![Documentation Status](https://readthedocs.org/projects/brittle-kernel/badge/?version=latest)](http://brittle-kernel.readthedocs.io/en/latest/?badge=latest) 
+
 Brittle is a research microkernel, designed for embedded applications on ARM
 Cortex-M microcontrollers.  It is specifically designed to support fine-grained
 isolation, capability-based security, and recursive microreboots --- properties
