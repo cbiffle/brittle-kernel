@@ -4,6 +4,7 @@ Kernel Object Reference
 =======================
 
 .. toctree::
+  :maxdepth: 1
 
   context
   gate

@@ -49,7 +49,8 @@ about the roots of authority.)
 
 .. note:: The distinction between kernel and System will be familiar to
   adherents of L4, but may seem more foreign to people familiar with the
-  KeyKOS/EROS family of systems.
+  KeyKOS/EROS family of systems.  (They have a similar distinction but it's
+  less clear in the documentation.)
 
   Among first-generation microkernels, the role of the System is most similar
   to the idea of "kernel personalities" from Mach.

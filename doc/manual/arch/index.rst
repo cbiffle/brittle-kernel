@@ -7,5 +7,6 @@ Kernel Architecture
   rules
   parts
   objects
+  keys
   syscalls
   boot

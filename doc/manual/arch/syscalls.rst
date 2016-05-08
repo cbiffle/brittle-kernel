@@ -1,3 +1,5 @@
+.. _syscalls:
+
 Syscalls
 ========
 
@@ -28,7 +30,6 @@ Sysnum Operation
 ====== ============
 0      IPC
 1      Copy Key
-2      Discard Keys
 ====== ============
 
 The remaining 28 bits of the descriptor are interpreted differently by each
@@ -71,47 +72,6 @@ duplicate of it into another.  All processor registers are left unchanged.
     - (preserved)
 
 
-Discard Keys
-------------
-
-Writes :ref:`kor-null` keys into some of the current Context's Key Registers.
-This can be used to discard authority, or prepare for sending a message without
-keys.
-
-Any contiguous range of registers can be specified.  Registers are given by the
-register indices of the first and last affected register, inclusive.  If the
-last index is smaller than the first, no registers are affected.
-
-.. list-table:: Descriptor Bit Fields
-  :header-rows: 1
-
-  * - Hi
-    - Lo
-    - Name
-    - On Entry
-    - On Return
-  * - 31
-    - 28
-    - Sysnum
-    - 2 (Discard Keys)
-    - (preserved)
-  * - 27
-    - 24
-    - First
-    - Index of first Key Register to discard.
-    - (preserved)
-  * - 23
-    - 20
-    - Last
-    - Index of last Key Register to discard.
-    - (preserved)
-  * - 19
-    - 0
-    - Reserved
-    - Should be zero.
-    - (preserved)
-
-
 IPC
 ---
 
@@ -123,10 +83,10 @@ Programs interact with objects using the ``IPC`` system call, which defines an
 operation consisting of two optional *phases*:
 
 - The *send phase* transmits a message from the sender's Context to an object
-  using a key held in a key register.
+  designated by a key held in a key register.
 
-- The *receive phase* receives a message from a remote object, again using a key
-  held in a key register.
+- The *receive phase* receives a message from a remote object, again designated
+  by a key held in a key register.
 
 .. note:: Microkernel fans will recognize this as being very similar to
   Liedtke's ``SendAndWait`` mechanism from L4.
@@ -164,8 +124,8 @@ Each phase of an IPC transfers a single message.  A message consists of
 
 - Four keys.
 
-When a program receives a message, one more word of data is included: the brand
-of the key used to send the message through a Gate.
+When a program receives a message, one more datum is included: the brand of the
+key used to send the message through a Gate.
 
 
 Message Descriptors
@@ -215,7 +175,7 @@ The first word in a message is called the *descriptor*, and controls the IPC ope
     - 16
     - Error
     - Signals error to receiver.
-    - Indicates error in operation.
+    - Error in operation.
   * - 15
     - 0
     - Selector
@@ -253,14 +213,13 @@ keymap will be referred to as ``k0`` through ``k3``.
     - 0
     - k0
 
-.. note:: The top 16 bits of the key map is currently unused to allow for future
-  expansion.  It should be zero.
+.. note:: The top 16 bits of the key map are currently unused, to allow for
+  future expansion.  These bits should be zero.
 
 The same register index may appear *multiple times* in a key map.  For sent
 keys, this causes the same key to be sent in multiple positions.  For received
 keys, this causes multiple keys to be delivered to the same register, and
-*it is not defined* which comes last.  (This is primarily intended to make it
-easy to discard unwanted keys.)
+*it is not defined* which comes last.
 
 A Context's key register 0 permanently contains a key to :ref:`kor-null`.  This
 means register index 0 can be used in a key map in any "don't-care" positions
@@ -279,6 +238,9 @@ A sent message contains
 
 If the IPC operation is a call, the first key transmitted (``k0``) is not chosen
 by the key map, but is rather a freshly-minted Reply Key.
+
+A blocking send phase indicates success by continuing to the next phase (if
+any).  A non-blocking send phase cannot indicate success or failure.
 
 
 The Receive Phase
@@ -305,3 +267,7 @@ expect call-style IPCs agree to send a response back on the reply key.
 
 The received Gate key brand (in ``r10``/``r11``) can be used to distinguish
 callers from one another, encode application-defined permissions, etc.
+
+If a program tries to receive using a key that doesn't permit it (including
+keys to objects that are not Gates) it will instead receive an exception
+message.

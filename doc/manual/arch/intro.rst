@@ -1,5 +1,8 @@
-Introduction
-============
+Basic Concepts
+==============
+
+This section introduces some ideas that will help you follow the next few
+sections, which elaborate the same ideas in more detail.
 
 At a high level, Brittle's architecture is...
 
@@ -9,8 +12,10 @@ At a high level, Brittle's architecture is...
 
 2. **Capability-oriented.**  The only way for a program to refer to objects in
    the kernel --- and thus to inspect them or activate their operations --- is
-   by explicit use of a capability, or *key*.  Keys are held by the kernel on
-   behalf of programs and cannot be directly inspected or manufactured.
+   by explicit use of a capability, or *key*.  A key is a combination of an
+   object reference and a set of *rights*, operations on the object that a
+   program holding the key can perform.  Keys are held by the kernel on behalf
+   of programs and cannot be directly inspected or manufactured.
 
 3. **Messaging-oriented.**  The kernel provides programs with a single
    efficient message-transfer operation called *IPC* [#notipc]_ , which is used
@@ -22,24 +27,30 @@ These concepts are closely intertwined.  Programs cannot inspect objects
 directly; objects live inside the kernel, and programs are isolated from the
 kernel using the ARMv7-M MPU.  If a program wants to read information from the
 kernel, or trigger an operation in the kernel, there is only one way to do it:
-by sending a *message* to a *key* that refers to the desired *object*.
-
-Resources are managed the same way.  The kernel does not contain an allocator
-for memory [#okalloc]_ or other resources.  If a program wants the kernel to
-perform an operation that requires resources --- say, create an object that
-requires 512 bytes of RAM for bookkeeping --- the program sends a message that
-includes a key to the required resources.  This is called a *resource donation*
-and is a common pattern in the kernel API.
+by sending a *message* to a *key* that refers to the desired *object*, and
+receiving another message in response.
 
 Because keys are held by the kernel in protected memory, programs cannot, in
 general, *escalate* their authority except in carefully designed ways.  A
 program can only gain new authority (over kernel facilities *or* resources) by
 receiving a key from another program that already had that authority.
 
+Resources are managed the same way.  The kernel does not contain an allocator
+for memory [#okalloc]_ or other resources.  If a program wants the kernel to
+perform an operation that requires resources, it must *already hold* the
+resources, and must *donate* them to the kernel in exchange for a key to the
+desired new object.  Resources are named by keys and donated in messages.  For
+example, to create a new kernel object that requires 512 bytes of RAM for
+book-keeping, a program would send a message including a key to a 512-byte
+:ref:`kor-memory` object.
+
 Certain events can cause an object to be *invalidated* and its keys *revoked*.
-All keys to an object are revoked simultaneously, system-wide.  After
-revocation, a key behaves as a *null key* (a key to :ref:`kor-null`), which
-rejects all IPC operations with an error code.
+This causes all keys to that object to simultaneously and atomically become
+*null keys* (keys to an object called :ref:`kor-null`), which reject all IPC
+operations with an error code.  For example, when a program donates resources
+(i.e. an object) to the kernel, the kernel invalidates the donated object,
+which ensures that no program continues to hold keys to it.  Thus control of
+the object is reliably taken away from the program.
 
 
 .. rubric:: Footnotes

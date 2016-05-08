@@ -14,16 +14,16 @@ Contexts
 --------
 
 The first object a program encounters is a *Context*, because Contexts are used
-to represent programs themselves.  An application gets a single Context "for
-free" at boot.
+to represent programs themselves.  The :ref:`boot process <boot>` sets up one
+Context at startup, to run the application's entry point.
 
 More specifically, a Context is a virtual representation of the processor's
 unprivileged (Thread) execution mode.  It provides storage for all the
-unprivileged processor state, so that programs can be interrupted to process
-interrupts or implement multitasking.
+unprivileged processor state, so that it can be "backed up" when stopping a
+program to process interrupts or implement multitasking.
 
-The program whose state is stored in a Context is said to be "running in" the
-Context.
+The program whose state is stored in a Context is said to be "running in" or
+"inhabiting" the Context.
 
 Contexts extend the hardware processor model in two ways.
 
@@ -32,9 +32,8 @@ keys.
 
 - The MPU Region Registers virtualize the hardware's MPU registers, so that each
   Context effectively gets its own copy of the MPU.  These registers either hold
-  keys to :ref:`Memory Objects <memory-object>`, to allow a program running in
-  the Context to access memory or peripherals, or :ref:`kor-null` to leave a
-  region unused.
+  keys to :ref:`memory-object`, to allow a program running in the Context to
+  access memory or peripherals, or :ref:`kor-null` to leave a region unused.
 
 - The Key Registers hold keys of any type for use with the IPC operation
   (below).
@@ -61,6 +60,9 @@ the contents of its Context's virtual registers (MPU Region and Key).
 Because of this, a Context isn't much use without something to load into its
 MPU Region Registers... which brings us to our next object.
 
+.. note:: For more information, see the :ref:`kor-context` entry in the
+  :ref:`kor`.
+
 
 .. _memory-object:
 
@@ -76,23 +78,23 @@ using that key.  It's thus possible to create both read-write and read-only keys
 to the same Memory --- perhaps keeping the read-write key for yourself and
 handing the read-only keys out to clients.
 
-Certain Memory keys, determined by the linker script, are handed over to the
-first Context when the system boots.  They are the root of all authority over
-address space.
-
 Programs can split Memory objects in half, repeatedly if necessary, to produce
 smaller objects.  This provides a mechanism for isolating programs.
 
 It's also how programs pay the kernel for any new objects they wish to create
 --- for example, additional Contexts to implement multitasking.  Programs
 whittle Memory down to the size required for the desired object, and then send
-the Memory a "become" message that transforms it into a different kernel object.
+the Memory a :ref:`"become" <memory-method-become>` message that donates the
+memory and transforms it into a different kernel object.
 
 Programs can read and write the insides of Memory objects freely, either by
-mapping them in an MPU Region Register or by sending "peek" and "poke" messages.
-But once Memory becomes a different type of object, this access is atomically
+mapping them in an MPU Region Register or by sending :ref:`"peek"
+<memory-method-peek>` and :ref:`"poke" <memory-method-poke>` messages.  But
+once Memory becomes a different type of object, this access is atomically
 revoked to protect kernel state.
 
+.. note:: For more information, see the :ref:`kor-memory` entry in the
+  :ref:`kor`.
 
 .. _gate-object:
 
@@ -113,6 +115,9 @@ sender can opt not to block, and the message is discarded.
 This style of messaging is called *synchronous rendezvous*, and means that Gates
 themselves don't need to provide any storage for messages: messages are directly
 conveyed *through* Gates from sender to recipient.
+
+.. note:: For more information, see the :ref:`kor-gate` entry in the
+  :ref:`kor`.
 
 
 .. _interrupt-object:
@@ -143,6 +148,9 @@ re-enable the Interrupt for another round.
 Interrupts can be configured to send a message to any Gate, or reconfigured on
 the fly, by passing a key via the "set target" operation.
 
+.. note:: For more information, see the :ref:`kor-interrupt` entry in the
+  :ref:`kor`.
+
 
 .. _object-table:
 
@@ -163,9 +171,10 @@ The Object Table presents itself as a fixed-size table (size chosen at build
 time) consisting of *slots*.  Each slot is either *empty* or refers to a kernel
 object of the types listed above.
 
-Programs can hold keys to empty slots.  They form a second currency, alongside
-Memory objects: a key to an empty slot represents the right to increase the
-number of living objects, and is required to split a Memory object in half.
+Programs can hold keys to empty slots (represented as :ref:`kor-slot` objects).
+They form a second currency, alongside Memory objects: a key to an empty slot
+represents the right to increase the number of living objects, and is required
+to split a Memory object in half.
 
 Programs can also hold keys *to the Object Table itself*.  With a key to the
 Object Table, a program can make its own rules:
@@ -187,3 +196,6 @@ doesn't let you violate any of Brittle's invariants.  So have fun and remember
 
 Note that the Object Table itself is an object, and is visible *inside itself*
 at slot #1.
+
+.. note:: For more information, see the :ref:`kor-object-table` entry in the
+  :ref:`kor`.
