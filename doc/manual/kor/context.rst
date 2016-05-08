@@ -273,7 +273,8 @@ depends on this Context's current state:
   a ``k.would_block`` exception.  
 
 - If blocked in send-receive or call, the send phase is skipped and the Context
-  immediately receives a ``k.would_block`` exception.
+  immediately receives a ``k.would_block`` exception.  In the case of a call,
+  any issued reply keys become invalid.
 
 - If stopped, the Context is simply resumed.
 

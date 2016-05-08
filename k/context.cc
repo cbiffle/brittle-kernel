@@ -167,6 +167,11 @@ void Context::make_runnable() {
       break;
 
     case State::receiving:
+      if (is_awaiting_reply()) {
+        // Invalidate any outstanding reply keys.
+        _body.expected_reply_brand =
+          (_body.expected_reply_brand + 1) | reply_brand_mask;
+      }
       _body.ctx_item.unlink();
       complete_blocked_receive(Exception::would_block);
       break;
