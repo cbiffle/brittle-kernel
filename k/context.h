@@ -29,8 +29,6 @@
 
 namespace k {
 
-struct ScopedReplySender;  // see: k/reply_sender.h
-
 /*
  * Head portion of a Context object.
  */
