@@ -149,5 +149,5 @@ Time.
 
 .. rubric:: Footnotes
 
-.. [#notime] The kernel's ignorance of time appears to be unique among
-   microkernels.  So that's interesting.
+.. [#notime] The kernel's ignorance of time is very unusual among microkernels.
+  From what I can tell, only MINIX 3 shares this property.

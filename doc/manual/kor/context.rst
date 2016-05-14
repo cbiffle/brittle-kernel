@@ -44,6 +44,8 @@ call-style invocation.  The kernel will internally fabricate a reply key and
 send it with the message.  When the send phase completes, the Context
 atomically switches to expecting a reply through a reply key.
 
+.. _kor-context-service-key:
+
 Service Keys
 ~~~~~~~~~~~~
 
@@ -55,6 +57,8 @@ their brand *clear*, and implement the methods described below.
   listed below.  This is temporary.  The service key brand will be further
   defined to allow weakened service keys.
 
+
+.. _context-methods:
 
 Methods
 -------

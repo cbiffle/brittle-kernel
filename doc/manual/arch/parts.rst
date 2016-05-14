@@ -1,3 +1,5 @@
+.. _parts:
+
 Kernel, System, Application
 ===========================
 
