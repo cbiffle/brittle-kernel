@@ -77,7 +77,7 @@ static constexpr unsigned
   oi_object_table = 1;
 
 static constexpr unsigned
-  k_object_table = 4;
+  k_object_table = 1;
 
 __attribute__((noreturn))
 static void demo_main() {

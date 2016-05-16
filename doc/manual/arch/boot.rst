@@ -59,7 +59,7 @@ All remaining slots in the Object Table are initialized to contain
 :ref:`kor-slot` object placeholders.
 
 The initial Context is configured to begin executing code at the application's
-initial program counter.  Its key registers are initially null, save for ``k4``,
+initial program counter.  Its key registers are initially null, save for ``k1``,
 which is seeded by the kernel with a key to the :ref:`Object Table
 <object-table>`.  This gives the program a mechanism for generating any other
 authority it requires.

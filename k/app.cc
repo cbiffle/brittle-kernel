@@ -216,7 +216,7 @@ static void prepare_first_context() {
   }
 
   // Provide initial authority.
-  first_context->key(4) = ot.make_key(0).ref();
+  first_context->key(1) = ot.make_key(0).ref();
 
   // Make it runnable.
   first_context->make_runnable();

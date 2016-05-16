@@ -97,7 +97,7 @@ uint8_t kernel_donation[2048];
 
 // Our use of key registers:
 static constexpr unsigned
-  k_object_table = 4,
+  k_object_table = 1,
   k_periph = 5,
   k_self = 6,
   k_second = 7,
