@@ -118,6 +118,7 @@ private:
   void do_mint_key(Brand const &, Message const &, Keys &);
   void do_read_key(Brand const &, Message const &, Keys &);
   void do_get_kind(Brand const &, Message const &, Keys &);
+  void do_invalidate(Brand const &, Message const &, Keys &);
 };
 
 /*

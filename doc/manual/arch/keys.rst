@@ -94,6 +94,11 @@ Note that the generation is *independent* of the brand.  This means that all
 keys to an object, regardless of brand, are revoked simultaneously during
 invalidation.
 
+Invalidation is available to programs through the
+:ref:`object-table-methods-invalidate` method.  Some objects perform additional
+work during invalidation, e.g. to remove themselves from kernel internal
+queues; this is described on each object's page in the :ref:`kor`.
+
 .. warning:: The generation field is currently 32 bits wide, which is narrow
   enough that it may roll over during a program's execution.  This is not
   theoretical: once object destruction is exposed, a naughty program could

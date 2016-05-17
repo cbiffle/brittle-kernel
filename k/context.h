@@ -184,6 +184,8 @@ private:
 
   void handle_protocol(Brand const &, Sender *);
   void block_in_reply();
+
+  void invalidation_hook() override;
 };
 
 }  // namespace k

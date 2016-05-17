@@ -104,6 +104,15 @@ Region Memory::get_region_for_brand(Brand const & brand) const {
   };
 }
 
+void Memory::invalidation_hook() {
+  // Invalidation leaves the hierarchy intact.  It is legal to invalidate an
+  // object with children.
+
+  // We can't currently tell whether *this* Memory object is relevant for the
+  // MPU configuration, but invalidating the whole thing is pretty cheap.
+  current->apply_to_mpu();
+}
+
 
 /*******************************************************************************
  * Utility functions for reasoning about MPU permissions.

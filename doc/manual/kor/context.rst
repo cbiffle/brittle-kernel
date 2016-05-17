@@ -24,6 +24,8 @@ Branding
 
 Brands separate Context keys into two classes, *reply keys* and *service keys*.
 
+.. _kor-contxt-reply-key:
+
 Reply Keys
 ~~~~~~~~~~
 
@@ -56,6 +58,22 @@ their brand *clear*, and implement the methods described below.
 .. warning:: Currently, any Context service key can be used to call any method
   listed below.  This is temporary.  The service key brand will be further
   defined to allow weakened service keys.
+
+
+Invalidation
+------------
+
+At invalidation of a Context, the kernel does the following additional work:
+
+- Removes it from any wait queues.
+
+- Resets its state to ``stopped``.
+
+- Advances the expected brand of its :ref:`kor-context-reply-key`, invalidating
+  them as well.
+
+- If the invalidated Context is current (i.e. a program is invalidating its
+  *own* Context), causes a context switch to choose a new current Context.
 
 
 .. _context-methods:

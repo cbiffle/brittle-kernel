@@ -33,4 +33,11 @@ void Object::do_badop(Message const & m, Keys & k) {
     Message::failure(Exception::bad_operation, m.desc.get_selector())};
 }
 
+void Object::invalidate() {
+  invalidation_hook();
+  ++_generation;
+}
+
+void Object::invalidation_hook() {}
+
 }  // namespace k

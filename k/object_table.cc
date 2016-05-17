@@ -49,6 +49,10 @@ void ObjectTable::deliver_from(Brand const & brand, Sender * sender) {
     case 2:
       do_get_kind(brand, m, k);
       break;
+
+    case 3:
+      do_invalidate(brand, m, k);
+      break;
     
     default:
       do_badop(m, k);
@@ -104,6 +108,28 @@ void ObjectTable::do_get_kind(Brand const &,
   } else {
     reply.d0 = uint32_t(_objects[index].as_object().get_kind());
   }
+}
+
+void ObjectTable::do_invalidate(Brand const &,
+                                Message const & args,
+                                Keys & keys) {
+  auto index = args.d0;
+  auto rollover_ok = bool(args.d1);
+
+  ScopedReplySender reply_sender{keys.keys[0]};
+
+  if (index >= _objects.count()) {
+    reply_sender.message() = Message::failure(Exception::index_out_of_range);
+    return;
+  }
+
+  auto & obj = _objects[index].as_object();
+  if (!rollover_ok && obj.get_generation() == Generation(0) - 1) {
+    reply_sender.message() = Message::failure(Exception::causality);
+    return;
+  }
+
+  obj.invalidate();
 }
 
 }  // namespace k

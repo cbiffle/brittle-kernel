@@ -69,6 +69,8 @@ private:
   void disable_interrupt();
   void clear_pending_interrupt();
   void enable_interrupt();
+
+  void invalidation_hook() override;
 };
 
 }  // namespace k

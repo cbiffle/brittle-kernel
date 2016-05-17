@@ -143,6 +143,8 @@ private:
   uint32_t _child_count;
 
   void do_split(ScopedReplySender &, Brand const &, Message const &, Keys &);
+
+  void invalidation_hook() override;
 };
 
 }  // namespace k

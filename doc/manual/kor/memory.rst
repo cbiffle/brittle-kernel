@@ -87,6 +87,17 @@ If a Memory object is not mappable, its brand bits are currently undefined and
 should be zero.
 
 
+Invalidation
+------------
+
+At invalidation of a Memory object, the kernel updates the cached contents of
+the MPU registers.  If the invalidated Memory was accessible to programs
+(through use of an MPU Region Register) it atomically becomes inaccessible.
+This is strictly only necessary if the invalidated object was one of the loaded
+regions, but it's currently cheaper to update the registers than to detect this
+case.
+
+
 Methods
 -------
 

@@ -144,4 +144,11 @@ void Interrupt::clear_pending_interrupt() {
 #endif
 }
 
+void Interrupt::invalidation_hook() {
+  disable_interrupt();
+  clear_pending_interrupt();
+  _body.sender_item.unlink();
+  get_irq_redirection_table()[get_identifier() + 1] = nullptr;
+}
+
 }  // namespace k

@@ -27,6 +27,15 @@ Branding
 Interrupt key brands should be zero.
 
 
+Invalidation
+------------
+
+On invalidation of an Interrupt object, the kernel also disconnects it from the
+IRQ forwarding apparatus.
+
+.. warning:: This is... probably not right.
+
+
 .. _interrupt-methods:
 
 Methods

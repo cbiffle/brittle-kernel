@@ -48,6 +48,25 @@ public:
   Generation get_generation() const { return _generation; }
 
   /*
+   * Invalidates keys to this object by advancing the generation number, and
+   * performing any type-specific actions.
+   *
+   * After invalidation, an object will not be reachable through any Key.
+   * There are kernel-internal object relationships that do not use Keys, and
+   * these are handled as follows:
+   *
+   * - Block queues: an invalidated object removes itself from block queues,
+   *   but any queues it owns are left unmodified.  This means that surviving
+   *   objects may remain blocked on the invalidated object despite holding no
+   *   keys.
+   * 
+   * - Cached references: an invalidated object also invalidates cached
+   *   references in global locations, such as the current Context pointer and
+   *   the MPU state.
+   */
+  void invalidate();
+
+  /*
    * Determines the kind (subclass) of this object.  This is used inside the
    * kernel when a reference to a particular type is required.
    *
@@ -133,6 +152,9 @@ protected:
 
 private:
   Generation _generation;
+
+  // Subclass-specific invalidation behavior; by default, does nothing.
+  virtual void invalidation_hook();
 };
 
 template <typename T, unsigned size>

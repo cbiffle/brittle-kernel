@@ -23,6 +23,8 @@ The brands of Object Table keys should be zero.
 Methods
 -------
 
+.. _object-table-methods-mint-key:
+
 Mint Key (0)
 ~~~~~~~~~~~~
 
@@ -113,3 +115,37 @@ Exceptions
 ##########
 
 - ``k.index_out_of_range`` if the index is not within the object table.
+
+
+.. _object-table-methods-invalidate:
+
+Invalidate (3)
+~~~~~~~~~~~~~~
+
+Advances an object's generation number, causing all outstanding keys to become
+invalid.
+
+After invalidation, you can use :ref:`object-table-methods-mint-key` to produce
+a new, valid key.
+
+.. warning:: Generation numbers are currently relatively small (32 bits), so it
+  is possible to use this operation enough that the Generation rolls over.
+  This could cause previously invalidated keys to become valid again, unless
+  some System component has scavenged such keys.
+
+Call
+####
+
+- d0: object index in table
+- d1: rollover permitted flag (0: exception on rollover; 1: allow)
+
+Reply
+#####
+
+Empty.
+
+Exceptions
+##########
+
+- ``k.index_out_of_range`` if the index is not within the object table.
+- ``k.causality`` if rollover would occur but has not been permitted.

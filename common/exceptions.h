@@ -75,6 +75,12 @@ enum class Exception : uint64_t {
    * A key provided as an argument to the operation is the wrong kind of key.
    */
   bad_kind = 0x2cd5ea64cc3bfcd6,
+
+  /*
+   * The operation might cause old invalidations to be undone, due to a
+   * generation rollover.
+   */
+  causality = 0x402a370053d833a6,
 };
 
 #endif  // COMMON_EXCEPTIONS_H
