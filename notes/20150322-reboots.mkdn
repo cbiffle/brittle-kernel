@@ -1,0 +1,118 @@
+On Revocation and Reboots
+=========================
+
+Capability revocation is nuanced.  I've been avoiding thinking about it too
+much in this project because it wasn't clear that we'd need general revocation
+in the fully static model.  But even the static model is less static than I'd
+been assuming if tasks can fail and be replaced.
+
+When do we want to revoke a capability?
+
+- When a task is destroyed,
+  - We want to revoke any grants into its version of its address space.  If the
+    task is recreated we do not want the grants to become valid again!
+  - We want to revoke any outstanding reply capabilities.
+  - We *may* want to revoke *some* associated port keys (but see below).
+  - We *probably don't* want to revoke its task key, as this will be held by
+    whatever's destroying it.  (At least in the static model where tasks
+    are immortal and we're only destroying the contents.)
+
+- When a reply capability is used, it gets atomically revoked.
+
+When do we *not* want to revoke?
+
+- Certain IPC endpoints may be persistent across different "lives" of a
+  service.  When the service is killed any outstanding RPCs would fail;
+  when it comes back, RPCs would work.  Thing is, this is probably not the
+  right behavior for *every* IPC endpoint.  Maybe a name service is a better
+  approach.
+
+- Other types of kernel objects probably can't be usefully "rebooted," so their
+  keys are persistent.
+
+
+Dismantling a Task
+==================
+
+Rebooting a Segment
+-------------------
+
+Before we get to tasks, let's consider segments.
+
+A segment is an area of memory that can represent e.g. a task's code or data.
+In the static model, when we reboot a task, we must also "reboot" its segments
+if they are not shared.
+
+This causes an identity change in the segments.  Any user of the segment loses
+use.  Any task *controlling* the segment retains control.
+
+There are two ways someone might be a user of a segment:
+
+1. A task may have associated segments describing its memory access.
+2. A grant can allow access to some or all of a segment.
+
+We want the segment's reboot to be atomic, but there may be many users.  How
+can we cause the operation to appear atomic without blocking for too long?
+
+One possible option:
+- Set some flag in the segment's control block marking it as defunct.
+- Have some worker task charged with iterating through references to it and
+  disposing of them.  It's a task instead of the kernel to keep kernel runtime
+  short and to open the work to scheduling.
+- If any task tries to use a grant to the segment during this time:
+  - Have that task donate the work to revoke its key.
+  - Report it as though the key had already been revoked.
+- Once the worker task is complete, clear the defunct flag.
+
+Another option:
+- Make the kernel unaware of grants.
+- Have the system task handle it.
+- Creating a grant updates a table in sys and returns a key to sys.
+- Accessing a grant is performed by sys.
+- Revoking a grant alters the table.
+
+The actual revocation process is probably similar -- we'd need to reclaim
+outstanding keys before reusing the table entry.  The advantage is that the
+kernel may not need to be aware of segments as a concept.
+
+
+Rebooting a Task
+----------------
+
+Rebooting a task is a matter of
+- Marking the task as defunct to remove it from scheduling.
+- Aborting the task's one possible outstanding IPC.
+- Aborting any outstanding IPCs to the task.
+- Revoking reply keys to the task.
+- Revoking keys to any ports that are marked as non-persistent, assuming such
+  a concept exists.
+- Rebooting each of its segments.
+- Reinitializing segments that require it.
+- Restoring the task's authority to its initial settings.
+- Restoring the task's register set.
+- Restoring the task's memory map.
+
+
+Segments: An Illusion?
+======================
+
+In the static model, I'm not sure segments need to exist, from the kernel's
+perspective.
+
+The static model imposes a fixed partition between the kernel's memory and the
+app's memory.  Everything on the kernel's side of the wall is predeclared at
+fixed addresses.  Everything on the app's side of the wall is meaningless goo,
+as far as the kernel is concerned.
+
+So the kernel need not be in the business of memory management at all -- not
+even providing the app with pieces for constructing it.  No, the only things
+memory-related that concern the kernel are:
+
+1. Keeping the app out of kernel memory (e.g. by limiting what can be loaded in
+   an MPU configuration).
+2. Swapping the MPU configuration at context switch.
+
+If init is given access to all of app memory, not with some sort of grant key,
+but with literal access to it... it could emulate grants efficiently.
+
+

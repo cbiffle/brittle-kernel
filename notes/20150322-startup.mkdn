@@ -1,0 +1,37 @@
+Startup Process - Fully Static Model
+====================================
+
+The kernel gets control at reset.  It initializes its data structures, which
+includes a table of kernel objects specified by the application.  These objects
+are associated with identifiers (either pointers or indices) known to the
+application.
+
+The kernel configures and starts the initial task.  This means the kernel knows
+its entry point and memory map.  This initial task is handed one or more keys
+that convey ridiculous authority.
+
+The kernel then performs a one-time switch to activate the initial task.  From
+this point forward the kernel is entered only by system call, interrupt, or
+exception.
+
+The initial task is given an infinite time slice and is initially running at
+the highest priority, so it will not be preempted during the setup process.
+
+The initial task uses its authority to initialize and wire up all the
+predeclared kernel objects.  This primarily consists of distributing keys,
+but for tasks in particular it must also set up:
+- Memory maps.
+- Register sets.
+- Time slices.
+- Priorities.
+
+This process may be table-driven using a table within the initial task's ROM
+area.
+
+(Kernel objects such as interrupt senders may be statically configured during
+construction by the kernel, or may rely on init to configure them.  Immaterial.)
+
+The init task then switches to the next phase of its life, which is TBD but may
+have it transforming into the monitoring server.  In support of this, it is
+likely to reduce its own timeslice and drop its priority, allowing other tasks
+it has created to run.
