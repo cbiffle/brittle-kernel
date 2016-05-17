@@ -18,12 +18,7 @@ Key Key::filled(Object * ptr, Brand const & brand) {
 }
 
 Key Key::null() {
-  Key k;
-
-  k._brand = 0;
-  k._generation = 0;
-  k._ptr = &object_table()[0];
-  return k;
+  return object_table()[0].make_key(0).ref();
 }
 
 Object * Key::get() {
