@@ -187,8 +187,8 @@ static unsigned alloc_mem(unsigned l2_half_size, unsigned key_out) {
  */
 static void copy_all_regions(unsigned from_k, unsigned to_k) {
   for (unsigned i = 0; i < 6; ++i) {
-    context::get_region(from_k, i, 1);
-    context::set_region(to_k, i, 1);
+    context::get_region(from_k, i, k_tmp0);
+    context::set_region(to_k, i, k_tmp0);
   }
 }
 
