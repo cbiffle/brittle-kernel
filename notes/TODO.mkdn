@@ -22,11 +22,14 @@ Implement a destruction permission using a brand bit, at least for Memory for
 now.
 
 Would it make sense to disconnect the MPU key storage from Context, so that
-multiple Contexts could share one?  (It wouldn't share any space, right now,
+multiple Contexts could share one?  (It wouldn't save any space, right now,
 because it wouldn't save enough to knock Context beneath 256 bytes.)
 
 Need to distinguish device memory (registers) from normal memory.  The two
 behave the same *except* that device memory cannot Become kernel objects.
+
+It might be useful to be able to, given a Context service key, access memory
+using the address space rights of that Context.
 
 
 

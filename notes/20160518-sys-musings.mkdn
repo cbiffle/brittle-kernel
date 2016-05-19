@@ -1,0 +1,174 @@
+To help make the initial sketch system design more concrete, here's a short
+story about the life of an application.
+
+
+The Application
+---------------
+
+A serial (UART) interface to WS2812B RGB LEDs.
+
+The serial side implements some protocol (possibly arbitrary) that allows a host
+to control the LEDs, read out their current state, and query some system
+properties (TBD).
+
+The LED side is a shift register, implemented through either SPI or GPIO.
+
+
+Components
+----------
+
+CRC-style.  These do not necessarily reflect isolated programs.
+
+- LED driver.
+  - Responsible for shifting bits out to the LEDs.
+  - Maintains LED state between transmissions.
+  - Can answer queries about LED state and commands to update state.
+  - Uses the SPI driver to produce pixels.
+
+- SPI driver.
+  - Wraps the hardware peripheral.
+  - Handles initialization and transfers.
+  - Probably contains a buffer.
+  - Interrupt driven.
+
+- UART driver.
+  - Wraps the hardware peripheral.
+  - Provides both transmit and receive.
+  - Probably contains buffers (particularly on STM32F4, where the hardware
+    doesn't have a buffer).
+  - Interrupt driven.
+
+- Protocol implementation.
+  - Reads commands from the UART.
+  - Translates some requests to the LED driver.
+  - Translates others to system queries.
+  - Sends responses to the UART.
+
+
+SPI Driver
+----------
+
+Imagine that the SPI driver is transmit only.  It takes requests that contain
+- A memory key.
+- A range.
+
+It has the power to securely map memory into its address space.  That is, it can
+determine whether a key is really memory, and if so, load it into an MPU region
+register in its own Context (likely one reserved for this purpose).
+
+When it receives a request, it:
+- Verifies that the provided range is within the given memory key.
+- Securely maps the memory.
+- Loads the first byte into the SPI TX register.
+- Waits for transmit complete interrupt.
+- Repeats until done.
+- Unmaps the memory.
+- Signals completion.
+
+(Clients could use a one-way send if they don't care about completion, or could
+provide a gate key as the reply key to poll.)
+
+
+I'm complicating the SPI driver only because the timing requirements of the
+WS2812B are pretty tight.  So a character per message interface is probably
+unwise.
+
+
+UART Driver
+-----------
+
+The UART driver must manage two data streams.  They are largely independent,
+except that (in the hardware I'm targeting) they share an interrupt.  We have
+two options:
+
+1. Intermingle the two state machines into a single program.
+
+2. Use *three* programs: one for transmit, one for receive, and a third to
+   demultiplex the interrupts.
+
+The second approach is more costly.  Let's consider the first before rejecting
+it.
+
+The complication of intermingling the state machines: we'd really like to have
+(say) transmit requests pile up at the Gate while the TX buffer is full, while
+allowing receive requests through.  This implies that TX and RX use separate
+gates, but we can't currently receive from two gates simultaneously.  (This was
+the motivation, in my original design, for both "bound gates" and the "gate mux"
+object.)
+
+Alternative approaches:
+- Provide "nice" service to a *single* client on TX and RX: when receiving a
+  request that cannot be immediately fulfilled, stash the reply key.  Any
+  concurrent requests would be rejected with a "come back later" response.
+- Reject *all* requests that cannot be fulfilled, requiring clients to repeat.
+  This will force polling and hurt availability and power usage.
+
+There is a slightly hackish third path: use two Contexts, and handle interrupts
+in *one* of them.  Say it's the TX side.  If the TX side receives an interrupt
+intended for RX, it would wake the RX side if it's waiting.  It could do this
+using a third Gate.
+
+
+How about from the user's perspective?  Probably just a character device:
+messages would read and write single characters.  This is okay because UART
+interfaces are not terribly latency-sensitive.  Presumably we'd be running the
+CPU faster than 16MHz to make timing calculations easy for UART and SPI, so
+servicing a 115200bps link a byte at a time should be no big deal.
+
+
+
+DMA
+---
+
+And then there's the elephant in the room.  DMA.  SPI, in particular, is vastly
+saner on the STM32F4 if you use DMA.
+
+It's difficult to write an *untrusted* DMA driver, because it can inherently
+write to all sorts of places in memory.  On the STM32F4 in particular, we can
+shield kernel state by putting it in CCM, and in fact this is what my current
+linker scripts do (though for unrelated reasons).  But that's not really a
+general solution.
+
+So what would a general solution look like?
+
+The DMA engine can read from and write to arbitrary memory locations, which
+would subvert the memory capability system.  So, to configure a DMA stream, a
+program clearly must present some memory keys.
+
+That's all well and good, until that object gets invalidated.  Continuing to
+allow DMA transfers based on a key, after that key has been invalidated, would
+break our semantics.  And allowing such memory to *become* a kernel object would
+let the DMA engine mess with the internals of that object.  Both bad things.
+
+One option is to notice that an object is involved in a DMA transfer, and halt
+the transfer.  This would require some bookkeeping; we'd need to mark the object
+somehow, record the relationship.  We'd also have to block in the kernel waiting
+for the transfer to complete.  Shouldn't have to block long, but....
+
+Another option: mark the memory object as being involved in DMA.  Refuse to
+invalidate/transform it until DMA is complete.  This would require us to track
+objects involved in DMA (two per channel) so that we could update it on TCI.
+
+And if TCI never comes... well.  We'd have an object that refuses to cooperate.
+Presumably we'd want some operation for halting an in-progress DMA transfer,
+which would eventually clear the in-use bit on involved objects.
+
+
+So, in the latter approach, we have
+
+- A set of keys that mirror DMA streams.
+- A property on Memory objects that forces them to remain memory, and a way to
+  poke it from the DMA driver.
+- Some program that can write to the DMA unit.
+
+That's a lot of power, particularly the last one.  On the one hand I'm not
+delighted by the prospect of an SoC-specific driver inside the kernel; on the
+other hand, it's a lesser evil.
+
+
+So if I can find a way to enable DMA that doesn't make me unhappy, I could go
+ahead and implement SPI (and UART) in terms of it.
+
+
+
+

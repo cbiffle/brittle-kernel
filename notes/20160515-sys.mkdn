@@ -1,0 +1,89 @@
+A System
+========
+
+Okay, it's time to reboot my demos into something less hacky and factor the
+reusable pieces out.  The likely consequence: I'll create the first native
+System for this kernel.
+
+And I'll find more problems with the kernel's design. :-)
+
+Goals, as of right now:
+
+- Build a demo application out of isolated, reusable programs.
+- Refine the C++ interface.
+
+Non-goals:
+
+- Build some sort of reusable launcher or supervisor.  I don't know how it will
+  look yet.  For now, apps should launch their components from code.  I know
+  from past experience that building this too early can be a mistake.
+
+
+The Loader
+==========
+
+The loader builds programs.  Programs are built from images, which are simple
+binary images with a small header.  (I've got an ELF parser around here
+somewhere, but that seems like overkill.)
+
+The image design is based heavily on uCLinux's bFLT format, but with less
+generality.  I plan to support *only* execute-in-place programs with read-only
+text and separate data segments; whether they live in ROM or RAM is not my
+concern.
+
+An image will contain a small block of metadata describing:
+
+- The size of the image.
+- The extent of the text, data, BSS, and stack segments.
+- The entry point.
+
+The caller passes this to the loader as a memory key.
+
+The loader will:
+
+1. Read the header and validate it.
+2. Attempt to allocate:
+  - A single RAM segment for data, BSS, stack.
+  - A Context.
+3. Locate the program's GOT prototype and relocate it into RAM.
+4. Program the Context with appropriate initial register values.
+5. Create and fill in a stack frame in the stack area.
+6. Program the Context with its program and RAM keys.
+7. Return a key to the Context.
+
+The caller is responsible for loading the Context with any initial keys, and
+(when desired) making it runnable.
+
+
+The Allocator
+=============
+
+The allocator is responsible for handing out Slot keys and Memory.
+
+It's derived from the allocator in the ASCII demo.
+
+I'd totally build the allocator as a program compatible with the Loader, except
+that the Loader kind of needs the allocator.  So the allocator may be different.
+
+
+
+Startup
+=======
+
+It kind of seems like the first Context created by the kernel should become the
+allocator.  It needs allocation to create its Gate and subsequent Contexts.
+This would allow the Loader to be properly isolated, which seems right, since
+it's going to be exposed to potentially bogus program headers and relocation
+instructions.
+
+So if the first Context is the Allocator, it can just call Allocator internal
+API directly to set up the initial environment.
+
+But what's the rest of the startup process?
+
+- Allocator starts Loader.
+- Allocator uses Loader to start an application-specific init program, giving it
+  keys to the Allocator and Loader.
+- Allocator enters allocation service loop, yielding control.
+
+

@@ -1,0 +1,103 @@
+I'm currently envisioning the prototype system's startup process as follows.
+
+First, the memory/slot allocator gets initialized within the First Context.  It
+gets used to allocate memory and objects for a second context.
+
+The second context is configured to become the Program Loader.  It is made
+runnable but does not run because the allocator does not yield.
+
+When the allocator does yield, the program loader takes over.  It uses its
+internal API to load a single program image from a known location, makes it
+runnable, and yields to it.
+
+This third program now holds keys to the allocator and the program loader, so it
+can set things up more easily.  I expect it would be a supervisory program of
+some sort.
+
+
+
+Hm.  Should the allocator and program loader be separate components?  Or should
+the allocator be a library?
+
+What do I gain by isolating them?
+
+- Ability to hand out keys to one but not the other.
+  - Alternative: separate permissions using brands.
+
+- Compartmentalization.
+  - Program loader is exposed to untrusted binary images, might crash.
+  - Program loader itself does not require OT access, allocator does.
+
+- Easier crash recovery.
+  - Allocator state is not obviously recoverable on crash; program loader is
+    stateless.  And as mentioned above, the loader seems more likely to crash.
+  - Alternative: figure out how to make allocator state recoverable.
+
+- Format flexibility.
+  - The program loader eats a particular proprietary format.
+  - Apps might reasonably want to package ELF loaders.
+  - On the other hand, to start the app, we've got to have the program loader
+    available... apps are free not to use it.
+
+
+For added fun: there's no reason for the program loader to trust the keys handed
+to it by programs, allegedly as memory access keys.  In fact, it likely should
+assume they are hostile.
+
+The program loader should, instead, vet them somehow.  Since the program loader
+probably doesn't hold an Object Table key, it can't simply check the kind in the
+OT.  It could send a request to the allocator for help, and the allocator could
+report back on whether a key is legit.
+
+Is there any way to make this unnecessary?
+
+The program loader needs to make some calls into the memory object.  The send
+phase could be nonblocking, but that would still allow a malicious object to
+stall the loader.
+
+...unless everybody gets their own loader.
+
+Consider: if the loader is written to be reentrant, multiple Contexts could run
+its code simultaneously, without necessarily requiring relocation.  This would
+make it relatively cheap to fire up additional loaders on command.
+
+Which could be something the allocator does, on request.  It would cost about
+512 + 128 bytes (which, at the moment, could only be melted down to make another
+program, not reclaimed).
+
+
+Okay, different take.  The program loader needs no authority beyond what a
+system client would presumably already have!  It needs to be able to allocate
+and read from a memory key.
+
+So, couldn't it simply be a *static library?*
+
+
+The client semantics of spinning up a new program instance will depend on the
+personality and economic model of the system.  In a system like FreeRTOS or
+Unix, with weak or no resource accounting, we would need to establish that the
+client can read the program image, but the system could allocate supporting
+resources (RAM, mostly) behind the scenes.
+
+In a system with strict accounting, the client would be expected to provide
+resources, either directly or through a "space bank" style object.  This would
+again require some sort of key vetting.
+
+I think the strict accounting model is pretty interesting.  Simply being able to
+trace all resource accounting back to the (for example) task ID responsible for
+the calls would be valuable in some cases.
+
+
+Let's think about this vetting concept in more detail.  The vetting process will
+depend on what the client is expected to provide.
+
+**Memory key.**  Well, the system could simply consult the object table and
+establish that the key is legit kernel memory.  (In a test or simulation
+environment, we can simulate the object table and lie.)  We could also read out
+the key brand, and use the Memory brand ABI to establish whether it provides
+the rights we need.  (Or just try to peek and see if it fails.)
+
+**Space bank key.**  "Space banks" are not a kernel concept.  So the key is
+really a branded system key of some sort.  This might be a key to a common
+"syscall gate" that is marked so that it acts specially.
+

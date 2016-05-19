@@ -1,0 +1,156 @@
+Execute-In-Place Program Images
+===============================
+
+This is very much a system-level concern, not a kernel-level concern, but since
+I need to build something on the kernel in order to check its design....
+
+
+Problem 1: ARMv7-M is really particular about how MPU protection regions are
+laid out.
+
+Problem 2: gnu ld is pretty bad at reasoning about things like "next larger
+power of two" or "naturally aligned."
+
+
+This is sort of a pain when attempting to link together programs that should be
+isolated at runtime.
+
+One option is to go fully position-independent with separate data, so that
+program images can be loaded at arbitrary ROM locations, and then
+execute-in-place --- even with multiple instances --- from arbitrary RAM
+locations.  I've messed with this on previous projects.
+
+
+Reviewing how ucLinux does this, and my notes from an earlier project, I think
+the approach is roughly:
+
+- Generate position-independent text.
+- Convince GCC that data addresses cannot be trivially computed from text
+  addresses.
+- Allow generation of a GOT.
+- Self-relocate the GOT during isolated program load.
+  - (Could also write a relocating loader, but that would require metadata kept
+    around at runtime.)
+- Either have the System pass in the GOT address, or derive it from the initial
+  stack pointer (minus a known RAM region size).
+
+Using a GOT is not ideal, since it imposes an overhead on all RAM symbol lookups
+-- even absolute addresses and locations that could be computed trivially
+relative to a PIC base register.  But it's what I can do easily with GCC.
+
+
+Code Generation
+===============
+
+`-fpic` seems important, but the compiler assumes a fixed offset from text to
+data.
+
+The nearly undocumented flag `-mpic-data-is-text-relative` seems to control
+this, along with its completely undocumented counterpart
+`-mno-pic-data-is-text-relative`.  Adding the latter flag changes how some
+addresses are calculated, mostly rodata; BSS is already GOT-relative without the
+flag.
+
+(The program I'm testing with has no initialized data to speak of, other than
+the GOT.)
+
+In both cases, code is assuming that the GOT itself is at a fixed distance from
+the text.  This is bad.  By definition we'll need the GOT to be mutable.
+
+Interestingly it's referencing the GOT using an undocumented (by ARM) reloc type
+`R_ARM_GOTPC`.  I could patch that up using textrels, but that would nuke XIP.
+
+Adding `-msingle-pic-base` switches the code generator to assume that `r9`
+always holds the PIC base address.  This is mostly kinda safe in the current
+ABI; it becomes false at syscalls.
+
+The compiler is unwilling to use `r12` as the PIC base, likely because it's
+reserving it for long calls (even though they aren't on) or PLT use.
+
+In fact, it appears only willing to use `r8` through `r11`.
+
+Well, this isn't a correctness issue, but simply one that would make inspecting
+the state of a halted process more complex, so I'll forge ahead for now.
+
+So, with the flags listed below, the code generation looks reasonable:
+- `-fpic`
+- `-msingle-pic-base`
+- `-mno-pic-data-is-text-relative`
+
+Removing `-mno-pic-data-is-text-relative` seems okay once `-msingle-pic-base` is
+in play: the latter seems to imply a moveable data segment, and the compiler
+stops indirecting rodata accesses through the GOT, preferring PC-relative
+addressing.
+
+
+Startup
+=======
+
+When a program like this starts up, it needs help.
+
+In addition to having its initialized data section initialized, and BSS cleared,
+it also needs:
+
+- The GOT itself to contain the right addresses.
+- `r9` to contain the address of the GOT.
+
+A prototype for the GOT will exist in ROM, at the start of the initialized data
+image.  It contains addresses as seen at link time.
+
+We can link to a flat memory model, with text starting at 0 (or some specific
+address), followed by data, then BSS.  Then, when processing the GOT prototype,
+we determine which section each address is in and apply corrections accordingly:
+
+- Text/rodata: subtract base link address, add ROM base.
+- Data/bss: subtract data link address, add RAM base.
+- Outside program: assume absolute, don't modify.
+
+
+Approach #1: self-relocation
+----------------------------
+
+Let's assume that the System provides `r9` pointing at RAM base, and `r13`
+pointing at top-of-RAM.
+
+Assume that programs are not using `-mno-pic-data-is-text-relative`, so they can
+safely address their own rodata.  (Or that the code about to be described is
+written in assembly language to control the relocation types.)
+
+Such programs can relocate themselves.
+
+- Locate the GOT prototype by PC-relative addressing.
+- Process entries until an end address is reached.
+  - Use link-time knowledge of program shape to distinguish sections.
+- Copy rest of initialized data.
+- Zero BSS.
+
+This is theoretically doable but pretty difficult to achieve, because the linker
+wants to use the GOT while we're initializing the GOT.  It doesn't appear that
+gnu as actually gives us enough control over relocation types to do this.
+
+
+Approach #2: relocating loader
+------------------------------
+
+In this case, the System would still provide `r9` and `r13`, but would process
+the GOT itself.
+
+This approach could generalize into a full-on ucLinux-style flat file loader.
+(If I'm not careful.)
+
+Pro: less code duplication, since only one copy of the relocation code is
+required.
+
+Con: possible speculative generality, makes assumptions about the compilation
+model of programs.
+
+In this case we'd need a program header describing the section layout and how to
+find the GOT prototype.  And not a "program header" in the ELF sense, though I
+suppose we could use ELF.
+
+
+
+Relocating Loader
+=================
+
+
