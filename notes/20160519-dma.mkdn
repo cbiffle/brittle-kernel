@@ -1,0 +1,36 @@
+Implementing DMA on STM32F4
+===========================
+
+Approach 1: prevent invalidation during transfer.
+-------------------------------------------------
+
+The driver for each DMA stream tracks two Memory objects, its source and
+destination.  They may be the same.
+
+When a channel is enabled, the driver sets a "Lock" flag in both objects.
+
+While the "Lock" flag is set, the objects refuse to change identity, shape, or
+generation:
+- No Become.
+- No Split.
+- No Invalidate.
+
+These operations are rejected with exceptions.
+
+The Lock flag is cleared on Transfer Complete Interrupt from the DMA stream.
+This interrupt is generated both on natural completion, and if the stream is
+interrupted by clearing the enable bit.
+
+If the DMA stream is working on a burst, and a peripheral is not generating DRQs
+fast enough, suspending a transfer might take a long time.  (Possibly forever;
+imagine reading from a UART where no more characters will arrive.)  It is not
+clear that we can do anything about this, short of resetting the entire DMA
+controller.  So that should probably be an available verb, which correctly
+updates the Lock bits of any involved objects.
+
+
+The Locked memory object probably doesn't contain a reference back to the DMA
+stream that locked it.
+
+
+
