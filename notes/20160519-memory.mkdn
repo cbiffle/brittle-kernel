@@ -1,0 +1,115 @@
+Hierarchical Memory
+===================
+
+Revisiting: the idea of child memory regions describing a section of their
+parent, without splitting.
+
+I discarded this idea long ago because of implementation complexity, but I think
+I can do it now.  I think it's likely to be useful as a way to implement grants,
+and as a way for system tasks to create sub-spaces for programs while retaining
+easy control over the memory.
+
+
+The Idea
+--------
+
+From a Memory object, one can derive sub-objects.
+
+A sub-object is a separate object (separate OT entry, separate revocation) that
+describes a sub-region of the parent.
+
+It behaves in most (all?) respects like a top-level Memory object: it can be
+loaded into the MPU, and it can create its own sub-objects.  For the rest of
+this discussion I'll refer to both the current Memory object and these
+hypothetical sub-objects as just "Memory objects."
+
+Memory objects alias the contents of their parent(s).  This means we need to
+introduce some restrictions on use:
+
+1. Memory with children or parents cannot Become a kernel object.
+
+2. Memory with children cannot be Split.
+
+Restriction 1 is intended to prevent system access to internal kernel state.
+Keys to the children or parents could be used to access kernel state after the
+Memory object had been consumed.  The restriction on parents is clear; we can't
+convert *part* of the parent's memory into kernel objects, because we can't
+revoke it.  The restriction on children is for time complexity reasons: children
+can be infinite in number, and each loses authority when its parent is destroyed
+-- the kernel cannot deconstruct that graph in O(1).
+
+Restriction 2 is for similar reasons.  A child *could* be the same size as its
+parent.  During split, any such children would have to be located and ... split?
+destroyed? something.  This is an O(n) (or at best O(log n)) search problem, and
+once we've found the offending child it's not clear what we'd do with it.
+
+To support systems working around these restrictions, we need operations that
+traverse the hierarchy.  These could be as simple as
+
+- Get First Child.
+- Get Next Sibling.
+
+i.e. navigation verbs for a linked list of children, rooted at the parent.
+These would yield service keys to the children, presumably weakened according to
+the kind of parent key used.
+
+We might also want to support a "reparent" operation, where a child could be
+moved to a parent elsewhere in the hierarchy (or any Memory object large enough
+to accomodate it).  We can do this in O(1):
+- Check address range overlap.
+- Disconnect from current parent.
+- Reconnect to new parent.
+
+The system could potentially use this to rescue orphaned objects that are still
+in use for something.  But I'd want to see a motivating use case before writing
+the code.
+
+We probably do *not* want to provide a "get parent" verb, since that would
+almost always represent a path to getting excessive authority.
+
+
+Invalidation
+------------
+
+Note that invalidation, specifically, need not destroy any relationships or fail
+to work when children are present.  It'd be consistent with other objects to
+have invalidation leave children intact and allow the system to disassemble the
+graph.
+
+
+What's in an object?
+--------------------
+
+This all implies that Memory objects (and thus all object heads) are bigger.
+How bigger?  Well, we need the following new members:
+- Next sibling.
+- Previous sibling.
+- First child.
+- Last child.
+
+That's 16 new bytes, assuming we use raw pointers.  This bumps heads up to 32
+bytes.
+
+There might be reason to go bigger.  I'm currently lacking a place to record
+whether memory represents device memory, and thus should not be used by the
+kernel.  And if I spent a couple more words, memory objects could be any size,
+because I could give up the packed address-size format I'm using now.
+
+
+Relaxing shape restrictions
+---------------------------
+
+The alert reader will note, correctly, that the size restrictions on memory
+objects (and the packed size representation) come from the hardware.  But that's
+only for memory objects loaded into the MPU.  I could potentially permit objects
+of any size to *exist*, but they would only be useful for
+- Breaking pieces off of,
+- Reading and writing using IPC,
+- Handing to a future in-kernel DMA driver,
+- Donating to the kernel.
+- Deriving naturally aligned sub-objects that *could* be used with the MPU.
+
+...so nearly everything.
+
+
+
