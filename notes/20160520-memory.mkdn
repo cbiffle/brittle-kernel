@@ -1,0 +1,88 @@
+More on hierarchical memory
+===========================
+
+So in this proposal (see yesterday's notes) we'd basically wind up with two
+classes of memory objects: top level and subordinate.
+
+Top level objects don't overlap.
+
+Top level objects, and *only* top level objects, could be used with Become.  If
+we create kernel objects in memory controlled by a subordinate object, then by
+definition there is a top level object that retains authority over that memory
+-- and the system-kernel barrier is broken.
+
+So that would be bad.
+
+And even top-level objects would need to be leaves.
+
+On the other hand, only subordinate objects can meaningfully be destroyed.
+Destroying a subordinate object reclaims its slot.  Destroying a top level
+object permanently gives up authority over its memory, which ... well, actually,
+I guess is fine if you're into that.
+
+Destructively splitting is probably only legal for leaf objects.  Both top-level
+and subordinate objects can be leaves -- it just depends on whether there are
+children.  Splitting a non-leaf object is tricky because it may not contain its
+children any longer.
+
+So destruction is the same.  It's O(1) and safe for any leaf object, even a
+top-level object, even though that's an odd thing to do.
+
+Interestingly, merging any two objects with the same parent can be done O(1),
+even for non-leaves.  We just concatenate their child lists.
+
+Invalidating a memory object leaves its place in the hierarchy untouched, but
+revokes all keys.  It's not meaningful to talk about a memory object independent
+of its place in the hierarchy, so it doesn't really make sense to provide
+operations to disconnect objects from the hierarchy.
+
+It might, however, make sense to allow an object to be *reparented* to another
+object.  The new parent would need to contain the reparented child, in terms of
+their address ranges.
+
+
+
+Okay.  Our set of structural operations now contains:
+
+- Become (top only).
+- Destroy (leaf only).
+- Reparent (sub only).
+- Split (leaf only).
+- Merge.
+- Derive Child.
+
+
+O(1) operations needed to implement these:
+
+- Distinguish top object.
+- Distinguish leaf object.
+- Check parent.
+- Change parent.
+- Add sibling.
+
+
+... so I'd been assuming that there'd be lists maintained of all this stuff,
+under the assumption that we'd want to be able to traverse the hierarchy without
+any knowledge of its structure.
+
+Which we very well might.
+
+But it actually looks like such pointers would serve that need, and not the
+implementation of the fundamental operations described above.  I'm pretty sure I
+can do all of the above with only
+- A parent pointer in each subordinate object, and
+- A child *count* in each non-leaf object.
+
+These serve to efficiently check whether an object is suitable for Become or
+Destroy/Split/Merge, without actually enabling navigation of the hierarchy.
+
+This is interesting because it's a *lot* cheaper than what I'd originally
+imagined.
+
+Programs interested in reasoning about the hierarchy of memory objects still
+have two options for doing so:
+- Maintaining their own data structures, recovering the information that the
+  kernel isn't tracking, or
+- Scanning the Object Table.
+
+
