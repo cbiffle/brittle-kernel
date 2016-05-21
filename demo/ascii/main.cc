@@ -41,7 +41,8 @@ __attribute__((used))
 constexpr AppInfo app_info {
   .abi_token = current_abi_token,
 
-  .memory_map_count = 4,
+  .memory_map_count = 3,
+  .device_map_count = 1,
   .extra_slot_count = 16,
   .external_interrupt_count = uint32_t(etl::stm32f4xx::Interrupt::usart2) + 1,
 
@@ -81,14 +82,14 @@ constexpr AppInfo::MemoryMapEntry memory_map[] {
     reinterpret_cast<uint32_t>(&_app_ram0_end),
   },
   {
-    // 6: Memory describing the peripheral region.
-    0x40000000,
-    0x60000000,
-  },
-  {
-    // 7: Memory describing top half of app RAM
+    // 6: Memory describing top half of app RAM
     reinterpret_cast<uint32_t>(&_app_ram1_start),
     reinterpret_cast<uint32_t>(&_app_ram1_end),
+  },
+  {
+    // 7: Memory describing the peripheral region.
+    0x40000000,
+    0x60000000,
   },
 };
 
@@ -114,7 +115,7 @@ static constexpr unsigned
  */
 
 static constexpr unsigned fixed_slot_count =
-  4 + app_info.memory_map_count;
+  4 + app_info.memory_map_count + app_info.device_map_count;
 
 static uint8_t slot_used[app_info.extra_slot_count];
 static unsigned slot_use_count;
@@ -140,8 +141,8 @@ static unsigned alloc_slot() {
 static unsigned mem_roots[32];
 
 static void init_mem() {
-  mem_roots[15] = 7;
-  object_table::mint_key(k_object_table, 7, 0, k_tmp1);
+  mem_roots[15] = 6;
+  object_table::mint_key(k_object_table, 6, 0, k_tmp1);
   memory::poke(k_tmp1, 0, 0);
 }
 
@@ -234,8 +235,8 @@ static constexpr unsigned
   oi_initial_context = 2,
   oi_rom_region = 4,
   oi_ram_region = 5,
-  oi_peripheral_region = 6,
-  oi_extra_ram = 7;
+  oi_extra_ram = 6,
+  oi_peripheral_region = 7;
 
 static void derive_initial_authority() {
   // Mint a key to our own context.  We need this, at first, to read out the

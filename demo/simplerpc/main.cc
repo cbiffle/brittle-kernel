@@ -30,6 +30,7 @@ constexpr AppInfo app_info {
   .abi_token = current_abi_token,
 
   .memory_map_count = 2,
+  .device_map_count = 0,
   .extra_slot_count = 0,
   .external_interrupt_count = 0,
 

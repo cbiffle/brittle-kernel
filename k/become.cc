@@ -50,6 +50,12 @@ void become(Memory & memory,
             Message const & m,
             Keys & k,
             ReplySender & reply_sender) {
+  if (memory.is_device()) {
+    // Can't transmogrify, this is device memory.
+    reply_sender.message() = Message::failure(Exception::bad_operation);
+    return;
+  }
+
   auto maybe_type_code = extract_type_code(m.d0);
   if (!maybe_type_code) {
     // Can't transmogrify, target object type not recognized.

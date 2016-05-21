@@ -21,8 +21,11 @@ namespace k {
 
 template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
 
-Memory::Memory(Generation g, P2Range range)
-  : Object{g}, _range{range} {}
+Memory::Memory(Generation g, P2Range range, uint32_t attributes)
+  : Object{g},
+    _range{range},
+    _attributes{attributes}
+    {}
 
 Region Memory::get_region_for_brand(Brand const & brand) const {
   return {
@@ -229,7 +232,7 @@ void Memory::do_split(ScopedReplySender & reply_sender,
   // practice).
   static_cast<Slot *>(objptr)->~Slot();
   // Create the Memory object, implicitly revoking keys to the Slot.
-  auto memptr = new(objptr) Memory{other_generation + 1, top};
+  auto memptr = new(objptr) Memory{other_generation + 1, top, _attributes};
   // Provide a key.
   reply_sender.set_key(2, memptr->make_key(brand).ref());
 

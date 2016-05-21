@@ -20,11 +20,14 @@ struct AppInfo {
   // of the AppInfo.  If the ABI token is wrong, initialization fails.
   uint32_t abi_token;
 
-  // Number of memory objects predefined by the memory map following this block.
+  // Number of standard memory objects predefined by the memory map following
+  // this block.
   uint32_t memory_map_count;
+  // Number of device memory objects in the map.
+  uint32_t device_map_count;
   // Number of extra free object table slots desired.  The number of slots in
   // the object table will be given by:
-  //   4 + memory_map_count + extra_slot_count;
+  //   4 + memory_map_count + device_map_count + extra_slot_count;
   uint32_t extra_slot_count;
 
   // Number of external interrupts that may be handled.  This determines the

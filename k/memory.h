@@ -5,6 +5,10 @@
  * A Memory object describes a range of addresses and responds to the memory
  * region protocol.  Keys to the Memory specify the properties of any memory
  * region contained within its range.
+ *
+ * Memory objects can be marked as "device" memory.  Device memory behaves the
+ * same as normal memory in nearly all circumstances, but *cannot* be donated
+ * to the kernel using Become.
  */
 
 #include "k/key.h"
@@ -19,9 +23,17 @@ struct ScopedReplySender;  // see: k/reply_sender.h
 
 class Memory final : public Object {
 public:
-  Memory(Generation, P2Range);
+  static constexpr uint32_t device_attribute_mask = 1 << 0;
+
+  Memory(Generation, P2Range, uint32_t attributes);
 
   P2Range get_range() const { return _range; }
+  bool is_device() const { return _attributes & device_attribute_mask; }
+
+  /*
+   * Marks this object as device memory.  This is mostly intended for testing.
+   */
+  void mark_as_device() { _attributes |= device_attribute_mask; }
 
   /*
    * Translates a key to this Memory (described by its brand) into the actual
@@ -34,6 +46,7 @@ public:
 
 private:
   P2Range _range;
+  uint32_t _attributes;
 
   void do_split(ScopedReplySender &, Brand const &, Message const &, Keys &);
 };

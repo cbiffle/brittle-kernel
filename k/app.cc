@@ -142,7 +142,9 @@ static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
   auto & app = get_app_info();
   auto map = app.memory_map;
 
-  for (unsigned i = 0; i < app.memory_map_count; ++i) {
+  for (unsigned i = 0; i < entries.count(); ++i) {
+    auto is_device = i >= app.memory_map_count;
+
     // Compute half of the region size, because we use that, and it fits in 32
     // bits.
     auto half_end = map[i].end == 0 ? (1u << 31) : (map[i].end >> 1);
@@ -165,16 +167,14 @@ static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
 
     // TODO: check that this does not alias the kernel or reserved devs
 
-    (void) new(&entries[well_known_object_count + i])
-      Memory{0, maybe_range.ref()};
+    auto atts = (is_device ? Memory::device_attribute_mask : 0);
+    (void) new(&entries[i]) Memory{0, maybe_range.ref(), atts};
   }
 }
 
-static void fill_extra_slots(RangePtr<ObjectTable::Entry> entries,
-                             unsigned first_index,
-                             unsigned count) {
-  for (unsigned i = 0; i < count; ++i) {
-    (void) new(&entries[first_index + i]) Slot{0};
+static void fill_extra_slots(RangePtr<ObjectTable::Entry> entries) {
+  for (auto & ent : entries) {
+    (void) new(&ent) Slot{0};
   }
 }
 
@@ -242,7 +242,8 @@ static void initialize_app() {
 
   arena.reset();
 
-  auto table_size = 4 + app.memory_map_count + app.extra_slot_count;
+  auto table_size =
+    4 + app.memory_map_count + app.device_map_count + app.extra_slot_count;
 
   // Use the Arena to create the object array.
   auto entries = 
@@ -264,8 +265,12 @@ static void initialize_app() {
   }
 
   initialize_well_known_objects(entries, arena);
-  create_memory_objects(entries);
-  fill_extra_slots(entries, 4 + app.memory_map_count, app.extra_slot_count);
+  create_memory_objects(
+      entries.slice(4,
+                    4 + app.memory_map_count + app.device_map_count));
+  fill_extra_slots(
+      entries.slice(4 + app.memory_map_count + app.device_map_count,
+                    table_size));
   prepare_first_context();
 }
 

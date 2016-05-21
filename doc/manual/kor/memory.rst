@@ -4,25 +4,31 @@ Memory
 ======
 
 A Memory object represents a naturally-aligned power-of-two-sized section of
-physical address space.  It does not specify whether that address space
-contains RAM, ROM, devices, or anything at all.
+physical address space.  It may describe RAM, ROM, peripherals, or even
+unmapped space that will fault if accessed.
 
 Keys to a Memory object use the brand to refine this, specifying all the
 attributes supported by the ARMv7-M MPU, including read and execute
 permissions, access ordering, and cache behavior.
 
+No two Memory objects overlap, so a Memory object has sole authority over the
+section of address space it describes.
+
 A certain set of Memory objects are created during the :ref:`boot process
 <boot>`.  These objects are expected to be somewhat large, and can be
 :ref:`split <memory-method-split>` into more manageable sizes.
 
-If a Memory object has the same size as a kernel object of another type, it can
-be donated to the kernel to create a new object using the :ref:`become
-<memory-method-become>` operation.  This destroys the donated memory object,
-revoking all keys.
+There are two categories of Memory objects: *normal* and *device*.  For most
+purposes, they behave identically.  But if a *normal* Memory object has the
+same size as a kernel object of another type, it can be donated to the kernel
+to create a new object using the :ref:`become <memory-method-become>`
+operation.  This destroys the donated memory object, revoking all keys.  The
+kernel does not accept donation of *device* Memory.
 
-Because Memory objects are *destroyed* to create kernel objects, the section of
-address space controlled by a Memory object is *inherently* under application
-(not kernel) control.  Applications can access that address space in two ways:
+Because Memory objects do not overlap, and because they are *destroyed* to
+create kernel objects, the section of address space controlled by a (still
+existing) Memory object is *inherently* under application (not kernel) control.
+Applications can access that address space in two ways:
 
 1. A key to a Memory object may be loaded into the MPU Region Registers of a
    :ref:`Context <context-object>`, causing the corresponding section of address
@@ -31,8 +37,6 @@ address space controlled by a Memory object is *inherently* under application
 2. Programs can send the :ref:`peek <memory-method-peek>` and :ref:`poke
    <memory-method-poke>` messages to a Memory key to treat the address space
    like an array or storage device.
-
-
 
 .. note:: Eventually, the intent is to have a "destroy" verb on other objects,
   to reclaim their Memory, and a "merge" operation on Memory to reverse splits.
@@ -187,6 +191,9 @@ This object must be exactly the same size as the new object (see below).  Sizes
 are defined in terms of the configuration-time constant P, the number of
 priority levels.
 
+This object must not be device memory.  The kernel only accepts donations of
+normal RAM.
+
 If the operation is successful, this object is destroyed, revoking all keys.
 The reply message contains the only extant key to the new object, with a default
 brand.
@@ -247,8 +254,8 @@ Exceptions
 ##########
 
 - ``k.bad_argument`` if the object type code is unrecognized.
-- ``k.bad_operation`` if the Memory key used has subregion disable bits set, or
-  is the wrong size for the requested object.
+- ``k.bad_operation`` if the Memory key used has subregion disable bits set, is
+  the wrong size for the requested object, or if this object is device memory.
 
 
 .. _memory-method-peek:

@@ -48,7 +48,7 @@ protected:
       o->set_entries(_entries);
     }
 
-    new(&_entries[2]) Memory{0, p2range_under_test()};
+    new(&_entries[2]) Memory{0, p2range_under_test(), 0};
 
     new(&_entries[3]) Slot{0};
 
@@ -408,6 +408,13 @@ TEST_F(MemoryTest_BecomeContext, ok) {
   ASSERT_RETURNED_KEY_SHAPE(object(), 0, 1);
   ASSERT_RETURNED_KEY_NULL(2);
   ASSERT_RETURNED_KEY_NULL(3);
+}
+
+TEST_F(MemoryTest_BecomeContext, device_fail) {
+  memory().mark_as_device();
+
+  auto & m = send_become(rw_rasr, 0);
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
 }
 
 using MemoryTest_BecomeGate = MemoryTest_Become<kabi::gate_l2_size>;
