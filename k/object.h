@@ -25,7 +25,7 @@ struct Sender;     // see: k/sender.h
 
 class Object {
 public:
-  static constexpr unsigned max_head_size = 16;
+  static constexpr unsigned max_head_size = 32;
 
   enum class Kind : uint32_t {
     null,
