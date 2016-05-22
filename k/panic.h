@@ -16,11 +16,9 @@
 namespace k {
 
 /*
- * Implementation of the PANIC macro.  This is weak so that applications can
- * hook it if required.
+ * Implementation of the PANIC macro.
  */
 __attribute__((noreturn))
-__attribute__((weak))
 void panic(char const *);
 
 }  // namespace k
