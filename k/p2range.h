@@ -64,6 +64,16 @@ public:
   constexpr unsigned l2_size() const { return l2_half_size() + 1; }
 
   /*
+   * Generates a bitmask with ones set in the "don't care" portions of this
+   * range.
+   */
+  constexpr uint32_t lsb_mask() const {
+    return l2_size() == 32
+      ? uint32_t(-1)
+      : ((uint32_t(1) << l2_size()) - 1);
+  }
+
+  /*
    * Generates the size of *half* of this range.  This number is guaranteed to
    * fit into a word, unlike the full size.
    */
@@ -75,6 +85,11 @@ public:
    */
   constexpr bool is_smallest() const {
     return l2_half_size() == min_l2_half_size;
+  }
+
+  constexpr bool contains(P2Range other) const {
+    return other.l2_half_size() <= l2_half_size()
+      && (other.base() & ~lsb_mask()) == (base() & ~lsb_mask());
   }
 
   /*

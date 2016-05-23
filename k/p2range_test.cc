@@ -111,6 +111,22 @@ static_assert(r_0_5_b.base() == r_0_5.base(),
 static_assert(r_0_5_t.base() == r_0_5.base() + 32,
     "{0, 5}.top() shifts base by 32");
 
+/*
+ * Containment.
+ */
+
+static_assert(P2Range::all().lsb_mask() == 0xFFFFFFFF, "");
+static_assert(P2Range::of(0, 4).const_ref().lsb_mask() == 0x1F, "");
+
+static_assert(P2Range::all().contains(P2Range::of(0, 5).const_ref()), "");
+static_assert(P2Range::all().contains(P2Range::of(0, 30).const_ref()), "");
+static_assert(P2Range::all().contains(P2Range::of(0, 31).const_ref()), "");
+
+static_assert(P2Range::of(256, 7).const_ref().contains(P2Range::of(256, 7).const_ref()), "");
+static_assert(P2Range::of(256, 7).const_ref().contains(P2Range::of(256, 6).const_ref()), "");
+static_assert(P2Range::of(256, 7).const_ref().contains(P2Range::of(384, 6).const_ref()), "");
+static_assert(!P2Range::of(256, 7).const_ref().contains(P2Range::of(512, 6).const_ref()), "");
+
 int main() {
   return 0;
 }
