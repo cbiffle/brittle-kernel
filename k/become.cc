@@ -50,8 +50,8 @@ void become(Memory & memory,
             Message const & m,
             Keys & k,
             ReplySender & reply_sender) {
-  if (memory.is_device()) {
-    // Can't transmogrify, this is device memory.
+  if (memory.is_device() || memory.child_count() || memory.parent()) {
+    // Can't transmogrify, this is wrong.
     reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }

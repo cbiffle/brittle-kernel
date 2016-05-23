@@ -31,7 +31,7 @@ protected:
   static constexpr Rasr rw_rasr =
     Rasr().with_ap(Mpu::AccessPermissions::p_write_u_write);
 
-  ObjectTable::Entry _entries[4];
+  ObjectTable::Entry _entries[5];
 
   Context::Body _fake_context_body;
   Context _fake_context{0, _fake_context_body};
@@ -51,6 +51,7 @@ protected:
     new(&_entries[2]) Memory{0, p2range_under_test(), 0};
 
     new(&_entries[3]) Slot{0};
+    new(&_entries[4]) Slot{0};
 
     current = &_fake_context;
   }
@@ -70,6 +71,10 @@ protected:
 
   Object & slot() {
     return _entries[3].as_object();
+  }
+
+  Object & slot2() {
+    return _entries[4].as_object();
   }
 
   Brand brand_from_rasr(Rasr v) {
@@ -135,6 +140,75 @@ constexpr Rasr MemoryTest::rw_rasr;
 
 
 /*******************************************************************************
+ * Basic tests of construction and hierarchy.
+ */
+
+TEST(MemoryTest, ctor) {
+  auto range = P2Range::of(256, 7).ref();
+
+  Memory m{0, range, 0};
+  ASSERT_TRUE(m.is_top());
+  ASSERT_EQ(m.child_count(), 0);
+}
+
+TEST(MemoryTest, construct_biggest_child) {
+  auto range = P2Range::of(256, 7).ref();
+
+  Memory parent{0, range, 0};
+  Memory child{0, range, 0, &parent};
+
+  ASSERT_TRUE(parent.is_top());
+  ASSERT_EQ(parent.child_count(), 1);
+
+  ASSERT_FALSE(child.is_top());
+  ASSERT_EQ(child.child_count(), 0);
+}
+
+TEST(MemoryTest, construct_top_child) {
+  auto range = P2Range::of(256, 7).ref();
+  auto top = range.top().ref();
+
+  Memory parent{0, range, 0};
+  Memory child{0, top, 0, &parent};
+
+  ASSERT_TRUE(parent.is_top());
+  ASSERT_EQ(parent.child_count(), 1);
+
+  ASSERT_FALSE(child.is_top());
+  ASSERT_EQ(child.child_count(), 0);
+}
+
+TEST(MemoryTest, construct_bottom_child) {
+  auto range = P2Range::of(256, 7).ref();
+  auto bottom = range.bottom().ref();
+
+  Memory parent{0, range, 0};
+  Memory child{0, bottom, 0, &parent};
+
+  ASSERT_TRUE(parent.is_top());
+  ASSERT_EQ(parent.child_count(), 1);
+
+  ASSERT_FALSE(child.is_top());
+  ASSERT_EQ(child.child_count(), 0);
+}
+
+TEST(MemoryTest, construct_bad_child) {
+  auto range = P2Range::of(256, 7).ref();
+  auto bad_range = P2Range::of(0, 8).ref();
+
+  Memory parent{0, range, 0};
+  ASSERT_THROW(
+      Memory child(0, bad_range, 0, &parent),
+      std::logic_error);
+
+  ASSERT_TRUE(parent.is_top());
+  ASSERT_EQ(parent.child_count(), 0);
+}
+
+
+
+
+/*******************************************************************************
  * Tests at an arbitrarily-chosen "typical" size of 256 bytes.  This is large
  * enough that all operations are available, but small enough that we can still
  * merge.
@@ -146,6 +220,10 @@ protected:
     return P2Range::of(256, 7).ref();
   }
 };
+
+/*
+ * Basics
+ */
 
 TEST_F(MemoryTest_Typical, bad_selector) {
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(0xFFFF, 0)});
@@ -172,6 +250,10 @@ TEST_F(MemoryTest_Typical, inspect) {
   ASSERT_EQ(uint32_t(expected_rasr), uint32_t(rasr))
     << "Revealed RASR should be initial RASR but with size and enable set";
 }
+
+/*
+ * Change
+ */
 
 TEST_F(MemoryTest_Typical, change_tex) {
   auto initial_rasr = rw_rasr.with_tex(0);
@@ -233,6 +315,10 @@ TEST_F(MemoryTest_Typical, change_increase_access) {
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
 }
 
+/*
+ * Split
+ */
+
 TEST_F(MemoryTest_Typical, split_without_donation) {
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_kind);
@@ -243,6 +329,15 @@ TEST_F(MemoryTest_Typical, split_srd_fail) {
 
   _sender.set_key(1, slot().make_key(0).ref());
   auto & m = send_from_spy(initial_rasr, {Descriptor::call(2, 0)});
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
+}
+
+TEST_F(MemoryTest_Typical, split_parent_must_fail) {
+  // Create a child.
+  new(&slot2()) Memory{0, p2range_under_test(), 0, &memory()};
+
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
 }
 
@@ -302,6 +397,105 @@ TEST_F(MemoryTest_Typical, split_ok) {
   ASSERT_RETURNED_KEY_SHAPE(newmem, brand_from_rasr(rw_rasr), 2);
 }
 
+/*
+ * Make Child
+ */
+
+TEST_F(MemoryTest_Typical, make_child_without_donation) {
+  auto range = p2range_under_test();
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(6, 0),
+      range.base(),
+      range.l2_half_size(),
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_kind);
+}
+
+TEST_F(MemoryTest_Typical, make_child_srd_fail) {
+  auto initial_rasr = rw_rasr.with_srd(0x01);
+  auto range = p2range_under_test();
+
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(initial_rasr, {
+      Descriptor::call(6, 0),
+      range.base(),
+      range.l2_half_size(),
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
+}
+
+TEST_F(MemoryTest_Typical, make_child_bigger) {
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(6, 0),
+      256,
+      8,
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
+}
+
+TEST_F(MemoryTest_Typical, make_child_too_small) {
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(6, 0),
+      256,
+      3,
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
+}
+
+TEST_F(MemoryTest_Typical, make_child_small_but_wrong) {
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(6, 0),
+      512,
+      5,
+      });
+  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
+}
+
+TEST_F(MemoryTest_Typical, make_child_ok) {
+  _sender.set_key(1, slot().make_key(0).ref());
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(6, 0),
+      384,
+      6,
+      });
+
+  ASSERT_MESSAGE_SUCCESS(m);
+  ASSERT_RETURNED_KEY_NULL(0);
+  ASSERT_RETURNED_KEY_NULL(2);
+  ASSERT_RETURNED_KEY_NULL(3);
+
+  /*
+   * Check side effects on parent.
+   */
+
+  ASSERT_EQ(0, memory().get_generation())
+    << "keys to parent should remain valid";
+  ASSERT_EQ(1, memory().child_count())
+    << "parent should now have one child";
+
+  /*
+   * Check side effects on child.
+   */
+
+  auto & newobj = slot();
+  ASSERT_EQ(1, newobj.get_generation())
+    << "donated slot should have its keys revoked";
+  ASSERT_TRUE(dynamic_cast<Memory *>(&newobj))
+    << "donated slot should now be memory";
+
+  auto & newmem = static_cast<Memory &>(newobj);
+  ASSERT_EQ(384, newmem.get_range().base());
+  ASSERT_EQ(6, newmem.get_range().l2_half_size());
+
+  /*
+   * Check shape of child key
+   */
+
+  ASSERT_RETURNED_KEY_SHAPE(slot(), brand_from_rasr(rw_rasr), 1);
+}
 
 /*******************************************************************************
  * Tests at the 128-byte level, where subregions stop working.

@@ -25,10 +25,14 @@ class Memory final : public Object {
 public:
   static constexpr uint32_t device_attribute_mask = 1 << 0;
 
-  Memory(Generation, P2Range, uint32_t attributes);
+  Memory(Generation, P2Range, uint32_t attributes, Memory * parent = nullptr);
+  ~Memory();
 
   P2Range get_range() const { return _range; }
   bool is_device() const { return _attributes & device_attribute_mask; }
+  bool is_top() const { return _parent == nullptr; }
+  uint32_t child_count() const { return _child_count; }
+  Memory * parent() const { return _parent; }
 
   /*
    * Marks this object as device memory.  This is mostly intended for testing.
@@ -47,6 +51,9 @@ public:
 private:
   P2Range _range;
   uint32_t _attributes;
+
+  Memory * _parent;
+  uint32_t _child_count;
 
   void do_split(ScopedReplySender &, Brand const &, Message const &, Keys &);
 };

@@ -70,28 +70,34 @@ Memory
 ------
 
 *Memory* objects represent regions of the physical address space.  These may be
-RAM, ROM, peripherals, or even unmapped space that would fault if accessed.  No
-two memory objects overlap.
+RAM, ROM, peripherals, or even unmapped space that would fault if accessed.
+There is an initial set of Memory objects created at boot; from there, new
+objects can only be derived from existing ones, not created whole-cloth.
 
 Keys to Memory contain data describing what sorts of accesses can be performed
 using that key.  It's thus possible to create both read-write and read-only keys
 to the same Memory --- perhaps keeping the read-write key for yourself and
 handing the read-only keys out to clients.
 
-Programs can split Memory objects in half, repeatedly if necessary, to produce
-smaller objects.  This provides a mechanism for isolating programs.
+Memory objects form a hierarchy.  Programs can create *child* Memory that has
+access to a subset of an existing Memory object (its *parent*).  This provides
+an easy way to isolate a program or grant a server access to part of the
+client's address space.
 
-It's also how programs pay the kernel for any new objects they wish to create
---- for example, additional Contexts to implement multitasking.  Programs
-whittle Memory down to the size required for the desired object, and then send
-the Memory a :ref:`"become" <memory-method-become>` message that donates the
-memory and transforms it into a different kernel object.
+Programs can also divide Memory objects, destructively, into pieces.  This is
+how programs pay the kernel for any new objects they wish to create --- for
+example, additional Contexts to implement multitasking.  Programs whittle
+Memory down to the size required for the desired object, and then send the
+Memory a :ref:`"become" <memory-method-become>` message that donates the memory
+and transforms it into a different kernel object.
 
-Programs can read and write the insides of Memory objects freely, either by
-mapping them in an MPU Region Register or by sending :ref:`"peek"
-<memory-method-peek>` and :ref:`"poke" <memory-method-poke>` messages.  But
-once Memory becomes a different type of object, this access is atomically
-revoked to protect kernel state.
+Programs can read and write the insides of Memory objects freely (if the key
+allows) by sending :ref:`"peek" <memory-method-peek>` and :ref:`"poke"
+<memory-method-poke>` messages, or by loading the key into a Context's MPU
+region registers for direct access using load and store instructions.  Either
+way, once Memory is donated to the kernel and becomes a different type of
+object, access is atomically revoked to protect
+kernel state.
 
 .. note:: For more information, see the :ref:`kor-memory` entry in the
   :ref:`kor`.

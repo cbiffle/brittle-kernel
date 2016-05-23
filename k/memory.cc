@@ -22,11 +22,30 @@ namespace k {
 
 template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
 
-Memory::Memory(Generation g, P2Range range, uint32_t attributes)
+Memory::Memory(Generation g,
+               P2Range range,
+               uint32_t attributes,
+               Memory * parent)
   : Object{g},
     _range{range},
-    _attributes{attributes}
-    {}
+    _attributes{attributes},
+    _parent{parent},
+    _child_count{0}
+{
+  if (parent) {
+    PANIC_UNLESS(parent->_range.contains(range), "bad child geometry");
+    ++parent->_child_count;
+  }
+}
+
+Memory::~Memory() {
+  PANIC_IF(_child_count, "non-leaf Memory dtor");
+
+  if (parent()) {
+    --_parent->_child_count;
+    _parent = nullptr;
+  }
+}
 
 Region Memory::get_region_for_brand(Brand const & brand) const {
   return {
@@ -175,6 +194,35 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       }
       return;
 
+    case 6:  // make child
+      {
+        if (get_region_for_brand(brand).rasr.get_srd()) {
+          reply_sender.message() = Message::failure(Exception::bad_operation);
+          return;
+        }
+
+        auto maybe_subrange = P2Range::of(m.d0, m.d1);
+        if (!maybe_subrange || !_range.contains(maybe_subrange.ref())) {
+          reply_sender.message() = Message::failure(Exception::bad_argument);
+          return;
+        }
+
+        auto objptr = k.keys[1].get();
+        if (objptr->get_kind() != Kind::slot) {
+          reply_sender.message() = Message::failure(Exception::bad_kind);
+          return;
+        }
+
+        auto slot_generation = objptr->get_generation();
+        etl::destroy(*static_cast<Slot *>(objptr));
+        auto child = new(objptr) Memory{slot_generation + 1,
+                                        maybe_subrange.ref(),
+                                        _attributes,
+                                        this};
+        reply_sender.set_key(1, child->make_key(brand).ref());
+      }
+      return;
+
     default:
       reply_sender.message() =
         Message::failure(Exception::bad_operation, m.desc.get_selector());
@@ -189,8 +237,10 @@ void Memory::do_split(ScopedReplySender & reply_sender,
   auto maybe_bottom = _range.bottom();
   auto maybe_top = _range.top();
 
-  // We can't split if: subregions are disabled; or this object is too small.
+  // We can't split if: subregions are disabled; there are children; or this
+  // object is too small.
   if (get_region_for_brand(brand).rasr.get_srd()
+      || child_count()
       || !maybe_bottom || !maybe_top) {
     reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
