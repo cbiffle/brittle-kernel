@@ -154,6 +154,11 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
           return;
         }
 
+        // TODO: should use the caching/ordering specified by the key.  We can
+        // do this from kernel code by temporarily replacing one of the MPU
+        // regions with the one in the key.  Should be region #7 so it takes
+        // priority over potential aliases elsewhere in the MPU.
+
         // Note: since the address is contained within the body of this Memory
         // object, we do not need to use ldrt/strt to access it.  This is
         // important!  ARMv7-M defines areas of address space, particularly
@@ -205,8 +210,8 @@ void Memory::do_split(ScopedReplySender & reply_sender,
     reply_sender.message() = Message::failure(Exception::bad_kind);
     return;
   }
-
-  // Note that, since the object pointer is_slot, it does not alias this.
+  // Note that, since objptr indicates its Kind is slot, it does not alias
+  // this.
 
   // Commit point
 
