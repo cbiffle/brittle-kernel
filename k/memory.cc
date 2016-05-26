@@ -186,19 +186,12 @@ void Memory::do_split(ScopedReplySender & reply_sender,
                       Brand const & brand,
                       Message const & m,
                       Keys & k) {
-  auto & donation_key = k.keys[1];
-
-  if (get_region_for_brand(brand).rasr.get_srd()) {
-    // Can't split, some subregions are disabled.
-    reply_sender.message() = Message::failure(Exception::bad_operation);
-    return;
-  }
-
   auto maybe_bottom = _range.bottom();
   auto maybe_top = _range.top();
 
-  if (!maybe_bottom || !maybe_top) {
-    // Can't split, too small.
+  // We can't split if: subregions are disabled; or this object is too small.
+  if (get_region_for_brand(brand).rasr.get_srd()
+      || !maybe_bottom || !maybe_top) {
     reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }
@@ -206,6 +199,7 @@ void Memory::do_split(ScopedReplySender & reply_sender,
   auto & bottom = maybe_bottom.ref();
   auto & top = maybe_top.ref();
 
+  auto & donation_key = k.keys[1];
   auto objptr = donation_key.get();
   if (objptr->get_kind() != Kind::slot) {
     // Can't split, donation was of wrong type.
