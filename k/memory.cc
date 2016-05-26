@@ -136,15 +136,13 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       return;
 
     case 3:  // become
-      {
-        if (get_region_for_brand(brand).rasr.get_srd()) {
-          // Can't transmogrify, some subregions are disabled.
-          reply_sender.message() = Message::failure(Exception::bad_operation);
-          return;
-        }
-
-        become(*this, m, k, reply_sender.rs);
+      if (get_region_for_brand(brand).rasr.get_srd()) {
+        // Can't transmogrify, some subregions are disabled.
+        reply_sender.message() = Message::failure(Exception::bad_operation);
+        return;
       }
+
+      become(*this, m, k, reply_sender.rs);
       return;
 
     case 4:  // peek
