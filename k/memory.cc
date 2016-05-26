@@ -1,5 +1,6 @@
 #include "k/memory.h"
 
+#include "etl/destroy.h"
 #include "etl/armv7m/mpu.h"
 
 #include "common/abi_sizes.h"
@@ -230,7 +231,7 @@ void Memory::do_split(ScopedReplySender & reply_sender,
   auto other_generation = objptr->get_generation();
   // Ensure that Slot's destructor is run (currently meaningless, but good
   // practice).
-  static_cast<Slot *>(objptr)->~Slot();
+  etl::destroy(*static_cast<Slot *>(objptr));
   // Create the Memory object, implicitly revoking keys to the Slot.
   auto memptr = new(objptr) Memory{other_generation + 1, top, _attributes};
   // Provide a key.
