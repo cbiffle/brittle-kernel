@@ -1,0 +1,142 @@
+Revisiting brand permissions.
+
+New Ops
+-------
+
+### Weaken
+
+Derives a new key to the same object, but with some permissions removed.
+
+Cannot set the Transparent bit, and of course, cannot be sent to an object
+through a Transparent key.  Objects that support Transparent keys should have
+their own operations for manufacturing them.
+
+This operation is pretty universal, and probably applies to all keys.
+
+### Recycle
+
+Revokes all keys to an object and returns its resources to the caller.
+
+"Resources" means a Slot key and, for certain types of objects, a Memory key.
+If the object has no associated memory, a Null key is returned instead of
+Memory; they can be distinguished by attempting to Inspect.
+
+Objects may refuse recycling if they have not been fully torn down.  Tearing an
+object down is kind-specific.
+
+This operation requires the OWN permission.
+
+### Invalidate
+
+Revokes all keys to an object and returns the single remaining key to the
+caller.  This can be used to atomically remove an object from view before
+teardown, or to repurpose an object without tearing down completely.
+
+This operation requires the OWN permission.
+
+
+Permissions and Flags
+---------------------
+
+### OWN
+
+The holder can act as the owner of this object, which mostly means recycling
+this object for parts.  This also enables operations that are equivalent to, or
+required for, destruction, such as Invalidate.
+
+This does not automatically confer the ability to read or mutate the object,
+except as required for teardown.
+
+### READ
+
+The holder can inspect the internal state of this object.
+
+### MUTATE
+
+The holder can affect the internal state of this object.  Note that this can be
+granted without READ.
+
+### TRANSPARENT
+
+The Transparent flag implies the absence of all permissions, and instead the
+ability to send through an object.  Not all objects meaningfully support the
+Transparent flag.
+
+The Transparent flag cannot be set by Weaken, and must be set by an
+object-specific operation (or by minting a key manually).
+
+The Transparent flag *might* be abused by Memory objects to signal mappable
+objects.
+
+
+### TRANSITIVE
+
+The Transitive flag prevents read operations from escalating privileges.
+
+When invoking an operation on a key with Transitive set, if that operation
+returns any keys, those keys are automatically Weakened to remove any rights not
+present in the invoked key.
+
+This flag needs more definition.  In particular, how does it interact with
+TRANSPARENT for Gates and Contexts?  Weakening in general is not defined for
+TRANSPARENT.
+
+
+Permissions by Op
+-----------------
+
+General
+
+    Weaken      (any, though becomes meaningless on very weak keys)
+    Recycle     OWN
+    Invalidate  OWN
+
+Memory (permissions seen as applying to the controlled memory)
+
+    Change        (becomes obsolete?)
+    Inspect       (universal?)
+    Make Child    OWN (?)
+    Become        OWN (revokes keys)
+    Split         OWN (revokes keys)
+    Poke          MUTATE
+    Peek          READ
+
+Context
+
+    MakeRunnable  MUTATE
+    Fault         MUTATE
+    WriteRegs     MUTATE
+    WriteKey      MUTATE
+    WriteMPU      MUTATE
+    WriteReg      MUTATE
+    SetPrio       MUTATE
+    ReadReg       READ
+    ReadRegs      READ
+    GetPrio       READ
+    ReadKey       READ (respects TRANSITIVE)
+    ReadMPU       READ (respects TRANSITIVE)
+    ReadCallCnt   READ
+
+Gate (eventual)
+
+    (send)        TRANSPARENT
+    (receive)     READ
+    WakeRecv      OWN
+    MakeTrans     READ
+
+Interrupt
+
+    GetTarget   READ
+    Bind        MUTATE
+    Unbind      MUTATE
+    SetTarget   MUTATE
+    Enable      MUTATE
+    Disable     MUTATE
+
+ObjectTable
+
+    Mint      READ (respects TRANSITIVE?)
+    Read      READ
+    GetKind   READ
+    Inval     MUTATE
+    Recycle   MUTATE
