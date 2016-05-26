@@ -79,16 +79,6 @@ c_binary('null_test',
   ],
 )
 
-c_binary('p2range_test',
-  environment = 'native',
-  sources = [
-    'p2range_test.cc',
-  ],
-  deps = [
-    ':k_portable',
-  ],
-)
-
 c_library('assert_fail_test',
   sources = [
     'testutil/assert_fail_test.cc',

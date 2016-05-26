@@ -145,30 +145,11 @@ static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
   for (unsigned i = 0; i < entries.count(); ++i) {
     auto is_device = i >= app.memory_map_count;
 
-    // Compute half of the region size, because we use that, and it fits in 32
-    // bits.
-    auto half_end = map[i].end == 0 ? (1u << 31) : (map[i].end >> 1);
-    auto half_size = half_end - (map[i].base >> 1);
-
-    // That better be a power of two (zero doesn't count).
-    ALWAYS_PANIC_IF(
-        (half_size == 0)  // empty or 4GiB region
-        || ((half_size & (half_size - 1)) != 0),  // not power of two
-        "bad region size");
-
-    // Which power of two is it?
-    unsigned l2_half_size;
-    for (l2_half_size = 0; l2_half_size < 32; ++l2_half_size) {
-      if (half_size == (1u << l2_half_size)) break;
-    }
-
-    auto maybe_range = P2Range::of(map[i].base, l2_half_size);
-    ALWAYS_PANIC_UNLESS(maybe_range, "bad region");
-
     // TODO: check that this does not alias the kernel or reserved devs
 
     auto atts = (is_device ? Memory::device_attribute_mask : 0);
-    (void) new(&entries[i]) Memory{0, maybe_range.ref(), atts};
+    (void) new(&entries[i]) 
+      Memory{0, map[i].base, map[i].end - map[i].base, atts};
   }
 }
 

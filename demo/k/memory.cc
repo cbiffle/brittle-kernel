@@ -6,12 +6,12 @@
 
 namespace memory {
 
-void split(unsigned k, unsigned slot_key,
+void split(unsigned k, uint32_t pos, unsigned slot_key,
     unsigned top_key_out) {
   auto send_map = keymap(0, slot_key, 0, 0);
   auto recv_map = keymap(0, k, top_key_out, 0);
 
-  auto rm = ipc({Descriptor::call(2, k)}, send_map, recv_map);
+  auto rm = ipc({Descriptor::call(2, k), pos}, send_map, recv_map);
   ETL_ASSERT(!rm.m.desc.get_error());
 }
 

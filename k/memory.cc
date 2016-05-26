@@ -22,18 +22,59 @@ namespace k {
 
 template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
 
+/*
+ * Utility function for checking that one integer range contains another.
+ */
+static constexpr bool contains(uintptr_t parent_base, size_t parent_size,
+                               uintptr_t child_base, size_t child_size) {
+  return child_base >= parent_base
+    && (child_base - parent_base) <= parent_size
+    && (child_base + child_size - parent_base) <= parent_size;
+}
+
+
+/*******************************************************************************
+ * Construction, destruction, and basic properties.
+ */
+
 Memory::Memory(Generation g,
-               P2Range range,
+               uintptr_t base,
+               size_t size,
                uint32_t attributes,
                Memory * parent)
   : Object{g},
-    _range{range},
+    _base{base},
+    _size_bytes{size},
     _attributes{attributes},
     _parent{parent},
     _child_count{0}
 {
+  PANIC_IF(base + size < base, "mem base+size overflow");
+
+  // Detect mappable regions at creation time and cache details.  Mappable
+  // regions are at least 32 bytes in size, are a power of two in size, and are
+  // naturally aligned with respect to their size.
+  if (_size_bytes >= 32
+      && (_size_bytes & (_size_bytes - 1)) == 0
+      && (_base & (_size_bytes - 1)) == 0) {
+    // Store this decision and cache the log2 of the size.
+    unsigned l2_half_size;
+    for (l2_half_size = 4; l2_half_size < 31; ++l2_half_size) {
+      if (_size_bytes == (2u << l2_half_size)) break;
+    }
+    _attributes = (_attributes & ~cached_l2hs_mask)
+                | (l2_half_size << cached_l2hs_lsb)
+                | mappable_attribute_mask;
+  } else {
+    _attributes = _attributes & ~(cached_l2hs_mask | mappable_attribute_mask);
+  }
+
   if (parent) {
-    PANIC_UNLESS(parent->_range.contains(range), "bad child geometry");
+    // The caller is expected to have checked the extent of this object vs. the
+    // parent already.
+    PANIC_UNLESS(contains(parent->_base, parent->_size_bytes,
+                          _base, _size_bytes),
+             "bad child geometry");
     ++parent->_child_count;
   }
 }
@@ -48,14 +89,21 @@ Memory::~Memory() {
 }
 
 Region Memory::get_region_for_brand(Brand const & brand) const {
+  if (!is_mappable()) {
+    // If an object is not mappable, it confers no authority when loaded into
+    // an MPU region register.
+    return { {}, {} };
+  }
+
   return {
     Region::Rbar()
-      .with_addr_27(_range.base() >> 5),
+      .with_addr_27(_base >> 5),
     Region::Rasr(uint32_t(brand) << 8)
-      .with_size(uint8_t(_range.l2_half_size()))
+      .with_size(uint8_t(get_cached_l2_half_size()))
       .with_enable(true),
   };
 }
+
 
 /*******************************************************************************
  * Utility functions for reasoning about MPU permissions.
@@ -127,20 +175,28 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
     case 0:  // inspect
       {
         auto reg = get_region_for_brand(brand);
-        reply_sender.message().d0 = uint32_t(reg.rbar);
+        reply_sender.message().d0 = _base;
         reply_sender.message().d1 = uint32_t(reg.rasr);
+        reply_sender.message().d2 = _size_bytes;
+        reply_sender.message().d3 = _attributes & abi_attributes_mask;
       }
       return;
 
     case 1:  // change
       {
+        // TODO: this should be redefined to make sense for any Memory object.
+        if (!is_mappable()) {
+          reply_sender.message() = Message::failure(Exception::bad_operation);
+          return;
+        }
+
         auto new_rasr = scrub_rasr(Region::Rasr(m.d0));
         auto current_rasr = get_region_for_brand(brand).rasr;
 
         if (ap_is_unpredictable(new_rasr.get_ap())
             || ap_is_stronger(new_rasr.get_ap(), current_rasr.get_ap())
             || (current_rasr.get_srd() & ~new_rasr.get_srd())
-            || (_range.l2_size() < 8 && new_rasr.get_srd())) {
+            || (_size_bytes < 256 && new_rasr.get_srd())) {
           reply_sender.message() = Message::failure(Exception::bad_argument);
           return;
         }
@@ -168,7 +224,7 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
     case 5:  // poke
       {
         auto offset = m.d0;
-        auto size_in_words = _range.half_size() / 2;
+        auto size_in_words = _size_bytes / sizeof(uint32_t);
 
         if (offset >= size_in_words) {
           reply_sender.message() = Message::failure(Exception::bad_argument);
@@ -185,7 +241,7 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
         // important!  ARMv7-M defines areas of address space, particularly
         // the SysTick Timer, that are *inaccessible* to unprivileged code,
         // even with MPU adjustments.  This fixes that.
-        auto ptr = reinterpret_cast<uint32_t *>(_range.base()) + offset;
+        auto ptr = reinterpret_cast<uint32_t *>(_base) + offset;
         if (m.desc.get_selector() == 4) {  // peek
           reply_sender.message().d0 = *ptr;
         } else {  // poke
@@ -201,8 +257,9 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
           return;
         }
 
-        auto maybe_subrange = P2Range::of(m.d0, m.d1);
-        if (!maybe_subrange || !_range.contains(maybe_subrange.ref())) {
+        auto child_base = m.d0, child_size = m.d1;
+
+        if (!contains(_base, _size_bytes, child_base, child_size)) {
           reply_sender.message() = Message::failure(Exception::bad_argument);
           return;
         }
@@ -216,7 +273,8 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
         auto slot_generation = objptr->get_generation();
         etl::destroy(*static_cast<Slot *>(objptr));
         auto child = new(objptr) Memory{slot_generation + 1,
-                                        maybe_subrange.ref(),
+                                        child_base,
+                                        child_size,
                                         _attributes,
                                         this};
         reply_sender.set_key(1, child->make_key(brand).ref());
@@ -234,50 +292,62 @@ void Memory::do_split(ScopedReplySender & reply_sender,
                       Brand const & brand,
                       Message const & m,
                       Keys & k) {
-  auto maybe_bottom = _range.bottom();
-  auto maybe_top = _range.top();
+  auto split_pos = m.d0;
 
-  // We can't split if: subregions are disabled; there are children; or this
-  // object is too small.
+  if (split_pos > _size_bytes) {
+    reply_sender.message() = Message::failure(Exception::bad_argument);
+    return;
+  }
+
+  // We can't split if: subregions are disabled, or there are children.
   if (get_region_for_brand(brand).rasr.get_srd()
-      || child_count()
-      || !maybe_bottom || !maybe_top) {
+      || child_count()) {
     reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }
 
-  auto & bottom = maybe_bottom.ref();
-  auto & top = maybe_top.ref();
-
   auto & donation_key = k.keys[1];
-  auto objptr = donation_key.get();
-  if (objptr->get_kind() != Kind::slot) {
+  auto slot = donation_key.get();
+  if (slot->get_kind() != Kind::slot) {
     // Can't split, donation was of wrong type.
     reply_sender.message() = Message::failure(Exception::bad_kind);
     return;
   }
-  // Note that, since objptr indicates its Kind is slot, it does not alias
+  // Note that, since slot indicates its Kind is slot, it does not alias
   // this.
 
   // Commit point
 
-  // Invalidate all existing keys to this object.
-  set_generation(get_generation() + 1);
-  // Shrink this object to the bottom of the range.
-  _range = bottom;
-  // Provide a key to the resulting shrunk version.
-  reply_sender.set_key(1, make_key(brand).ref());
-
   // Rewrite the donated slot object.
-  // Record the generation so we can +1 it.
-  auto other_generation = objptr->get_generation();
-  // Ensure that Slot's destructor is run (currently meaningless, but good
-  // practice).
-  etl::destroy(*static_cast<Slot *>(objptr));
-  // Create the Memory object, implicitly revoking keys to the Slot.
-  auto memptr = new(objptr) Memory{other_generation + 1, top, _attributes};
-  // Provide a key.
-  reply_sender.set_key(2, memptr->make_key(brand).ref());
+  {
+    // Record the generation so we can +1 it.
+    auto generation = slot->get_generation();
+    // Ensure that Slot's destructor is run (currently meaningless, but good
+    // practice).
+    etl::destroy(*static_cast<Slot *>(slot));
+    // Create the Memory object, implicitly revoking keys to the Slot.
+    auto top = new(slot) Memory{
+        generation + 1,
+        _base + split_pos,
+        _size_bytes - split_pos,
+        _attributes};
+    // Provide a key.
+    reply_sender.set_key(2, top->make_key(brand).ref());
+  }
+
+  // Rewrite this object to become the lower piece.
+  {
+    // Back up details.
+    auto generation = get_generation();
+    auto base = _base;
+    auto atts = _attributes;
+    // Destroy us.
+    etl::destroy(*this);
+    // Resurrect.
+    auto bot = new(this) Memory{generation + 1, base, split_pos, atts};
+    // Provide a key to the resulting shrunk version.
+    reply_sender.set_key(1, bot->make_key(brand).ref());
+  }
 
   // Update MPU, in case the split object was in the current Context's memory
   // map.

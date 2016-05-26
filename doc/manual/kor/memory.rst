@@ -3,17 +3,23 @@
 Memory
 ======
 
-A Memory object represents a naturally-aligned power-of-two-sized section of
-physical address space.  It may describe RAM, ROM, peripherals, or even
-unmapped space that will fault if accessed.
-
-Keys to Memory are what gives programs, running in :ref:`Contexts
-<kor-context>`, access to address space.  Without at least one Memory key
-loaded in the MPU Region Registers of its Context, a program cannot access any
-address space for loads, stores, or even to fetch its own instructions.
+A Memory object represents a section of physical address space.  It may
+describe RAM, ROM, peripherals, or even unmapped space that will fault if
+accessed.  Keys to Memory are used whenever a program needs to reference some
+address space to the kernel, including describing the accessible address space
+for a :ref:`kor-context`.
 
 Memory objects are also the primary currency used to pay for the creation of
 kernel objects (the other being :ref:`slots <kor-slot>`).
+
+
+Mappable Memory
+---------------
+
+If a Memory object describes a naturally-aligned power-of-two-sized section of
+address space, it is *mappable*.  This means it meets the restrictions of the
+ARMv7-M MPU and can be loaded into a Context's MPU Region Registers for direct
+access by programs.
 
 
 Hierarchy
@@ -66,18 +72,19 @@ The kernel will not accept donations of Memory so marked.
 Branding
 --------
 
-Memory keys use the brand to control application access to the corresponding
-section of address space, as well as to determine the memory ordering and cache
-behavior of accesses through a particular key.  To reduce possible impedance
-mismatches with the hardware, we use the hardware's own encoding: the brand is
-*exactly* the value that would be loaded into the MPU's Region Attribute and
-Size Register, but right-shifted 8 bits to lop off some irrelevant fields.
-
-.. note:: The intent is to use the top 8 bits to control destroy/split
-  permissions in the future; they should be zero for now.
+Mappable memory keys use the brand to control application access to the
+corresponding section of address space, as well as to determine the memory
+ordering and cache behavior of accesses through a particular key.  To reduce
+possible impedance mismatches with the hardware, we use the hardware's own
+encoding: the brand is *exactly* the value that would be loaded into the MPU's
+Region Attribute and Size Register, but right-shifted 8 bits to lop off some
+irrelevant fields.
 
 Memory objects will refuse to create keys if the brand specifies an undefined
 encoding for the AccessPermission field.
+
+If a Memory object is not mappable, its brand bits are currently undefined and
+should be zero.
 
 
 Methods
@@ -88,11 +95,7 @@ Methods
 Inspect (0)
 ^^^^^^^^^^^
 
-Returns the actual ARMv7-M MPU settings that would be applied if this Memory key
-were loaded into an MPU Region Register of a Context.
-
-.. note:: We use the actual hardware encoding to ensure that the reply is
-  honest.  This does make it a little awkward to interpret, though.
+Retrieves information about a Memory object and the key used to access it.
 
 Call
 ####
@@ -102,8 +105,11 @@ Empty.
 Reply
 #####
 
-- d0: Region Base Address Register (RBAR) equivalent contents.
-- d1: Region Attribute and Size Register (RASR) equivalent contents.
+- d0: base address.
+- d1: Region Attribute and Size Register (RASR) equivalent contents, or zero
+      if the region is not mappable.
+- d2: size in bytes.
+- d3: attributes (bit 0 = device, bit 1 = mappable).
 
 
 .. _memory-method-change:
@@ -148,6 +154,7 @@ Exceptions
 - ``k.bad_argument`` if the RASR value would increase access, or if it attempts
   to set Subregion Disable bits in a Memory object too small to support them
   (less than 256 bytes in size).
+- ``k.bad_operation`` if applied to a non-mappable Memory object.
 
 
 .. _memory-method-split:
@@ -155,11 +162,16 @@ Exceptions
 Split (2)
 ^^^^^^^^^
 
-Breaks a Memory object into two equally-sized halves, called bottom and top.
-The bottom half starts at the same base address as the original object, but is
-half the size; the top half starts just after the bottom half, and is the same
-size as the bottom half.  Thus, both halves are still a power of two in size,
-and naturally aligned.
+Breaks a Memory object into two pieces, called bottom and top, divided at an
+arbitrary point within this object.  The bottom half starts at the same base
+address as the original object, and has size equal to the split position; the
+top half starts just after the bottom half, and occupies the rest of the space
+taken by the original object.
+
+The device attribute is preserved.
+
+Each of the two pieces will be individually checked to see if it is mappable,
+and marked accordingly.
 
 This operation produces one net new object.  To justify this use of resources,
 callers are required to donate a :ref:`kor-slot` key.  The Slot is consumed and
@@ -172,18 +184,14 @@ returned keys have the same brand as the key used to split.
 .. note::
   Splitting is impossible in the following circumstances:
 
-  1. When this Memory object is already the minimum size permitted by the
-     architecture (32 bytes).
+  1. When the brand of the key used to split has any subregion disable bits set.
 
-  2. When the brand of the key used to split has any subregion disable bits set.
-
-  3. When this Memory object has any children.
+  2. When this Memory object has any children.
 
 Call
 ####
 
-No data.
-
+- d0: split point, as a byte offset from the start of the object.
 - k1: slot key being donated
 
 Reply
@@ -191,12 +199,13 @@ Reply
 
 No data.
 
-- k1: bottom half
-- k2: top half
+- k1: bottom part
+- k2: top part
 
 Exceptions
 ##########
 
+- ``k.bad_argument`` if the split point is not within the object.
 - ``k.bad_operation`` if the region cannot be split for the reasons listed
   above.
 - ``k.bad_kind`` if the donated key is not a slot key.
@@ -247,11 +256,6 @@ of the message fields/keys are given in the table below.
   * - Gate
     - 1
     - 16P
-    - ---
-    - ---
-  * - Reply Gate
-    - 2
-    - 8 + 8P
     - ---
     - ---
   * - Interrupt
@@ -367,9 +371,10 @@ Make Child (6)
 
 Makes a new child Memory object, with this object as its parent.
 
-The child can describe any (appropriately aligned) subset of this object's
-address space.  It will inherit any device attribute, and the initial child key
-inherits the access permissions from the key used to invoke this method.
+The child can describe any subset of this object's address space.  It will
+inherit any device attribute, will be checked for mappability, and the initial
+child key inherits the access permissions from the key used to invoke this
+method.
 
 As this creates a net new object, a :ref:`slot key <kor-slot>` donation is
 required.
@@ -378,7 +383,7 @@ Call
 ####
 
 - d0: base address of child.
-- d1: size of child, given as log2(size) - 1.
+- d1: size of child, in bytes.
 - k1: slot key to donate.
 
 Reply

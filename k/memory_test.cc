@@ -12,7 +12,6 @@
 #include "k/memory.h"
 #include "k/null_object.h"
 #include "k/object_table.h"
-#include "k/p2range.h"
 #include "k/region.h"
 #include "k/reply_sender.h"
 #include "k/scheduler.h"
@@ -48,7 +47,7 @@ protected:
       o->set_entries(_entries);
     }
 
-    new(&_entries[2]) Memory{0, p2range_under_test(), 0};
+    new(&_entries[2]) Memory{0, uut_base(), uut_size(), 0};
 
     new(&_entries[3]) Slot{0};
     new(&_entries[4]) Slot{0};
@@ -91,7 +90,8 @@ protected:
     return _spy.message().m;
   }
 
-  virtual P2Range p2range_under_test() = 0;
+  virtual uintptr_t uut_base() = 0;
+  virtual size_t uut_size() = 0;
 };
 
 constexpr Rasr MemoryTest::rw_rasr;
@@ -144,18 +144,15 @@ constexpr Rasr MemoryTest::rw_rasr;
  */
 
 TEST(MemoryTest, ctor) {
-  auto range = P2Range::of(256, 7).ref();
-
-  Memory m{0, range, 0};
+  Memory m{0, 256, 256, 0};
   ASSERT_TRUE(m.is_top());
+  ASSERT_TRUE(m.is_mappable());
   ASSERT_EQ(m.child_count(), 0);
 }
 
 TEST(MemoryTest, construct_biggest_child) {
-  auto range = P2Range::of(256, 7).ref();
-
-  Memory parent{0, range, 0};
-  Memory child{0, range, 0, &parent};
+  Memory parent{0, 256, 256, 0};
+  Memory child{0, 256, 256, 0, &parent};
 
   ASSERT_TRUE(parent.is_top());
   ASSERT_EQ(parent.child_count(), 1);
@@ -165,11 +162,8 @@ TEST(MemoryTest, construct_biggest_child) {
 }
 
 TEST(MemoryTest, construct_top_child) {
-  auto range = P2Range::of(256, 7).ref();
-  auto top = range.top().ref();
-
-  Memory parent{0, range, 0};
-  Memory child{0, top, 0, &parent};
+  Memory parent{0, 256, 256, 0};
+  Memory child{0, 384, 128, 0, &parent};
 
   ASSERT_TRUE(parent.is_top());
   ASSERT_EQ(parent.child_count(), 1);
@@ -179,11 +173,8 @@ TEST(MemoryTest, construct_top_child) {
 }
 
 TEST(MemoryTest, construct_bottom_child) {
-  auto range = P2Range::of(256, 7).ref();
-  auto bottom = range.bottom().ref();
-
-  Memory parent{0, range, 0};
-  Memory child{0, bottom, 0, &parent};
+  Memory parent{0, 256, 256, 0};
+  Memory child{0, 256, 128, 0, &parent};
 
   ASSERT_TRUE(parent.is_top());
   ASSERT_EQ(parent.child_count(), 1);
@@ -193,12 +184,9 @@ TEST(MemoryTest, construct_bottom_child) {
 }
 
 TEST(MemoryTest, construct_bad_child) {
-  auto range = P2Range::of(256, 7).ref();
-  auto bad_range = P2Range::of(0, 8).ref();
-
-  Memory parent{0, range, 0};
+  Memory parent{0, 256, 256, 0};
   ASSERT_THROW(
-      Memory child(0, bad_range, 0, &parent),
+      Memory child(0, 0, 256, 0, &parent),
       std::logic_error);
 
   ASSERT_TRUE(parent.is_top());
@@ -216,8 +204,11 @@ TEST(MemoryTest, construct_bad_child) {
 
 class MemoryTest_Typical : public MemoryTest {
 protected:
-  P2Range p2range_under_test() override {
-    return P2Range::of(256, 7).ref();
+  uintptr_t uut_base() override {
+    return 256;
+  }
+  size_t uut_size() override {
+    return 256;
   }
 };
 
@@ -231,6 +222,7 @@ TEST_F(MemoryTest_Typical, bad_selector) {
 }
 
 TEST_F(MemoryTest_Typical, inspect) {
+  ASSERT_TRUE(memory().is_mappable());
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(0, 0)});
 
   ASSERT_MESSAGE_SUCCESS(m)
@@ -239,7 +231,7 @@ TEST_F(MemoryTest_Typical, inspect) {
 
   auto rbar = Rbar(m.d0);
 
-  ASSERT_EQ(p2range_under_test().base(),
+  ASSERT_EQ(uut_base(),
             rbar.get_addr_27() << 5)
     << "Base address should be conveyed unchanged";
   ASSERT_FALSE(rbar.get_valid()) << "Region number valid field must not be set";
@@ -334,7 +326,7 @@ TEST_F(MemoryTest_Typical, split_srd_fail) {
 
 TEST_F(MemoryTest_Typical, split_parent_must_fail) {
   // Create a child.
-  new(&slot2()) Memory{0, p2range_under_test(), 0, &memory()};
+  new(&slot2()) Memory{0, uut_base(), uut_size(), 0, &memory()};
 
   _sender.set_key(1, slot().make_key(0).ref());
   auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
@@ -343,7 +335,10 @@ TEST_F(MemoryTest_Typical, split_parent_must_fail) {
 
 TEST_F(MemoryTest_Typical, split_ok) {
   _sender.set_key(1, slot().make_key(0).ref());
-  auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
+  auto & m = send_from_spy(rw_rasr, {
+      Descriptor::call(2, 0),
+      128,
+      });
 
   ASSERT_MESSAGE_SUCCESS(m)
     << "splitting a typical-size object with a valid slot donation"
@@ -360,10 +355,10 @@ TEST_F(MemoryTest_Typical, split_ok) {
     << "target object should have its keys revoked";
   ASSERT_TRUE(dynamic_cast<Memory *>(&memory()))
     << "target object should still be memory";
-  ASSERT_EQ(p2range_under_test().base(), memory().get_range().base())
+  ASSERT_EQ(uut_base(), memory().get_base())
     << "target object base address should be unchanged";
-  ASSERT_EQ(p2range_under_test().l2_half_size(),
-            memory().get_range().l2_size())
+  ASSERT_EQ(uut_size() / 2,
+            memory().get_size())
     << "target object size should be reduced by half";
 
   /*
@@ -377,11 +372,10 @@ TEST_F(MemoryTest_Typical, split_ok) {
     << "new object should be memory";
 
   auto & newmem = static_cast<Memory &>(newobj);
-  ASSERT_EQ(p2range_under_test().base() + p2range_under_test().half_size(),
-            newmem.get_range().base())
+  ASSERT_EQ(uut_base() + uut_size() / 2,
+            newmem.get_base())
     << "new object base address should be halfway into our range";
-  ASSERT_EQ(p2range_under_test().l2_half_size(),
-            newmem.get_range().l2_size())
+  ASSERT_EQ(uut_size() / 2, newmem.get_size())
     << "new object size should be reduced by half";
 
   /*
@@ -402,24 +396,22 @@ TEST_F(MemoryTest_Typical, split_ok) {
  */
 
 TEST_F(MemoryTest_Typical, make_child_without_donation) {
-  auto range = p2range_under_test();
   auto & m = send_from_spy(rw_rasr, {
       Descriptor::call(6, 0),
-      range.base(),
-      range.l2_half_size(),
+      uut_base(),
+      uut_size(),
       });
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_kind);
 }
 
 TEST_F(MemoryTest_Typical, make_child_srd_fail) {
   auto initial_rasr = rw_rasr.with_srd(0x01);
-  auto range = p2range_under_test();
 
   _sender.set_key(1, slot().make_key(0).ref());
   auto & m = send_from_spy(initial_rasr, {
       Descriptor::call(6, 0),
-      range.base(),
-      range.l2_half_size(),
+      uut_base(),
+      uut_size(),
       });
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
 }
@@ -429,17 +421,7 @@ TEST_F(MemoryTest_Typical, make_child_bigger) {
   auto & m = send_from_spy(rw_rasr, {
       Descriptor::call(6, 0),
       256,
-      8,
-      });
-  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
-}
-
-TEST_F(MemoryTest_Typical, make_child_too_small) {
-  _sender.set_key(1, slot().make_key(0).ref());
-  auto & m = send_from_spy(rw_rasr, {
-      Descriptor::call(6, 0),
-      256,
-      3,
+      512,
       });
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
 }
@@ -449,7 +431,7 @@ TEST_F(MemoryTest_Typical, make_child_small_but_wrong) {
   auto & m = send_from_spy(rw_rasr, {
       Descriptor::call(6, 0),
       512,
-      5,
+      64,
       });
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
 }
@@ -459,7 +441,7 @@ TEST_F(MemoryTest_Typical, make_child_ok) {
   auto & m = send_from_spy(rw_rasr, {
       Descriptor::call(6, 0),
       384,
-      6,
+      128,
       });
 
   ASSERT_MESSAGE_SUCCESS(m);
@@ -487,8 +469,8 @@ TEST_F(MemoryTest_Typical, make_child_ok) {
     << "donated slot should now be memory";
 
   auto & newmem = static_cast<Memory &>(newobj);
-  ASSERT_EQ(384, newmem.get_range().base());
-  ASSERT_EQ(6, newmem.get_range().l2_half_size());
+  ASSERT_EQ(384, newmem.get_base());
+  ASSERT_EQ(6, newmem.get_cached_l2_half_size());
 
   /*
    * Check shape of child key
@@ -503,9 +485,8 @@ TEST_F(MemoryTest_Typical, make_child_ok) {
 
 class MemoryTest_Small : public MemoryTest {
 protected:
-  P2Range p2range_under_test() override {
-    return P2Range::of(256, 6).ref();
-  }
+  uintptr_t uut_base() override { return 256; }
+  size_t uut_size() override { return 128; }
 };
 
 TEST_F(MemoryTest_Small, change_disable_subregion) {
@@ -518,25 +499,6 @@ TEST_F(MemoryTest_Small, change_disable_subregion) {
 
   ASSERT_RETURNED_EXCEPTION(m, Exception::bad_argument);
 }
-
-/*******************************************************************************
- * Tests that are specifically relevant for objects of the minimum size (32
- * bytes).
- */
-
-class MemoryTest_Tiny : public MemoryTest {
-protected:
-  P2Range p2range_under_test() override {
-    return P2Range::of(256, 4).ref();
-  }
-};
-
-TEST_F(MemoryTest_Tiny, split_too_small) {
-  _sender.set_key(1, slot().make_key(0).ref());
-  auto & m = send_from_spy(rw_rasr, {Descriptor::call(2, 0)});
-  ASSERT_RETURNED_EXCEPTION(m, Exception::bad_operation);
-}
-
 
 /*******************************************************************************
  * Testing Memory's ability to become other sorts of objects.
@@ -570,9 +532,8 @@ protected:
     reset_irq_redirection_table_for_test();
   }
 
-  P2Range p2range_under_test() override {
-    return P2Range::of(reinterpret_cast<uint32_t>(buffer), l2_half_size).ref();
-  }
+  uintptr_t uut_base() override { return reinterpret_cast<uint32_t>(buffer); }
+  size_t uut_size() override { return get_size(); }
 
   Message const & send_become(Rasr rasr, unsigned tc, unsigned x = 0) {
     return send_from_spy(rasr, {

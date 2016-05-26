@@ -168,7 +168,7 @@ static unsigned alloc_mem(unsigned l2_half_size, unsigned key_out) {
     // Fabricate a slot key.
     ETL_ASSERT(object_table::mint_key(k_object_table, top_index, 0, k_tmp1));
     // Perform the split.
-    memory::split(key_out, k_tmp1, k_tmp1);
+    memory::split(key_out, 2u << l2_half_size, k_tmp1, k_tmp1);
     // Link the new top into place as the only member of the freelist for this
     // size.
     memory::poke(k_tmp1, 0, 0);  // End of list.

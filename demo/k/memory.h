@@ -5,7 +5,7 @@
 
 namespace memory {
 
-void split(unsigned k, unsigned slot_key, unsigned top_key_out);
+void split(unsigned k, uint32_t pos, unsigned slot_key, unsigned top_key_out);
 
 enum class ObjectType : uint32_t {
   context = 0,
