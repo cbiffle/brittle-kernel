@@ -81,27 +81,21 @@ static void initialize_hardware() {
   interrupt::enable(k_irq);
 }
 
-// Utility function for blocking receive.
-static ReceivedMessage blocking_receive(unsigned k, uint32_t recv_map) {
-  return rt::ipc({
-      Descriptor::zero()
-      .with_receive_enabled(true)
-      .with_source(k)
-      .with_block(true)},
-      0,
-      recv_map);
-}
-
 /*
  * Blocks waiting for a TXE interrupt from the UART, disables further TXE
  * interrupts, and leaves the general UART interrupt enabled.
  */
 static void wait_for_txe() {
   // Receive from the IRQ gate, blocking.
-  auto rm = blocking_receive(k_irq_gate,
-      rt::keymap(k_irq_reply, k_discard, k_discard, k_discard));
+  Message msg {
+    Descriptor::zero()
+      .with_receive_enabled(true)
+      .with_source(k_irq_gate)
+      .with_block(true),
+  };
+  rt::ipc2(msg, 0, rt::keymap(k_irq_reply));
   // The IRQ object should not be sending errors!
-  ETL_ASSERT(rm.m.desc.get_error() == false);
+  ETL_ASSERT(msg.desc.get_error() == false);
 
   // Disable TXE interrupt generation; otherwise it'll happen repeatedly.
   usart2.write_cr1(usart2.read_cr1().with_txeie(false));
@@ -125,34 +119,46 @@ int main() {
 
   initialize_hardware();
 
+  // Seed the message buffer with an initial receive-only operation.
+  static constexpr auto receive_only_descriptor = Descriptor::zero()
+      .with_receive_enabled(true)
+      .with_source(k_gate);
+
+  Message msg {
+    receive_only_descriptor,
+  };
+  uint64_t brand;
+  auto const reply_map = rt::keymap();
+  auto const request_map = rt::keymap(k_sender_reply);
+
   while (true) {
-    auto rm = blocking_receive(k_gate,
-        rt::keymap(k_sender_reply, k_discard, k_discard, k_discard));
+    rt::ipc2(msg, reply_map, request_map, &brand);
     ++receive_count;
 
-    if (rm.m.desc.get_error()) {
+    if (msg.desc.get_error()) {
       // Clients can send us errors if they want.  Don't bother replying.
       // If the client sent an error in a "call" this may block the client
       // forever... not our problem.  Better this than to reply blindly and
       // potentially cause an error storm.
+      msg.desc = receive_only_descriptor;
       continue;
     }
 
-    switch (rm.m.desc.get_selector()) {
+    switch (msg.desc.get_selector()) {
       case 1:  // Send!
         ++send_count;
         // Load character into data register.
-        usart2.write_dr(rm.m.d0 & 0xFF);
+        usart2.write_dr(msg.d0 & 0xFF);
         // Enable TX Empty interrupt (signals data register available)
         usart2.write_cr1(usart2.read_cr1().with_txeie(true));
 
         wait_for_txe();
 
-        rt::ipc({
-            Descriptor::zero()
-              .with_send_enabled(true)
-              .with_target(k_sender_reply)
-              }, 0, 0);
+        msg = {
+          receive_only_descriptor
+            .with_send_enabled(true)
+            .with_target(k_sender_reply),
+        };
         continue;
 
       default:  // Bogus message selector.
@@ -160,12 +166,12 @@ int main() {
         // blocking.
         // TODO: technically this is not a valid Exception in the new error
         // model.
-        rt::ipc({
-            Descriptor::zero()
-              .with_send_enabled(true)
-              .with_target(0)
-              .with_error(true)
-              }, 0, 0);
+        msg = {
+          receive_only_descriptor
+            .with_send_enabled(true)
+            .with_target(0)
+            .with_error(true),
+        };
         continue;
     }
   }

@@ -6,52 +6,54 @@
 namespace object_table {
 
 rt::AutoKey mint_key(unsigned k, unsigned index, uint64_t brand) {
+  Message msg {
+    Descriptor::call(0, k),
+    index,
+    uint32_t(brand),
+    uint32_t(brand >> 32),
+  };
   auto k_out = rt::AutoKey{};
-  auto recv_map = rt::keymap(0, k_out, 0, 0);
-  ReceivedMessage rm = rt::ipc({
-      Descriptor::call(0, k),
-      index,
-      uint32_t(brand),
-      uint32_t(brand >> 32),
-    }, 0, recv_map);
-
-  ETL_ASSERT(!rm.m.desc.get_error());
+  rt::ipc2(msg,
+      0,
+      rt::keymap(0, k_out, 0, 0));
+  ETL_ASSERT(!msg.desc.get_error());
   return k_out;
 }
 
 KeyInfo read_key(unsigned k, unsigned key) {
-  auto send_map = rt::keymap(0, key);
-  auto rm = rt::ipc({
-      Descriptor::call(1, k),
-      }, send_map, 0);
-  
-  ETL_ASSERT(!rm.m.desc.get_error());
+  Message msg {
+    Descriptor::call(1, k),
+  };
+  rt::ipc2(msg,
+      rt::keymap(0, key),
+      0);
+  ETL_ASSERT(!msg.desc.get_error());
 
   return {
-    .index = rm.m.d0,
-    .brand = rm.m.d1 | (Brand(rm.m.d2) << 32),
+    .index = msg.d0,
+    .brand = msg.d1 | (Brand(msg.d2) << 32),
   };
 }
 
 Kind get_kind(unsigned k, unsigned index) {
-  auto rm = rt::ipc({
-      Descriptor::call(2, k),
-      index
-      }, 0, 0);
-  
-  ETL_ASSERT(!rm.m.desc.get_error());
+  Message msg {
+    Descriptor::call(2, k),
+    index,
+  };
+  rt::ipc2(msg, 0, 0);
+  ETL_ASSERT(!msg.desc.get_error());
 
-  return Kind(rm.m.d0);
+  return Kind(msg.d0);
 }
 
 bool invalidate(unsigned k, unsigned index, bool rollover_ok) {
-  auto rm = rt::ipc({
-      Descriptor::call(3, k),
-      index,
-      rollover_ok
-      }, 0, 0);
-  
-  return rm.m.desc.get_error() == false;
+  Message msg {
+    Descriptor::call(3, k),
+    index,
+    rollover_ok,
+  };
+  rt::ipc2(msg, 0, 0);
+  return msg.desc.get_error() == false;
 }
 
 }  // namespace object_table

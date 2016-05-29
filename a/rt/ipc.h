@@ -13,6 +13,11 @@ ReceivedMessage ipc(Message const &,
                     uint32_t send_map,
                     uint32_t receive_map);
 
+void ipc2(Message &,
+          uint32_t send_map,
+          uint32_t receive_map,
+          uint64_t * brand_out = nullptr);
+
 static constexpr uint32_t keymap(unsigned k0 = 0,
                                  unsigned k1 = 0,
                                  unsigned k2 = 0,
