@@ -5,3 +5,15 @@ c_library('rt',
     'ipc.S',
   ],
 )
+
+c_library('crt0',
+  sources = [
+    'crt0.cc',
+  ],
+  using = {
+    'link_flags': [
+      '-u main',
+      '-nostartfiles',
+    ],
+  },
+)
