@@ -17,3 +17,17 @@ c_binary('uart.elf',
     '__implicit__': [ '%(linker_script)s' ],
   },
 )
+
+objcopy('uart.bin',
+  environment = 'stm32f407_prog',
+  src = 'latest/a/drv/stm32f4/uart/uart.elf',
+  options = [
+    '--strip-all',
+    '--output-target=binary',
+  ],
+)
+
+c_library('uart.img',
+  sources = [ 'uart-bin.S' ],
+  deps = [ ':uart.bin' ],
+)
