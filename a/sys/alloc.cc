@@ -31,9 +31,15 @@ static constexpr unsigned fixed_slot_count =
 static unsigned slots_used = 0;
 
 // Internal implementation of slot allocation.
-static Maybe<TableIndex> alloc_slot() {
+static Maybe<TableIndex> alloc_slot_int() {
   if (slots_used == config::extra_slot_count) return nothing;
   return slots_used++ + fixed_slot_count;
+}
+
+// External version.
+rt::AutoKey alloc_slot() {
+  auto oti = alloc_slot_int().ref();
+  return object_table::mint_key(ki::ot, oti, 0);
 }
 
 
@@ -136,7 +142,7 @@ Maybe<rt::AutoKey> alloc_mem(unsigned target_l2_half_size, uint64_t brand) {
       auto k_bot_info = object_table::read_key(ki::ot, k_bot);
 
       // Allocate a slot for the new top-half object.
-      auto maybe_top_oti = alloc_slot();
+      auto maybe_top_oti = alloc_slot_int();
       if (!maybe_top_oti) return nothing;  // Out of slots!
 
       auto top_oti = maybe_top_oti.ref();

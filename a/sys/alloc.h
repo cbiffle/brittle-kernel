@@ -7,6 +7,8 @@
 
 namespace sys {
 
+rt::AutoKey alloc_slot();
+
 bool free_mem(KeyIndex);
 Maybe<rt::AutoKey> alloc_mem(unsigned l2_half_size, uint64_t brand);
 
