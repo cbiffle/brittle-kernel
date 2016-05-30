@@ -26,6 +26,7 @@ static void switch_now() {
   ALWAYS_PANIC_UNLESS(head, "no runnable Contexts");
 
   current = head.ref()->owner;
+  current->apply_to_mpu();
 }
 
 void do_deferred_switch() {
