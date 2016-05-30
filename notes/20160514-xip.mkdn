@@ -80,7 +80,9 @@ So, with the flags listed below, the code generation looks reasonable:
 Removing `-mno-pic-data-is-text-relative` seems okay once `-msingle-pic-base` is
 in play: the latter seems to imply a moveable data segment, and the compiler
 stops indirecting rodata accesses through the GOT, preferring PC-relative
-addressing.
+addressing.  (Update from the future: nope.  As noted above, the program being
+tested here had no initialized data.  Removing `-mno-pic-data-is-text-relative`
+breaks data addressing.)
 
 
 Startup
