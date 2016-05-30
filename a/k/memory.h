@@ -44,6 +44,8 @@ void become(unsigned k, ObjectType, unsigned arg, unsigned arg_key = 0);
 uint32_t peek(unsigned k, uint32_t offset);
 void poke(unsigned k, uint32_t offset, uint32_t data);
 
+void make_child(unsigned k, uintptr_t base, size_t size, unsigned slot_key);
+
 }  // namespace memory
 
 #endif  // A_K_MEMORY_H

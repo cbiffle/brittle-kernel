@@ -62,4 +62,16 @@ void poke(unsigned k, uint32_t offset, uint32_t word) {
   ETL_ASSERT(!msg.desc.get_error());
 }
 
+void make_child(unsigned k, uintptr_t base, size_t size, unsigned slot_key) {
+  Message msg {
+    Descriptor::call(6, k),
+    base,
+    size,
+  };
+  rt::ipc2(msg,
+      rt::keymap(0, slot_key, 0, 0),
+      rt::keymap(0, slot_key, 0, 0));
+  ETL_ASSERT(!msg.desc.get_error());
+}
+
 }  // namespace memory
