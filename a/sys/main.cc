@@ -1,8 +1,6 @@
 #include <cstdint>
 
-#include "etl/array_count.h"
 #include "etl/armv7m/mpu.h"
-#include "etl/data/range_ptr.h"
 #include "etl/armv7m/implicit_crt0.h"
 #include "etl/armv7m/exception_table.h"
 
@@ -19,16 +17,19 @@
 #include "a/sys/keys.h"
 #include "a/sys/alloc.h"
 #include "a/sys/idle.h"
+#include "a/sys/selectors.h"
 
 #include "peanut_config.h"
 
-using etl::data::RangePtr;
 using etl::armv7m::Mpu;
-using Rbar = Mpu::rbar_value_t;
 using Rasr = Mpu::rasr_value_t;
 
 namespace sys {
 namespace sketch {
+
+/*******************************************************************************
+ * AppInfo, kernel interfacing.
+ */
 
 extern "C" {
   extern uint32_t _donated_ram_begin, _donated_ram_end;
@@ -99,6 +100,11 @@ static constexpr unsigned
   oi_first_ctx = 2,
   oi_app_ram = 6;
 
+
+/*******************************************************************************
+ * Startup steps.
+ */
+
 static void feed_allocator() {
   // Mint a key to the application RAM object described above.
   auto k_app_ram = object_table::mint_key(ki::ot, oi_app_ram, 0);
@@ -108,7 +114,7 @@ static void feed_allocator() {
   ETL_ASSERT(freed);
 }
 
-static void autoauth() {
+static void make_self_key() {
   // Get a context key to ourselves.
   auto k_self = object_table::mint_key(ki::ot, oi_first_ctx, 0);
   // Put it in the appointed place.
@@ -128,16 +134,119 @@ static void make_idle_task() {
   context::make_runnable(k_ctx);
 }
 
+static void make_syscall_gate() {
+  auto k = etl::move(alloc_mem(kabi::gate_l2_size - 1).ref());
+  memory::become(k, memory::ObjectType::gate, 0);
+  rt::copy_key(ki::syscall_gate, k);
+}
+
+
+/*******************************************************************************
+ * Syscall server.
+ */
+
+static constexpr auto base_receive_descriptor = Descriptor::zero()
+  .with_receive_enabled(true)
+  .with_source(ki::syscall_gate);
+
+static void make_zero_reply(unsigned k, Message & msg) {
+  msg = {
+    base_receive_descriptor
+      .with_send_enabled(true)
+      .with_target(k),
+  };
+}
+
+static void make_error_reply(unsigned k, Message & msg, uint64_t exc) {
+  msg = {
+    base_receive_descriptor
+      .with_send_enabled(true)
+      .with_target(k)
+      .with_error(true),
+    uint32_t(exc),
+    uint32_t(exc >> 32),
+  };
+}
+
+static void make_error_reply(unsigned k, Message & msg, Exception exc) {
+  make_error_reply(k, msg, uint64_t(exc));
+}
+
+__attribute__((noreturn))
+static void serve_syscalls() {
+  // Storage for message exchange and brand.
+  Message msg {
+    base_receive_descriptor,
+  };
+  uint64_t brand;
+
+  // Reserve key registers for keys sent by clients.
+  auto k_client_reply = rt::AutoKey{};
+  auto k_tmp1 = rt::AutoKey{};
+
+  // The request_map determines which keys we *accept* from clients, and it's
+  // always the same.
+  auto request_map = rt::keymap(k_client_reply, k_tmp1);
+
+  // We'll rewrite the reply_map each round, to determine which keys we send
+  // in the reply.
+  auto reply_map = rt::keymap();
+
+  while (true) {
+    rt::ipc2(msg, reply_map, request_map, &brand);
+    // Reset the reply_map to avoid sending authority by accident.
+    reply_map = rt::keymap();
+
+    // Reject any errors delivered this way.
+    if (msg.desc.get_error()) {
+      // Don't bother sending a reply.
+      msg.desc = base_receive_descriptor;
+      continue;
+    }
+
+    // TODO: eventually, we'll need to behave differently based on brand, e.g.
+    // for interrupts.
+
+    // The OTI of the caller's context is given by the low 16 bits of the
+    // brand.   Extract it.
+    auto caller_oti = uint32_t(brand) & 0xFFFF;
+
+    switch (msg.desc.get_selector()) {
+      case selector::map_memory:
+        {
+          // Mint a powerful service key to the caller's Context.
+          auto k_ctx = object_table::mint_key(ki::ot, caller_oti, 0);
+          // Install the requested key.
+          context::set_region(k_ctx, msg.d0, k_tmp1);
+          // Prepare a reply.
+          make_zero_reply(k_client_reply, msg);
+        }
+        break;
+
+      default:
+        make_error_reply(k_client_reply, msg, Exception::bad_operation);
+        break;
+    }
+  }
+}
+
+
+/*******************************************************************************
+ * Actual startup.
+ */
+
 __attribute__((noreturn))
 static void main() {
   rt::reserve_key(ki::ot);
   rt::reserve_key(ki::self);
+  rt::reserve_key(ki::syscall_gate);
 
   feed_allocator();
-  autoauth();
+  make_self_key();
+  make_syscall_gate();
   make_idle_task();
 
-  while (true);  // TODO do stuff
+  serve_syscalls();
 }
 
 }  // namespace sketch

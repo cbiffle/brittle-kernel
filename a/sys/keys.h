@@ -9,7 +9,8 @@ namespace ki {
   static constexpr KeyIndex
     null = 0,
     ot = 1,
-    self = 2;
+    self = 2,
+    syscall_gate = 3;
   // REMEMBER TO UPDATE KEYS.CC
 
 }  // namespace ki
