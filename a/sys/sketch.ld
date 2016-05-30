@@ -50,6 +50,10 @@ SECTIONS {
     _init_array_end = .;
   } >rom
 
+  .uart_img : ALIGN(2048) {
+    KEEP(*(.drv.stm32f4.uart))
+  } >rom
+
   /* Align end of system ROM to a pow2 boundary */
   . = ORIGIN(rom) + 32K;
   PROVIDE(_sys_rom_end = .);

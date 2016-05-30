@@ -30,6 +30,8 @@ c_binary('sketch',
     '//demo:kernel.blob',
     '//etl:assert_loop',
     '//etl/armv7m:implicit_crt0',
+
+    '//a/drv/stm32f4/uart:uart.img',
   ],
   extra = {
     'cxx_flags': [

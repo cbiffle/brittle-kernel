@@ -9,8 +9,8 @@ namespace config {
 
 static constexpr unsigned
   memory_map_count = 3,
-  device_map_count = 0,
-  extra_slot_count = 16;
+  device_map_count = 1,
+  extra_slot_count = 20;
 
 }  // namespace config
 

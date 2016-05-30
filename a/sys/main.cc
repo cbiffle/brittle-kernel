@@ -4,6 +4,8 @@
 #include "etl/armv7m/implicit_crt0.h"
 #include "etl/armv7m/exception_table.h"
 
+#include "etl/stm32f4xx/interrupts.h"
+
 #include "common/app_info.h"
 #include "common/abi_sizes.h"
 
@@ -13,9 +15,11 @@
 #include "a/k/context.h"
 #include "a/k/memory.h"
 #include "a/k/object_table.h"
+#include "a/k/interrupt.h"
 
 #include "a/sys/keys.h"
 #include "a/sys/alloc.h"
+#include "a/sys/load.h"
 #include "a/sys/idle.h"
 #include "a/sys/selectors.h"
 
@@ -46,9 +50,10 @@ constexpr AppInfo app_info {
   .abi_token = current_abi_token,
 
   .memory_map_count = config::memory_map_count,
-  .device_map_count = 0,
+  .device_map_count = config::device_map_count,
   .extra_slot_count = config::extra_slot_count,
-  .external_interrupt_count = 0,
+  .external_interrupt_count =
+    uint32_t(etl::stm32f4xx::Interrupt::usart2) + 1,
 
   .donated_ram_begin = reinterpret_cast<uint32_t>(&_donated_ram_begin),
   .donated_ram_end = reinterpret_cast<uint32_t>(&_donated_ram_end),
@@ -90,6 +95,11 @@ constexpr AppInfo::MemoryMapEntry memory_map[] {
     reinterpret_cast<uint32_t>(&_app_ram1_start),
     reinterpret_cast<uint32_t>(&_app_ram1_end),
   },
+  {
+    // 7: APB
+    0x40000000,
+    0x60000000,
+  },
 };
 
 __attribute__((section(".donated_ram")))
@@ -98,7 +108,33 @@ uint8_t kernel_donation[2048];
 static constexpr unsigned
   oi_object_table = 1,
   oi_first_ctx = 2,
-  oi_app_ram = 6;
+  oi_sys_rom = 4,
+  oi_app_ram = 6,
+  oi_apb = 7;
+
+
+/*******************************************************************************
+ * Factored out bits.
+ */
+
+/*
+ * Allocates a fresh Gate.
+ */
+static rt::AutoKey make_gate() {
+  auto k = etl::move(alloc_mem(kabi::gate_l2_size - 1, 0).ref());
+  memory::become(k, memory::ObjectType::gate, 0);
+  return k;
+}
+
+/*
+ * "Rekeys" an object: given a current key, derives a new key with an arbitrary
+ * brand.  This is useful for generating Gate client keys, since there isn't
+ * currently a convenient way to do that.
+ */
+static rt::AutoKey rekey(unsigned k, uint64_t brand) {
+  auto info = object_table::read_key(ki::ot, k);
+  return object_table::mint_key(ki::ot, info.index, brand);
+}
 
 
 /*******************************************************************************
@@ -123,7 +159,7 @@ static void make_self_key() {
 
 static void make_idle_task() {
   // Allocate space for a Context.
-  auto k_ctx = etl::move(alloc_mem(kabi::context_l2_size - 1).ref());
+  auto k_ctx = etl::move(alloc_mem(kabi::context_l2_size - 1, 0).ref());
 
   // Make it into a real Context.
   memory::become(k_ctx, memory::ObjectType::context, 0);
@@ -135,8 +171,7 @@ static void make_idle_task() {
 }
 
 static void make_syscall_gate() {
-  auto k = etl::move(alloc_mem(kabi::gate_l2_size - 1).ref());
-  memory::become(k, memory::ObjectType::gate, 0);
+  auto k = make_gate();
   rt::copy_key(ki::syscall_gate, k);
 }
 
@@ -232,6 +267,78 @@ static void serve_syscalls() {
 
 
 /*******************************************************************************
+ * Placeholder for the app initialization sequence.
+ */
+
+extern "C" {
+  extern uint32_t const _prog_drv_stm32f4_uart;
+}
+
+static void make_uart_driver() {
+  auto addr = reinterpret_cast<uintptr_t>(&_prog_drv_stm32f4_uart);
+
+  // Make an isolated image key.
+  auto k_img = [addr]{
+      auto k_rom = object_table::mint_key(ki::ot, oi_sys_rom,
+        uint32_t(Rasr()
+          .with_ap(Mpu::AccessPermissions::p_read_u_read)) >> 8);
+      auto k_slot = alloc_slot();
+      memory::make_child(k_rom, addr, 2048, k_slot);
+      return k_slot;
+      }();
+  
+  // Give it to the program loader.
+  auto maybe_k_prog = load_program(addr, k_img);
+  auto & k_prog = maybe_k_prog.ref();
+  
+  // Make a specialized syscall key using the program's OT index as brand.
+  {
+    auto prog_info = object_table::read_key(ki::ot, k_prog);
+    auto k_sys = rekey(ki::syscall_gate, prog_info.index);
+    context::set_key(k_prog, 15, k_sys);
+  }
+
+  // Make it a gate for client requests.
+  // TODO: we'll need to keep that client key around in order to use it...
+  {
+    auto k_gate = make_gate();
+    context::set_key(k_prog, 14, k_gate);
+  }
+
+  // Make an actual Interrupt for the driver to use, and a gate to use with it.
+  // TODO: totally hardcoded vector number here.
+  // TODO: it's silly that we set the Interrupt target; driver should do it
+  // so that it can choose the brand.
+  {
+    auto k_irq = etl::move(alloc_mem(kabi::interrupt_l2_size - 1, 0).ref());
+    memory::become(k_irq, memory::ObjectType::interrupt,
+        uint32_t(etl::stm32f4xx::Interrupt::usart2));
+    context::set_key(k_prog, 12, k_irq);
+
+    auto k_irq_gate = make_gate();
+    context::set_key(k_prog, 13, k_irq_gate);
+
+    interrupt::set_target(k_irq, k_irq_gate);
+  }
+
+  // Give the driver access to the APB.
+  {
+    auto k_apb = object_table::mint_key(ki::ot, oi_apb,
+        uint32_t(Rasr()
+          .with_ap(Mpu::AccessPermissions::p_write_u_write)
+          .with_xn(true)) >> 8);
+    context::set_key(k_prog, 11, k_apb);
+  }
+
+  context::set_priority(k_prog, 0);
+  context::make_runnable(k_prog);
+}
+
+static void make_app() {
+  make_uart_driver();
+}
+
+/*******************************************************************************
  * Actual startup.
  */
 
@@ -245,6 +352,8 @@ static void main() {
   make_self_key();
   make_syscall_gate();
   make_idle_task();
+
+  make_app();
 
   serve_syscalls();
 }
