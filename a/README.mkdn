@@ -1,0 +1,5 @@
+Peanut: A System
+================
+
+This is an experimental system layer for Brittle.  It's intended to help me
+discover which parts of the Brittle design are awkward or wrong.
