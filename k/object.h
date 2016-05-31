@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 
+#include "common/abi_sizes.h"
 #include "common/abi_types.h"
 #include "common/message.h"
 
@@ -25,7 +26,7 @@ struct Sender;     // see: k/sender.h
 
 class Object {
 public:
-  static constexpr unsigned max_head_size = 32;
+  static constexpr unsigned max_head_size = kabi::object_head_size;
 
   enum class Kind : uint32_t {
     null,

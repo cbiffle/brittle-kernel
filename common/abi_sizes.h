@@ -5,8 +5,17 @@
 
 namespace kabi {
 
+/*
+ * Number of objects that are always created by the kernel boot process.
+ * These occupy the first slots in the Object Table.
+ */
+static constexpr unsigned well_known_object_count = 4;
+
+/*
+ * Size of kernel objects and Object Table entries, in bytes.
+ */
 static constexpr unsigned
-  memory_size = 0,
+  object_head_size = 32,  // object table entry size
   context_size = 512,
   gate_size = k::config::n_priorities * 16,
   interrupt_size = 32 + k::config::n_priorities * 8;
@@ -24,8 +33,10 @@ constexpr unsigned allocsize(unsigned x) {
   return log2ceil(x) < 5 ? 5 : log2ceil(x);
 }
 
+/*
+ * Size of kernel objects, expressed as ceil(log2(size)).
+ */
 static constexpr unsigned
-  memory_l2_size = allocsize(memory_size),
   context_l2_size = allocsize(context_size),
   gate_l2_size = allocsize(gate_size),
   interrupt_l2_size = allocsize(interrupt_size);

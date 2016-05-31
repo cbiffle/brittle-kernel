@@ -20,7 +20,7 @@ using etl::armv7m::Mpu;
 
 namespace k {
 
-template struct ObjectSubclassChecks<Memory, kabi::memory_size>;
+template struct ObjectSubclassChecks<Memory, 0>;  // has no body
 
 /*
  * Utility function for checking that one integer range contains another.
