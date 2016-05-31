@@ -149,15 +149,19 @@ void Context::complete_blocked_receive(Exception e, uint32_t param) {
 void Context::apply_to_mpu() {
   using etl::armv7m::mpu;
 
+  // Disable MPU to keep half-applied settings from kicking in.
+  mpu.write_ctrl(mpu.read_ctrl().with_enable(false));
+
   for (unsigned i = 0; i < config::n_task_regions; ++i) {
-    mpu.write_rnr(i);
-    auto object = _body.memory_regions[i].get();
+    auto object = memory_region(i).get();
     auto region =
-        object->get_region_for_brand(_body.memory_regions[i].get_brand());
-    mpu.write_rasr(0);  // disable region before adjusting
-    mpu.write_rbar(region.rbar);
+        object->get_region_for_brand(memory_region(i).get_brand());
+    mpu.write_rbar(region.rbar.with_valid(true).with_region(i));
     mpu.write_rasr(region.rasr);
   }
+
+  // Re-enable MPU.
+  mpu.write_ctrl(mpu.read_ctrl().with_enable(true));
 }
 
 void Context::make_runnable() {
