@@ -52,6 +52,12 @@ SECTIONS {
 
   .uart_img : ALIGN(2048) {
     KEEP(*(.drv.stm32f4.uart))
+    . = ALIGN(2048);
+  } >rom
+
+  .ascii_img : ALIGN(512) {
+    KEEP(*(.srv.ascii))
+    . = ALIGN(512);
   } >rom
 
   /* Align end of system ROM to a pow2 boundary */

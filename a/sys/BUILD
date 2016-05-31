@@ -32,6 +32,7 @@ c_binary('sketch',
     '//etl/armv7m:implicit_crt0',
 
     '//a/drv/stm32f4/uart:uart.img',
+    '//a/srv/ascii:ascii.img',
   ],
   extra = {
     'cxx_flags': [

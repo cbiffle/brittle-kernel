@@ -272,9 +272,10 @@ static void serve_syscalls() {
 
 extern "C" {
   extern uint32_t const _prog_drv_stm32f4_uart;
+  extern uint32_t const _prog_srv_ascii;
 }
 
-static void make_uart_driver() {
+static rt::AutoKey make_uart_driver() {
   auto addr = reinterpret_cast<uintptr_t>(&_prog_drv_stm32f4_uart);
 
   // Make an isolated image key.
@@ -298,12 +299,9 @@ static void make_uart_driver() {
     context::set_key(k_prog, 15, k_sys);
   }
 
-  // Make it a gate for client requests.
-  // TODO: we'll need to keep that client key around in order to use it...
-  {
-    auto k_gate = make_gate();
-    context::set_key(k_prog, 14, k_gate);
-  }
+  // Make it a gate for client requests.  Keep it around to return it.
+  auto k_gate = make_gate();
+  context::set_key(k_prog, 14, k_gate);
 
   // Make an actual Interrupt for the driver to use, and a gate to use with it.
   // TODO: totally hardcoded vector number here.
@@ -332,10 +330,45 @@ static void make_uart_driver() {
 
   context::set_priority(k_prog, 0);
   context::make_runnable(k_prog);
+
+  return k_gate;
+}
+
+__attribute__((used))
+static void make_uart_client(unsigned k_uart_gate) {
+  auto addr = reinterpret_cast<uintptr_t>(&_prog_srv_ascii);
+
+  // Make an isolated image key.
+  auto k_img = [addr]{
+      auto k_rom = object_table::mint_key(ki::ot, oi_sys_rom,
+        uint32_t(Rasr()
+          .with_ap(Mpu::AccessPermissions::p_read_u_read)) >> 8);
+      auto k_slot = alloc_slot();
+      memory::make_child(k_rom, addr, 512, k_slot);
+      return k_slot;
+      }();
+ 
+  // Give it to the program loader.
+  auto maybe_k_prog = load_program(addr, k_img);
+  auto & k_prog = maybe_k_prog.ref();
+  
+  // Make a specialized syscall key using the program's OT index as brand.
+  {
+    auto prog_info = object_table::read_key(ki::ot, k_prog);
+    auto k_sys = rekey(ki::syscall_gate, prog_info.index);
+    context::set_key(k_prog, 15, k_sys);
+  }
+
+  // Give it the UART gate.
+  context::set_key(k_prog, 14, k_uart_gate);
+
+  context::set_priority(k_prog, 0);
+  context::make_runnable(k_prog);
 }
 
 static void make_app() {
-  make_uart_driver();
+  auto k_uart_gate = make_uart_driver();
+  make_uart_client(k_uart_gate);
 }
 
 /*******************************************************************************
