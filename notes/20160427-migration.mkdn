@@ -1,0 +1,153 @@
+Summary: Thread Migration
+=========================
+
+After spending a chunk of yesterday thinking about the thread migration model,
+here are my initial conclusions.
+
+I've been operating with a mistaken notion of what "thread-migrating" meant, due
+largely (I think) to imprecise use of the term in the later literature.  (I've
+seen L4 described as thread-migrating when it is clearly not, in the Ford
+sense.)
+
+Proper (Ford-style) thread migrating IPC is interesting for this system.  It
+neatly solves a number of problems and seems like it would reduce complexity in
+the kernel.
+
+What problems?  What complexity?
+
+- Interrupts stop being particularly special.  The kernel now responds to
+  interrupts by triggering standard threads into designated activations; the
+  latter may be shared with non-interrupt computation.
+
+- Reply capabilities and Reply Gates are no longer needed.
+
+- We can support priority transfer and CPU accounting across IPCs.  Certain
+  types of priority inversion are now more difficult to produce.
+
+- Returning and getting restarted is easier to write, in server code, than a
+  loop that uses the atomic reply-and-wait primitive.
+
+
+Drawbacks?
+
+- It's different.  I understand the current model and its tricks and issues.  I
+  don't yet have the same understanding of a thread-migrating model.
+
+
+Thoughts on fast paths in thread-migrating IPC
+----------------------------------------------
+
+Assume the common case is a call to a ready object.
+
+Assume furthermore than the commonest case is a call to a server with an
+activation ready.
+
+If the message payload is sent in r4-r11, we don't have to save/restore it.  We
+can just let the kernel push and pop it like functions always do, and it will be
+restored when it's time to return into the new activation.
+
+If message control parameters are in r0-r3...can we be assured that they are
+correctly held in registers at SVC entry?  Maybe.  If a higher-priority IRQ
+arrives just as SVC is being triggered, we could late-enter it, and then
+tail-chain from there to SVC without restoring r0-r3/r12.
+
+It should be safe to reload them manually on *entry*, because the hardware
+managed to write them out, and there's no opportunity to change stacks between
+SVC and entry.  On *exit*, however, we need to write them out to the stack.
+
+In both cases we can probably safely use `ldrt` / `strt` without any significant
+performance hit, so let's just assume we're doing that.
+
+
+When do we need to save r4-r11 explicitly?  When we need to find them again
+later.  This means
+1. When invoking a kernel object directly (message must be inspected).
+2. When preempting a thread (message must be saved), including blocking a thread
+   to try delivery again later.
+
+The second involves the scheduler; the first does not.
+
+Crazy thought.  What if we used PendSV for everything but the fast path?  PendSV
+will probably get used to preempt anyway.  We could handle kernel object
+manipulation like preemption.
+
+So the fast path, if it discovers that it won't do, must:
+- Pend a PendSV.
+- Record why somewhere, e.g. set a flag.
+- Return.
+
+Interesting.
+
+
+What does the fast path look like in a migrating system?  I've starred the bits
+that might involve fallback to a slower path with context saving.
+
+- Interpret the call control word. **
+- Locate the key being invoked. 
+- Check that it refers to a server. **
+- Check that this server has activation(s) available. **
+- Choose an activation as the target.
+- Take it off the freelist.
+- Transfer keys involved in this message.
+- Push the current activation onto the current thread's activation stack.
+- Save the PSP.
+- Make the target activation current.
+- Restore the PSP.
+- Deliver any portion of the call control word that's relevant.
+- Return from exception.
+
+As long as the call control word can be provided to this sequence, there's no
+particular reason why it can't be in C.
+
+
+What does the equivalent fast path look like in the current system?
+
+- Interpret the call control word.  **
+- Locate the key being invoked.
+- Check that it refers to a gate. **
+- Check that this gate has receiver(s) available. **
+- Choose a receiver as target.
+- Take it off the gate receiver list.
+- Transfer keys involved in this message.
+- Mint a reply key, stuff it into the receiver.
+- Save the PSP.
+- If the receiver's priority is lower than the original: invoke the scheduler.
+- Make the receiver current.
+- Restore the PSP.
+- Deliver any portion of the call control word that's relevant.
+- Return from exception.
+
+That's pretty similar.  The main exception is that, since the priority might
+drop, the scheduler might be invoked.
+
+We could treat a priority drop as a condition that rules out the fast path.  Or
+just pend a condition that causes a scheduler call from PendSV.
+
+
+Hm.  Note that in a non-migrating system, returns (replies) would either not
+qualify for fast-path, or would need their own.
+
+
+Priority inversion and inheritance
+----------------------------------
+
+It occurs to me:
+- The natural unit of mutual exclusion in the proposed system design is the
+  activation.
+
+- They basically serve as monitors.
+
+- We can get priority inversion if a higher-priority thread attempts to occupy
+  an activation while a lower priority thread inhabits it.
+
+- The equivalent of priority inheritance in such a system might actually be
+  *thread inheritance.*
+
+That is, when a higher-priority thread discovers that all activations are in
+use, it might be best served by temporarily kicking another thread out of an
+activation and finishing its work for it, before returning to whatever it was
+doing.
+
+Two questions immediately come to mind: How would this work? and is there an
+advantage over traditional priority inheritance?
+

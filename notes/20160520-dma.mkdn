@@ -1,0 +1,53 @@
+Is there one DMA object, one per controlller (2), or one object per stream (16
+total)?
+
+It mostly depends on the unit of revocation/restart at the kernel level.
+
+There are restart actions that must be undertaken at the controller level (clock
+and reset) but no controller-level configuration.
+
+Every stream has its own interrupt, but interrupt status is muxed in the
+controller.
+
+
+The resource we are likely to hand to a driver is a stream key.  If the driver
+misbehaves, we will want to revoke that stream key.  There are, as usual, two
+options:
+
+1. Make a stream an object.  Use invalidation to revoke the key.
+
+2. Hand the driver a "fake" stream key, proxied by a system program, with a
+   particular brand.
+
+
+Object heads are currently 16 bytes.  Allocating 16 DMA streams as unique
+objects would consume 256 bytes of RAM.  We have a reasonable motivation for
+expanding heads toward 32 bytes, at which point we'd burn half a kiB just to
+enable DMA.
+
+Whereas an object per controller would consume 32/64 bytes, fixed, independent
+of use patterns.
+
+(Though, in practice, how many applications would use *all* the streams?  I
+never have.  And we could potentially support rebinding of stream objects to
+channels.  So we could allocate a stream object per potential user, and have its
+acquisition operation be binding it to a channel.  Ironically, at this point, we
+can "revoke" by unbinding, so we don't need independent stream objects...)
+
+
+
+What if we hand drivers DMA keys with an identifying number in the brand.  The
+DMA driver would then have a per-stream table of owners.  Only the key that
+matches the table could operate on the stream.
+
+Revocation just requires resetting the table entry, and can be undone without
+driver churn by re-binding (i.e. without destroying the keys).
+
+
+For each stream we'd need to store
+- The identifier of the owning key (32 bits)
+- A pointer to the source memory object (32 bits)
+- A pointer to the dest memory object (32 bits)
+
+
+

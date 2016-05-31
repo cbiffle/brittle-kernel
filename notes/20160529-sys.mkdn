@@ -1,0 +1,46 @@
+Syscalls!
+=========
+
+Well, system-level calls, anyway, not to be confused with the two kernel
+syscalls.
+
+My sketching so far only requires a single syscall: Map Memory.  This takes a
+(client-provided) memory key and installs it in the client's MPU region
+registers.
+
+Design points:
+- Which region register?
+- How do we figure out who the client is?  (i.e. locate the Context)
+
+I figured I'd leave the clients in control of their region registers.  The
+program load ABI basically says that they begin life with text in region 0 and
+data in region 1; everything above that is game.  And, in fact, if they want to
+replace 0 and 1, that's fine too.
+
+On the second point, three solutions come immediately to mind.
+
+1. Disassemble the reply key and map it to a Context.
+
+2. Maintain a table of known Contexts.  Brand the syscall keys to indicate a
+   table slot.
+
+3. Brand the syscall keys to indicate an Object Table slot.
+
+I'm currently leaning toward #3, since it's the easiest.  No extra tables, and
+it preserves the predictable -- if weird! -- behavior that handing someone else
+your syscall key lets them *affect your state*.
+
+(In particular, this prevents a Context from being able to send its syscall key
+to another, masquerading as an innocent key, and tricking the recipient into
+performing syscalls that might affect it.)
+
+This approach is not general.  If a slot in the Object Table might change
+identity, we cannot revoke its outstanding syscall keys!  But the system I'm
+currently implementing uses static object configurations, so it should work.
+
+Let us assume, for now, that the bottom 16 bits of a syscall key index into the
+Object Table.
+
+
+
+

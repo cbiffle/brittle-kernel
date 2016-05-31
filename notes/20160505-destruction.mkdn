@@ -1,0 +1,83 @@
+
+Do we tell objects to destroy themselves?  Or do we do it reflectively, through
+the Object Table?  Or is destruction a separate capability?  Are there Receipt
+Keys, like in Potato?
+
+
+There currently exists one fully transparent object, the Reply Gate.  There are
+no service keys to Reply Gates, and thus nowhere to hang a destroy operation.
+However, this is likely another sign that Reply Gates are a misfeature.
+
+
+We definitely need to be able to destroy objects through the table.  But it's
+not clear that we need to do it *directly.*  As long as it's reasonably
+convenient to mint a destruction-capable key for an arbitrary index, we can just
+do that.
+
+
+How convenient does it need to be?  One of my proposals for nuking ReplyGate
+would dedicate half the Context brand space to reply keys.  If I were to handle
+Gate keys the same way, e.g. high bit set makes a transparent send-only key,
+that could be consistent.
+
+Currently, keys with brand 0 are all-powerful.  I should probably just maintain
+that property, e.g. by having feature-disable bits in the brand instead of
+feature-enable.
+
+
+I'm not sure I can reasonably implement receipt keys in this kernel.  I had
+assumed they would be branded Object Table keys, except they'd need to be
+specific to the destroyable object's generation... which means a generation in
+the brand ... and since I'm moving both generation and brand toward 64 bits,
+there's nowhere to fit a discriminator bit to distinguish receipt keys from
+everything else!
+
+So probably not that.
+
+
+Okay.  I've removed ReplyGate on a branch, and it looks like that'll work.
+Reply keys have the top bit set, so they don't alias zero keys.
+
+Gate keys should work the same way.
+
+In both cases, destruction (and everything else other than transparent send) is
+inhibited by setting the top bit.  Currently, no other objects use the top bit.
+I could give it a global name, but it's not clear whether that's a meaningful
+concept.
+
+
+For other sorts of objects, destruction is probably a separate brand bit in the
+service key.  And, in fact, *for Context and Gate* it is probably a separate
+brand bit in the service key -- we need to be able to produce Context keys that
+don't have authority to *destroy* the Context, without them turning into Reply
+Keys.
+
+Does this bit have a meaning for Memory?  It would probably convey authority
+over Become, and possibly Split.
+
+More rigorously.
+
+The following kernel objects remain: Context, Gate, Memory, ObjectTable, Null,
+Slot.
+
+Operation clusters.
+
+Destruction:
+- Context, Gate: destroy.
+- Memory: become, split.
+- Slot: donate.
+- ObjectTable, Null: irrelevant (both are immortal)
+
+Read?
+- Context: read register/key/region, get priority
+- Memory: inspect, peek
+- OT: read key, get kind
+
+Mutate?
+- Context: write register/key/region, resume, set priority
+- Memory: poke
+
+Open questions:
+- Context: bind / unbind gate, unblock sender (for teardown)
+- Gate: unblock sender/receiver (for teardown), receive
+- OT: mint key

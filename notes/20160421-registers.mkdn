@@ -1,0 +1,29 @@
+Context Register Access
+=======================
+
+I've been thinking about removing the single-register accessor operations from
+Context.  They're complicated and probably won't see a lot of use in practice.
+
+In their place, I've got the save and restore operations that access
+kernel-saved registers.  For the registers saved by hardware... well, their
+values are on the stack, and programs can work out how to access them by reading
+the stack pointer.
+
+
+The save/restore operations have a problem, though: they implicitly use a memory
+key held by the caller.  Not only is this ugly, it has a potential for confused
+deputy scenarios.
+
+I could reduce the message to moving one register at a time, but I did that once
+before and it had performance consequences.
+
+I could require the caller to pass an explicit memory key, and then use that.
+This is obviously correct and all, but possibly awkward?  It'd require some new
+kernel internal APIs too, but that's okay.
+
+
+If I transfer all the registers in one go, they by definition need to go through
+memory... because messages go through these very registers, and there are not
+enough of them to store themselves, plus a descriptor.  If that makes sense.
+
+

@@ -1,0 +1,96 @@
+
+Is there a set of orthogonal permissions that make sense for uniform encoding in
+brands?
+
+Here are some candidates with evaluation of how they would apply to objects.
+
+
+Destroy
+-------
+
+- Memory: would permit splitting, merging.
+
+- Slot: ???  required to donate?  But slot keys serve no other purpose...
+
+- Object Table: ???
+
+- Everything else: would permit recycling into memory.
+
+Should this right also control revocation?  Since revocation can be effectively
+simulated by destruction-creation...
+
+
+Read
+----
+
+- Memory: map region readable, use messages to read contents.
+
+- Context: access registers.  Access keys?
+
+- Gate: receive.
+
+- Interrupt: get target key.
+
+- Object Table: inspect objects?  Read keys?
+
+- Slot: ???
+
+
+Write
+-----
+
+- Memory: map region writable, use messages to write contents.
+
+- Context: alter registers, keys.  Also possibly required to access keys.
+
+- Gate: send.
+
+- Interrupt: set target. Enable?
+
+- Object Table: mint key?
+
+- Slot: ???
+
+
+
+Transitivity
+------------
+
+EROS had "sensory keys," which were transitively read-only.  When reading keys
+from an object through a sensory key, the returned keys would also be sensory
+keys.
+
+Is this a good idea?  Contexts are the main case where it seems like it might be
+a thing.  And "keyrings" or equivalent once I need 'em.
+
+
+Non-Orthogonal Permissions
+--------------------------
+
+Verbs that exist in the system that do not obviously map to any of the bits
+above:
+
+- Interrupt enable isn't a terribly clear mapping.
+
+- Gate-Group manipulation.
+
+- Object Table methods (which are usually keys to distinct object types in
+  EROS).
+
+
+Non-Kernel Permissions
+----------------------
+
+The only permissions that seem like they *need* to be in the kernel are:
+
+1. Read-write vs. read-only on memory keys, because it affects the MPU settings
+   loaded by the kernel.
+
+2. Send vs. receive on gate keys, because it's part of implementing other
+   permissions in system layers without client interference.
+
+3. Control over a uniform "Destroy" verb, should I provide one, at least for
+   gates.  Gates are the main kernel object that the average application will
+   encounter.
+
+

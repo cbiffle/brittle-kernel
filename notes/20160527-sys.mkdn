@@ -1,0 +1,27 @@
+As a system design comes together
+=================================
+
+I'm still growing the first (native) system organically, instead of trying to
+design it, because I don't really know what it wants to be yet.
+
+
+I've now got a separately-compiled UART driver sketch, derived from the old
+`demo/ascii` code.  I can make a little binary from that.
+
+Something in the system is responsible for
+- Inflating the program image into a process.
+  - Creating suitably snug Memory objects.
+  - Allocating a data segment.
+  - Relocating the GOT and initializing the data.
+  - Setting these two MPU registers and the processor registers.
+- Providing the process with some initial authority
+  - Making some gates, interrupts, etc.
+  - Loading branded keys.
+
+There is a syscall for mapping a memory key into the caller's address space.
+There may be a corresponding one for reversing that (though loading a null key
+suffices).
+
+
+
+

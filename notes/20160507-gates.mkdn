@@ -1,0 +1,49 @@
+Gate Protocol Thoughts
+======================
+
+In notes recently I've identified at least two methods that should appear on
+Gates, both in support of destruction:
+
+- Destroy.
+- Discharge waiter.
+
+The System needs to discharge all waiters to a Gate before it can Destroy, to
+avoid an O(n) list destruction pass.
+
+This means that Gate keys can't be fully transparent.  So, like my recent
+changes to Context, I figured I'd use the top bit to distinguish.
+
+Gate brands now come in two flavors:
+
+- Top bit set: transparent key.  Only "send" is permitted, and such sends are
+  transparent, delivering the whole brand through to server programs.  The
+  bottom 63 bits are available for application use.
+
+- Top bit clear: service key.  Other bits will likely control access to certain
+  methods, tbd.
+
+
+Discharging wait queues
+-----------------------
+
+Here's a question.  When I take an O(1) step of removing a BlockingSender from a
+Gate's senders list, do I receive a key to it?
+
+If so, what is the brand of that key?
+
+It seems inappropriate to yield a fully powered key.
+
+Consider Contexts, in particular.  A component doing teardown of a Gate might
+want to resume the Context with an exception, or re-block it on another Gate.
+
+...huh, there is actually a key that has those abilities, or is proposed to have
+them, while conveying no other authority: the reply key.
+
+So in the case of Senders the right thing to do may be to have the maintenance
+component *take delivery of the message.*
+
+What about receivers?  Those we can likely just interrupt.
+
+
+
+

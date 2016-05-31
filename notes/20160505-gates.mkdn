@@ -1,0 +1,66 @@
+
+I'm approaching the gate group issue again.
+
+Currently I feel like groups, which allow N Gates to be serviced by M Contexts,
+are not primitive.  An N:1 relationship, e.g. bound Gates, suffices.  Here's the
+proof.
+
+- A group program is bound to the N Gates and loops performing open receive.
+- It forwards messages to an "output Gate" where M Contexts wait.
+- It holds a service key to that Gate, allowing it to mint arbitrary send keys.
+- Each time it receives a message, it mints a send key *with the received brand*
+  and uses it to forward, preserving the origin brand.
+
+
+So let's think through gate binding.
+
+To ensure that open receive can complete in O(1) time, and preserve priority
+ordering across all bound gates, the gates (or their senders) need to be
+*collated* into a priority queue at the Context.
+
+In the presence of masking/unmasking, gates need to be *un-collated* in O(1)
+time (so that receive doesn't have to e.g. skip a bunch of masked items).  This
+implies that it must be the Gate, not its senders, that wait in the collated
+priority queue.
+
+When a sender aborts waiting, the Gate may need to be re-collated or removed
+from the queue, because its max priority may have changed.  This implies that
+the sender must be able to locate its host and inform it somehow of the abort.
+
+If the Gate can be recieved from directly, despite being bound (and it is not
+clear that this makes sense), the Gate must be recollated or removed.
+
+Before the Context can be safely destroyed, all its bound Gates must be located
+and unbound.
+
+Before a Gate can be safely destroyed, it must be disconnected from its Context.
+
+
+It is not obvious what the priority of a Gate with no senders should be.  One
+reasonable approach would say that it has no priority: a priority queue
+containing only gates without senders should appear empty.
+
+But this produces an asymmetry in the implementation.  We need to find bound
+Gates even if they aren't ready, so they need to appear on some list.  But this
+list must be separate from the priority queue that they appear on when ready.
+
+One option would be to assign empty gates priority P+1, an illegal low-priority
+value, and then alter the List take operation (and possibly `is_empty`) to
+accept a priority threshold.  This would ignore empty gates while giving them a
+defined (if unusual) priority value.
+
+Oh, fun: because the presence of an extra priority level would presumably be a
+template parameter to the List instantiation, it would also affect Gate's List
+Item.  This would *prevent* a Gate from being added to a List without the
+additional level.
+
+
+Binding a Gate to a Context would require a service key to both objects.  I feel
+like the bind operation ought to appear on Gate, since it affects the Gate more
+than the Context.  On the other hand, to support destruction, Context will need
+to support an unbind-a-gate operation that could easily yield a service key to
+the gate... so symmetry would suggest binding being on Context.  This deserves
+more consideration.
+
+
+

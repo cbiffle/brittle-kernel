@@ -1,0 +1,39 @@
+Panic vs. Assert
+================
+
+I'd like to evaluate switching away from `ETL_ASSERT` over to a kernel-specific
+`PANIC` operation that can provide explanatory messages, like Unix.
+
+This would fall into two categories of macros, those that must always be enabled
+for correctness, and those that can be disabled in a "release build" once we're
+confident in the code.
+
+By choosing carefully what information is recorded about panic sites, we should
+be able to put a real dent in the ROM image.
+
+
+Beginning work:
+- 2109 sloc
+- 10,044 bytes ROM (STM32F4)
+
+After, with some new checks added:
+- 2157 sloc (+48)
+- 9,572 bytes ROM (-472)
+
+With paranoid checks disabled:
+- 8,580 bytes ROM (-1464 from original, -992 from revised)
+
+The decrease in ROM image size is thanks to the reduced strings table, since
+PANIC stores less information about each site than `ETL_ASSERT` does.  I could
+achieve similar means by setting `ETL_USE_SYSTEM_ASSERT` and providing my own
+implementation of C's `assert()` macro, but I'd need to put explanations in the
+conditions to justify dropping the file/line numbers, e.g.
+
+    assert(head && "Foo bar");
+
+I don't love that tired old pattern, and there are already sections of ETL that
+don't do this.
+
+Plus: C's `assert()` is supposed to honor `NDEBUG`.
+
+I'll just do my own macros for now.

@@ -1,0 +1,2 @@
+I've gone back and forth on this, but Minix has me pretty convinced that a
+notification mechanism would make sense.

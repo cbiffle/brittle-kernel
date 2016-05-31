@@ -1,0 +1,47 @@
+IPC Redux Kickoff
+=================
+
+I'm undertaking a series of changes to redesign the IPC mechanism.  The goals:
+
+1. Enable transfer of larger messages, ideally up to 8 words, in registers.
+
+2. Simplify IPC semantics and focus on call-style invocation (a la EROS, QNX)
+   rather than clever but less structured two-phase IPC (a la L4).
+
+3. Make the ABI more flexible, so that keys can be sent from and received into
+   any set of Key Registers.  This will also make it significantly harder to
+   accidentally leak authority in an IPC.
+
+4. Eventually, get rid of Reply Gates as a separate entity.
+
+See my notes from 2012-04-29 for more background.
+
+
+Step 1: four-word messages
+--------------------------
+
+I'm starting by separating the IPC descriptor from the message being sent.  This
+effectively expands messages to four data words (five words counting the
+descriptor).
+
+The descriptor is given in `r0` on entry to an IPC, and a sanitized version of
+it is delivered into `r0` on receive.
+
+Because `r0` of a suspended thread lives on the stack in this architecture, this
+means IPC can now fault.  I had been trying to avoid this, but I've gotta bite
+the bullet.  Right now, such a fault causes a panic.  Handling it will be part
+of a larger effort to generalize fault delivery.
+
+
+Step 2: altered brand delivery
+------------------------------
+
+If we're going to move eight-word messages around, we can't deliver both a
+received message *and* the brand used to send it in the set of eight callee-save
+registers, as I've historically done.
+
+The brand of a received message will be delivered in registers, probably `r2`
+for now.
+
+
+

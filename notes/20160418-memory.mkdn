@@ -1,0 +1,25 @@
+
+We need an ordering on certain attributes to allow one-way "weakening" of memory
+keys.  We may need a *total* ordering if we're to combine attributes during
+merge.  To what degree does all this make sense?
+
+
+Weakening
+---------
+
+- A set SRD bit is weaker than unset.
+  - There is no total ordering of SRD masks.
+  - e.g. 0xF0 and 0x0F are not ordered.
+
+- I don't think an ordering makes sense for ordering and cacheability.
+
+AccessPermissions bits form a lattice.  A given level of unprivileged access can
+be weakened by reducing privileged access.  But two values *can* be compared to
+check whether a change would increase access.
+
+
+Side Note
+---------
+
+If I implement Memory methods to read and write, I could lose the SysTick
+driver!  Memory could provide the tool for generating privileged accesses.

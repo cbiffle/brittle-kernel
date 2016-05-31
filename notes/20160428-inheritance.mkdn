@@ -1,0 +1,31 @@
+Priority Inheritance
+====================
+
+(And other schemes to avoid unbounded inversion.)
+
+The current kernel implements no such scheme.  This is deliberate.  I want to
+see how far such a scheme can get implemented entirely in the system.
+
+For the FreeRTOS port this works reasonably well, but the FreeRTOS port isn't
+leaning on IPC very hard.  Its IPCs are fast and atomic.  In the event of a
+long-running IPC call, we can get priority inversion because Contexts act as
+monitors.  We can get transitive priority inversion, because IPCs can be
+chained.  And so on.
+
+Potential solutions?
+
+IPC calls into a Context can be made atomic by setting `BASEPRI` in the Context.
+Preemption will be prevented, and thus any task entering the Context will
+effectively have maximum priority until it completes.
+
+Minimal kernel support for the priority ceiling protocol might be: add a field
+to Gate giving the highest priority caller that can use the Gate.  Server
+Contexts can then be set to that priority (or higher), and to hand out elevated
+priorities to e.g. mutex holders, they can alter their callers through a
+mechanism not specified here.
+
+(Note: there's currently no good way to identify a caller.  I've assumed that
+systems would issue branded syscall keys that would implicitly identify the
+caller, but if such a key were transferred... weirdness ensues.)
+
+

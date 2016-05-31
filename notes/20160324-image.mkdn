@@ -1,0 +1,70 @@
+On Image Building
+=================
+
+Okay, so: kernel objects are (currently) statically allocated, right?
+
+But what if they weren't allocated at kernel link time?
+
+This grew out of a thought experiment: what would it take to distribute this
+kernel as a closed-source blob?  Currently there are a bunch of configuration
+parameters that worm their way into the kernel build, but there's really only a
+couple -- governing ABI -- that matter:
+
+- `n_task_keys` and `n_task_regions` determine the size of the Context object.
+
+- `n_message_keys` supposedly determines the shape of a message, but it isn't
+  honored anymore and should be removed.
+
+- `n_priorities` is the biggie -- it affects the size of every priority list in
+  the system.
+
+- And there's `checks` which controls in-kernel asserts.
+
+But as far as how many kernel objects there are, and what types they are?  That
+could be decided separately, say by the application image.
+
+
+The Initial Idea
+----------------
+
+Imagine the kernel gets built as a blob.  This blob has flash and RAM
+components.
+
+It's going to be combined with an application blob, which will also have flash
+and RAM components.
+
+They could be joined by a little application information block, which would
+include the following sorts of things:
+
+- A map of kernel objects, giving (for each)
+  - Object type.
+  - Any object-specific configuration parameters.
+    - For contexts, the table index of a reply gate.
+    - For address ranges, the address range and permissions.
+- Information about the amount of memory the app expects this to take.
+  - Mostly to check ABI compatibility.
+- Information about how to start the app (initial stack pointer, PC).
+  - Also, the initial memory grants.
+  - And the table index of the initial Context.
+
+This map would be linked into ROM just after the kernel, so that the kernel can
+find it (the linker would help).  The kernel would check some things:
+
+- That any object table indexes in the map are valid.
+- That any specified address ranges do not overlap the kernel or reserved
+  devices.
+- That there is sufficient room between the end of kernel RAM and the start of
+  the application (at a pow2 boundary) to allocate the requested objects.
+- That the initial Context is really a Context.
+
+
+The initial Context receives:
+- Some grants.
+- A stack pointer.
+- A PC.
+- A single key, to the object table.
+
+and then gets started.
+
+
+

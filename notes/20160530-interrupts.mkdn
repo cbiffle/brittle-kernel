@@ -1,0 +1,16 @@
+
+Having used Interrupts a little bit, I have more thoughts.
+
+Interrupt objects should exist in "bound" and "unbound" states.  On creation,
+they should be unbound.  (This will let me remove the mostly-unused integer
+argument from memory::become.)
+
+A sufficiently powered service key can bind the Interrupt to a hardware vector,
+and unbind it from its current vector.  Note that the hardware vectors in that
+model are probably not modeled as capabilities.  This privilege is probably best
+reserved for the system.
+
+During driver initialization we would
+- Create an Interrupt.
+- Bind it to its vector.
+- Hand the driver a key *with binding privilege removed*.
