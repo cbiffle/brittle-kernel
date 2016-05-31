@@ -154,6 +154,7 @@ void Context::apply_to_mpu() {
     auto object = _body.memory_regions[i].get();
     auto region =
         object->get_region_for_brand(_body.memory_regions[i].get_brand());
+    mpu.write_rasr(0);  // disable region before adjusting
     mpu.write_rbar(region.rbar);
     mpu.write_rasr(region.rasr);
   }
