@@ -18,11 +18,15 @@ c_library('k_portable',
   },
 ).extend_when(lambda e: e['arch'] == 'target',
   sources = [
+    'cxxabi.cc',
     'object.cc',
     'panic.cc',
     'unprivileged.cc',
     'unprivileged.S',
   ],
+  using = {
+    'link_flags': [ '-u memset' ],
+  },
 ).extend_when(lambda e: e['arch'] == 'native',
   sources = [
     'testutil/mpu_fake.cc',
@@ -40,7 +44,6 @@ c_library('k_portable',
 c_library('k',
   sources = [
     'app.cc',
-    'cxxabi.cc',
     'entry.S',
     'irq_entry.cc',
     'main.cc',
