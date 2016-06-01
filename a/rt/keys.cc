@@ -18,6 +18,11 @@ void reserve_key(unsigned ki) {
   available_keys &= ~mask;
 }
 
+void reserve_keys(unsigned m) {
+  ETL_ASSERT((available_keys & m) == m);  // Ensure they're still available.
+  available_keys &= ~m;
+}
+
 AutoKey::AutoKey() : _ki{0} {
   for (unsigned i = 1; i < 16; ++i) {
     if (available_keys & (1u << i)) {

@@ -10,6 +10,14 @@ namespace rt {
 void reserve_key(unsigned);
 
 /*
+ * Marks a set of key registers as being unavailable for automatic allocation.
+ * This is useful if a Context is handed some keys on startup.  The key
+ * registers are expressed as a bitmask, where each bit (starting at the LSB)
+ * corresponds to a key register.
+ */
+void reserve_keys(unsigned);
+
+/*
  * RAII-style object for dynamically reserving a key register.
  */
 class AutoKey {
