@@ -32,13 +32,14 @@ static constexpr unsigned
 
 __attribute__((noreturn))
 int main() {
-  rt::reserve_key(k_gate);
-  rt::reserve_key(k_sys);
+  rt::reserve_keys((1u << k_gate) | (1u << k_sys));
+
+  auto const dtor = Descriptor::call(1, k_gate);
 
   while (true) {
     for (unsigned c = ' '; c < 127; ++c) {
       Message m {
-        Descriptor::call(1, k_gate),
+        dtor,
         c,
       };
       rt::ipc2(m, 0, 0);

@@ -3,7 +3,7 @@ c_binary('ascii.elf',
   sources = [ 'main.cc' ],
   deps = [
     '//etl/stm32f4xx',
-    '//etl:assert_loop',
+    '//a/lib:assert_exit',
     '//a/rt',
     '//a/k',
     '//a/rt:crt0',
