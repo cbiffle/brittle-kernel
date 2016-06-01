@@ -7,7 +7,8 @@ namespace sys {
 namespace selector {
 
 static constexpr uint16_t 
-  map_memory = 1;
+  map_memory = 1,
+  exit = 2;
 
 }  // namespace selector
 }  // namespace sys

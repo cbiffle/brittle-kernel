@@ -232,6 +232,15 @@ static void serve_syscalls() {
         }
         break;
 
+      case selector::exit:
+        {
+          // Mint a powerful service key to the caller's Context.
+          auto k_ctx = object_table::mint_key(ki::ot, caller_oti, 0);
+          // Effectively halt the system.  This is obviously wrong (TODO)
+          while (true);
+        }
+        break;
+
       default:
         make_error_reply(k_client_reply, msg, Exception::bad_operation);
         break;
