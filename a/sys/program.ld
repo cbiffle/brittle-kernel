@@ -11,6 +11,7 @@ PHDRS {
 
 SECTIONS {
   .text 0 : {
+    _image_base = .;
     LONG(_data_end)
     LONG(_text_end)
     LONG(_got_end)
