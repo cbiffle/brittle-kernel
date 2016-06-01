@@ -16,6 +16,9 @@ c_binary('ascii.elf',
     ],
     '__implicit__': [ '%(linker_script)s' ],
   },
+  extra = {
+    'link_flags': [ '-flto' ],
+  },
 )
 
 objcopy('ascii.bin',
