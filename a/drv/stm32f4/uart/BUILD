@@ -16,6 +16,9 @@ c_binary('uart.elf',
     ],
     '__implicit__': [ '%(linker_script)s' ],
   },
+  extra = {
+    'link_flags': [ '-flto' ],
+  },
 )
 
 objcopy('uart.bin',
