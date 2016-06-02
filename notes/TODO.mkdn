@@ -5,9 +5,6 @@ Implement keyrings.  Consider factoring them out of Context; evaluate tradeoffs.
 Particularly evaluate tradeoffs vs. implementing a similar facility as an
 unprivileged process.
 
-Shift protocols to avoid selector zero, to make it harder to confuse innocent
-replies for commands.
-
 Identify and implement any fast paths necessary in IPC.  Context-Gate-Context
 seems like a potential candidate, as does Context-ReplyGate-Context.
 

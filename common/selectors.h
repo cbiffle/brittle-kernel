@@ -7,19 +7,19 @@ namespace selector {
 
 namespace context {
   static constexpr Selector
-    read_register = 0,
-    write_register = 1,
-    read_key_register = 2,
-    write_key_register = 3,
-    read_region_register = 4,
-    write_region_register = 5,
-    make_runnable = 6,
-    get_priority = 7,
-    set_priority = 8,
-    read_low_registers = 9,
-    read_high_registers = 10,
-    write_low_registers = 11,
-    write_high_registers = 12;
+    read_register = 1,
+    write_register = 2,
+    read_key_register = 3,
+    write_key_register = 4,
+    read_region_register = 5,
+    write_region_register = 6,
+    make_runnable = 7,
+    get_priority = 8,
+    set_priority = 9,
+    read_low_registers = 10,
+    read_high_registers = 11,
+    write_low_registers = 12,
+    write_high_registers = 13;
 }
 
 namespace interrupt {
@@ -30,21 +30,21 @@ namespace interrupt {
 
 namespace memory {
   static constexpr Selector
-    inspect = 0,
-    change = 1,
-    split = 2,
-    become = 3,
-    peek = 4,
-    poke = 5,
-    make_child = 6;
+    inspect = 1,
+    change = 2,
+    split = 3,
+    become = 4,
+    peek = 5,
+    poke = 6,
+    make_child = 7;
 }
 
 namespace object_table {
   static constexpr Selector
-    mint_key = 0,
-    read_key = 1,
-    get_kind = 2,
-    invalidate = 3;
+    mint_key = 1,
+    read_key = 2,
+    get_kind = 3,
+    invalidate = 4;
 }
 
 }  // namespace selector

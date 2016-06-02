@@ -25,7 +25,7 @@ Methods
 
 .. _object-table-methods-mint-key:
 
-Mint Key (0)
+Mint Key (1)
 ~~~~~~~~~~~~
 
 Mints a key to any object, specified by table index, with an arbitrary (but
@@ -60,7 +60,7 @@ Exceptions
 - ``k.bad_brand`` if the object vetoes the suggested brand.
 
 
-Read Key (1)
+Read Key (2)
 ~~~~~~~~~~~~
 
 Inspects a key and reads out its table index and brand.  This is essentially
@@ -82,7 +82,7 @@ Reply
 - d2: brand high bits
 
 
-Get Kind (2)
+Get Kind (3)
 ~~~~~~~~~~~~
 
 Reports the true kind of the object inhabiting a particular object table slot.
@@ -119,7 +119,7 @@ Exceptions
 
 .. _object-table-methods-invalidate:
 
-Invalidate (3)
+Invalidate (4)
 ~~~~~~~~~~~~~~
 
 Advances an object's generation number, causing all outstanding keys to become

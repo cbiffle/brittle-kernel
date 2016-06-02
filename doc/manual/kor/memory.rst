@@ -103,7 +103,7 @@ Methods
 
 .. _memory-method-inspect:
 
-Inspect (0)
+Inspect (1)
 ^^^^^^^^^^^
 
 Retrieves information about a Memory object and the key used to access it.
@@ -125,7 +125,7 @@ Reply
 
 .. _memory-method-change:
 
-Change (1)
+Change (2)
 ^^^^^^^^^^
 
 Derives a new key to the same Memory object, with the ARMv7-M Region Attribute
@@ -170,7 +170,7 @@ Exceptions
 
 .. _memory-method-split:
 
-Split (2)
+Split (3)
 ^^^^^^^^^
 
 Breaks a Memory object into two pieces, called bottom and top, divided at an
@@ -224,7 +224,7 @@ Exceptions
 
 .. _memory-method-become:
 
-Become (3)
+Become (4)
 ^^^^^^^^^^
 
 Uses the address space described by this Memory object to create a new kernel
@@ -311,7 +311,7 @@ Exceptions
 
 .. _memory-method-peek:
 
-Peek (4)
+Peek (5)
 ^^^^^^^^
 
 Reads a word of data from the address space corresponding to this Memory object.
@@ -344,7 +344,7 @@ Exceptions
 
 .. _memory-method-poke:
 
-Poke (5)
+Poke (6)
 ^^^^^^^^
 
 Writes a word of data into the address space corresponding to this Memory
@@ -377,7 +377,7 @@ Exceptions
 - ``k.bad_operation`` if the key used does not confer write access.
 
 
-Make Child (6)
+Make Child (7)
 ^^^^^^^^^^^^^^
 
 Makes a new child Memory object, with this object as its parent.

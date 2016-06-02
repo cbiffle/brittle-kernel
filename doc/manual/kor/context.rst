@@ -83,7 +83,7 @@ Methods
 
 .. _context-method-read-register:
 
-Read Register (0)
+Read Register (1)
 ~~~~~~~~~~~~~~~~~
 
 Reads a register, by index, from this Context.  Only the registers specified as
@@ -129,7 +129,7 @@ Exceptions
 
 .. _context-method-write-register:
 
-Write Register (1)
+Write Register (2)
 ~~~~~~~~~~~~~~~~~~
 
 Writes a register, by index, in this context.  Only the registers specified as
@@ -162,7 +162,7 @@ Exceptions
 
 .. _context-method-read-key-register:
 
-Read Key Register (2)
+Read Key Register (3)
 ~~~~~~~~~~~~~~~~~~~~~
 
 Reads a key from one of this Context's key registers, by index.  Note that there
@@ -190,7 +190,7 @@ Exceptions
 
 .. _context-method-write-key-register:
 
-Write Key Register (3)
+Write Key Register (4)
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Writes a key into one of this Context's key registers, by index.  Note that
@@ -218,7 +218,7 @@ Exceptions
 
 .. _context-method-read-mpu-region-register:
 
-Read MPU Region Register (4)
+Read MPU Region Register (5)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Reads out the contents of one of this Context's MPU region registers.  The
@@ -245,7 +245,7 @@ Exceptions
 
 .. _context-method-write-mpu-region-register:
 
-Write MPU Region Register (5)
+Write MPU Region Register (6)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Alters one of this Context's MPU region registers.  The number of MPU region
@@ -282,7 +282,7 @@ Exceptions
 
 .. _context-method-make-runnable:
 
-Make Runnable (6)
+Make Runnable (7)
 ~~~~~~~~~~~~~~~~~
 
 Switches this Context into "runnable" state.  The practical effect of this
@@ -320,7 +320,7 @@ Empty.
 
 .. _context-method-get-priority:
 
-Get Priority (7)
+Get Priority (8)
 ~~~~~~~~~~~~~~~~
 
 Gets the current priority of this Context.
@@ -340,7 +340,7 @@ Reply
 
 .. _context-method-set-priority:
 
-Set Priority (8)
+Set Priority (9)
 ~~~~~~~~~~~~~~~~
 
 Alters the current priority of this Context.  If this Context is runnable, this
@@ -361,7 +361,7 @@ Empty.
 
 .. _context-method-read-registers:
 
-Read (Low/High) Registers (9/10)
+Read (Low/High) Registers (10/11)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each of these two methods reads a block of five kernel-maintained registers
@@ -393,7 +393,7 @@ d4 ``r8`` ``r13``
 
 .. _context-method-write-registers:
 
-Write (Low/High) Registers (11/12)
+Write (Low/High) Registers (12/13)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each of these two methods writes a block of five kernel-maintained registers
