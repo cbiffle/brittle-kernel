@@ -2,13 +2,16 @@
 
 #include "etl/assert.h"
 
+#include "common/selectors.h"
 #include "a/rt/ipc.h"
+
+namespace S = selector::context;
 
 namespace context {
 
 void set_region(unsigned k, unsigned region_index, unsigned region_key) {
   Message msg {
-    Descriptor::call(5, k),
+    Descriptor::call(S::write_region_register, k),
     region_index,
   };
   rt::ipc2(msg,
@@ -19,7 +22,7 @@ void set_region(unsigned k, unsigned region_index, unsigned region_key) {
 
 rt::AutoKey get_region(unsigned k, unsigned region_index) {
   Message msg {
-    Descriptor::call(4, k),
+    Descriptor::call(S::read_region_register, k),
     region_index,
   };
   auto k_out = rt::AutoKey{};
@@ -33,7 +36,7 @@ rt::AutoKey get_region(unsigned k, unsigned region_index) {
 
 void set_register(unsigned k, Register r, uint32_t value) {
   Message msg {
-    Descriptor::call(1, k),
+    Descriptor::call(S::write_register, k),
     uint32_t(r),
     value,
   };
@@ -43,7 +46,7 @@ void set_register(unsigned k, Register r, uint32_t value) {
 
 void set_key(unsigned k, unsigned index, unsigned source_index) {
   Message msg {
-    Descriptor::call(3, k),
+    Descriptor::call(S::write_key_register, k),
     index,
   };
   rt::ipc2(msg,
@@ -54,7 +57,7 @@ void set_key(unsigned k, unsigned index, unsigned source_index) {
 
 void make_runnable(unsigned k) {
   Message msg {
-    Descriptor::call(6, k),
+    Descriptor::call(S::make_runnable, k),
   };
   rt::ipc2(msg, 0, 0);
   ETL_ASSERT(!msg.desc.get_error());
@@ -62,7 +65,7 @@ void make_runnable(unsigned k) {
 
 void set_priority(unsigned k, unsigned priority) {
   Message msg {
-    Descriptor::call(8, k),
+    Descriptor::call(S::set_priority, k),
     priority,
   };
   rt::ipc2(msg, 0, 0);

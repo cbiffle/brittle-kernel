@@ -1,13 +1,16 @@
 #include "a/k/object_table.h"
 
 #include "etl/assert.h"
+#include "common/selectors.h"
 #include "a/rt/ipc.h"
+
+namespace S = selector::object_table;
 
 namespace object_table {
 
 rt::AutoKey mint_key(unsigned k, unsigned index, uint64_t brand) {
   Message msg {
-    Descriptor::call(0, k),
+    Descriptor::call(S::mint_key, k),
     index,
     uint32_t(brand),
     uint32_t(brand >> 32),
@@ -22,7 +25,7 @@ rt::AutoKey mint_key(unsigned k, unsigned index, uint64_t brand) {
 
 KeyInfo read_key(unsigned k, unsigned key) {
   Message msg {
-    Descriptor::call(1, k),
+    Descriptor::call(S::read_key, k),
   };
   rt::ipc2(msg,
       rt::keymap(0, key),
@@ -37,7 +40,7 @@ KeyInfo read_key(unsigned k, unsigned key) {
 
 Kind get_kind(unsigned k, unsigned index) {
   Message msg {
-    Descriptor::call(2, k),
+    Descriptor::call(S::get_kind, k),
     index,
   };
   rt::ipc2(msg, 0, 0);
@@ -48,7 +51,7 @@ Kind get_kind(unsigned k, unsigned index) {
 
 bool invalidate(unsigned k, unsigned index, bool rollover_ok) {
   Message msg {
-    Descriptor::call(3, k),
+    Descriptor::call(S::invalidate, k),
     index,
     rollover_ok,
   };

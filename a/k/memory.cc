@@ -2,12 +2,15 @@
 
 #include "etl/assert.h"
 
+#include "common/selectors.h"
 #include "a/rt/ipc.h"
+
+namespace S = selector::memory;
 
 namespace memory {
 
 Region inspect(unsigned k) {
-  auto msg = Message {Descriptor::call(0, k)};
+  auto msg = Message {Descriptor::call(S::inspect, k)};
   rt::ipc2(msg, 0, 0);
   ETL_ASSERT(!msg.desc.get_error());
   return {
@@ -18,7 +21,7 @@ Region inspect(unsigned k) {
 
 rt::AutoKey split(unsigned k, uint32_t pos, unsigned slot_key) {
   Message msg {
-      Descriptor::call(2, k),
+      Descriptor::call(S::split, k),
       pos,
   };
   auto k_top = rt::AutoKey{};
@@ -32,7 +35,7 @@ rt::AutoKey split(unsigned k, uint32_t pos, unsigned slot_key) {
 
 void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
   Message msg {
-    Descriptor::call(3, k),
+    Descriptor::call(S::become, k),
     uint32_t(ot),
     arg,
   };
@@ -44,7 +47,7 @@ void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
 
 uint32_t peek(unsigned k, uint32_t offset) {
   Message msg {
-      Descriptor::call(4, k),
+      Descriptor::call(S::peek, k),
       offset,
   };
   rt::ipc2(msg, 0, 0);
@@ -54,7 +57,7 @@ uint32_t peek(unsigned k, uint32_t offset) {
 
 void poke(unsigned k, uint32_t offset, uint32_t word) {
   Message msg {
-    Descriptor::call(5, k),
+    Descriptor::call(S::poke, k),
     offset,
     word,
   };
@@ -64,7 +67,7 @@ void poke(unsigned k, uint32_t offset, uint32_t word) {
 
 void make_child(unsigned k, uintptr_t base, size_t size, unsigned slot_key) {
   Message msg {
-    Descriptor::call(6, k),
+    Descriptor::call(S::make_child, k),
     base,
     size,
   };

@@ -2,6 +2,7 @@
 
 #include "common/exceptions.h"
 #include "common/message.h"
+#include "common/selectors.h"
 
 #include "k/context.h"
 #include "k/panic.h"
@@ -37,20 +38,22 @@ void ObjectTable::set_entries(RangePtr<Entry> entries) {
 void ObjectTable::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery(k);
+
+  namespace S = selector::object_table;
   switch (m.desc.get_selector()) {
-    case 0:
+    case S::mint_key:
       do_mint_key(brand, m, k);
       break;
 
-    case 1: 
+    case S::read_key:
       do_read_key(brand, m, k);
       break;
 
-    case 2:
+    case S::get_kind:
       do_get_kind(brand, m, k);
       break;
 
-    case 3:
+    case S::invalidate:
       do_invalidate(brand, m, k);
       break;
     

@@ -9,6 +9,7 @@
 #include "common/abi_sizes.h"
 #include "common/message.h"
 #include "common/descriptor.h"
+#include "common/selectors.h"
 
 #include "k/memory.h"
 #include "k/context_layout.h"
@@ -337,26 +338,28 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
   auto m = sender->on_delivery(k);
   ScopedReplySender reply_sender{k.keys[0]};
 
+  namespace S = selector::context;
+
   switch (m.desc.get_selector()) {
-    case 0:  // read_register
-    case 1:  // write_register
+    case S::read_register:
+    case S::write_register:
       if (m.d0 >= etl::array_count(_body.save.raw)) {
         reply_sender.message() = Message::failure(Exception::bad_argument);
         return;
       }
 
-      if (m.desc.get_selector() == 0) {  // read
+      if (m.desc.get_selector() == S::read_register) {
         reply_sender.message().d0 = _body.save.raw[m.d0];
       } else {  // write
         _body.save.raw[m.d0] = m.d1;
       }
       return;
 
-    case 2:  // read_key
-    case 3:  // write_key
+    case S::read_key_register:
+    case S::write_key_register:
       {
         auto r = m.d0;
-        bool is_read = m.desc.get_selector() == 2;
+        bool is_read = m.desc.get_selector() == S::read_key_register;
 
         if (r >= config::n_task_keys || (!is_read && r == 0)) {
           reply_sender.message() = Message::failure(Exception::bad_argument);
@@ -371,8 +374,8 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
       }
       return;
 
-    case 4:  // read_region
-    case 5:  // write_region
+    case S::read_region_register:
+    case S::write_region_register:
       {
         auto n = m.d0;
 
@@ -381,7 +384,7 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
           return;
         }
 
-        if (m.desc.get_selector() == 4) {  // read
+        if (m.desc.get_selector() == S::read_region_register) {
           reply_sender.set_key(1, _body.memory_regions[n]);
         } else {  // write
           _body.memory_regions[n] = k.keys[1];
@@ -390,16 +393,16 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
       }
       return;
 
-    case 6:  // make_runnable
+    case S::make_runnable:
       make_runnable();
       pend_switch();
       return;
 
-    case 7:  // read_priority
+    case S::get_priority:
       reply_sender.message().d0 = _body.priority;
       return;
 
-    case 8:  // write_priority
+    case S::set_priority:
       {
         auto priority = m.d0;
 
@@ -415,10 +418,10 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
       }
       return;
 
-    case 9:  // read_low_registers
-    case 10:  // read_high_registers
+    case S::read_low_registers:
+    case S::read_high_registers:
       {
-        auto index = (m.desc.get_selector() == 9) ? 0 : 5;
+        auto index = (m.desc.get_selector() == S::read_low_registers) ? 0 : 5;
         reply_sender.message().d0 = _body.save.raw[index];
         reply_sender.message().d1 = _body.save.raw[index + 1];
         reply_sender.message().d2 = _body.save.raw[index + 2];
@@ -427,10 +430,10 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
       }
       return;
 
-    case 11:  // write_low_registers
-    case 12:  // write_high_registers
+    case S::write_low_registers:
+    case S::write_high_registers:
       {
-        auto index = (m.desc.get_selector() == 11) ? 0 : 5;
+        auto index = (m.desc.get_selector() == S::write_low_registers) ? 0 : 5;
         _body.save.raw[index    ] = reply_sender.message().d0;
         _body.save.raw[index + 1] = reply_sender.message().d1;
         _body.save.raw[index + 2] = reply_sender.message().d2;

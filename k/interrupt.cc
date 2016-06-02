@@ -5,6 +5,7 @@
 #include "etl/armv7m/sys_tick.h"
 
 #include "common/abi_sizes.h"
+#include "common/selectors.h"
 
 #include "k/irq_redirector.h"
 #include "k/reply_sender.h"
@@ -40,12 +41,14 @@ void Interrupt::trigger() {
 void Interrupt::deliver_from(Brand const & brand, Sender * sender) {
   Keys k;
   Message m = sender->on_delivery(k);
+
+  namespace S = selector::interrupt;
   switch (m.desc.get_selector()) {
-    case 1:
+    case S::set_target:
       do_set_target(brand, m, k);
       break;
 
-    case 2:
+    case S::enable:
       do_enable(brand, m, k);
       break;
 

@@ -4,8 +4,9 @@
 #include "etl/armv7m/mpu.h"
 
 #include "common/abi_sizes.h"
-#include "common/message.h"
 #include "common/descriptor.h"
+#include "common/message.h"
+#include "common/selectors.h"
 
 #include "k/become.h"
 #include "k/context.h"
@@ -180,8 +181,9 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
 
   ScopedReplySender reply_sender{k.keys[0]};
 
+  namespace S = selector::memory;
   switch (m.desc.get_selector()) {
-    case 0:  // inspect
+    case S::inspect:
       {
         auto reg = get_region_for_brand(brand);
         reply_sender.message().d0 = _base;
@@ -191,7 +193,7 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       }
       return;
 
-    case 1:  // change
+    case S::change:
       {
         // TODO: this should be redefined to make sense for any Memory object.
         if (!is_mappable()) {
@@ -215,11 +217,11 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       }
       return;
 
-    case 2:  // split
+    case S::split:
       do_split(reply_sender, brand, m, k);
       return;
 
-    case 3:  // become
+    case S::become:
       if (get_region_for_brand(brand).rasr.get_srd()) {
         // Can't transmogrify, some subregions are disabled.
         reply_sender.message() = Message::failure(Exception::bad_operation);
@@ -229,8 +231,8 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       become(*this, m, k, reply_sender.rs);
       return;
 
-    case 4:  // peek
-    case 5:  // poke
+    case S::peek:
+    case S::poke:
       {
         auto offset = m.d0;
         auto size_in_words = _size_bytes / sizeof(uint32_t);
@@ -251,7 +253,7 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
         // the SysTick Timer, that are *inaccessible* to unprivileged code,
         // even with MPU adjustments.  This fixes that.
         auto ptr = reinterpret_cast<uint32_t *>(_base) + offset;
-        if (m.desc.get_selector() == 4) {  // peek
+        if (m.desc.get_selector() == S::peek) {
           reply_sender.message().d0 = *ptr;
         } else {  // poke
           *ptr = m.d1;
@@ -259,7 +261,7 @@ void Memory::deliver_from(Brand const & brand, Sender * sender) {
       }
       return;
 
-    case 6:  // make child
+    case S::make_child:
       {
         if (get_region_for_brand(brand).rasr.get_srd()) {
           reply_sender.message() = Message::failure(Exception::bad_operation);

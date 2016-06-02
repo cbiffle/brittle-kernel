@@ -2,7 +2,10 @@
 
 #include "etl/assert.h"
 
+#include "common/selectors.h"
 #include "demo/runtime/ipc.h"
+
+namespace S = selector::memory;
 
 namespace memory {
 
@@ -11,7 +14,7 @@ void split(unsigned k, uint32_t pos, unsigned slot_key,
   auto send_map = keymap(0, slot_key, 0, 0);
   auto recv_map = keymap(0, k, top_key_out, 0);
 
-  auto rm = ipc({Descriptor::call(2, k), pos}, send_map, recv_map);
+  auto rm = ipc({Descriptor::call(S::split, k), pos}, send_map, recv_map);
   ETL_ASSERT(!rm.m.desc.get_error());
 }
 
@@ -20,7 +23,7 @@ void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
   auto recv_map = keymap(0, k, 0, 0);
 
   auto rm = ipc({
-      Descriptor::call(3, k),
+      Descriptor::call(S::become, k),
       uint32_t(ot),
       arg,
       },
@@ -30,7 +33,7 @@ void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
 
 uint32_t peek(unsigned k, uint32_t offset) {
   auto rm = ipc({
-      Descriptor::call(4, k),
+      Descriptor::call(S::peek, k),
       offset,
       }, 0, 0);
   ETL_ASSERT(!rm.m.desc.get_error());
@@ -40,7 +43,7 @@ uint32_t peek(unsigned k, uint32_t offset) {
 
 void poke(unsigned k, uint32_t offset, uint32_t word) {
   auto rm = ipc({
-      Descriptor::call(5, k),
+      Descriptor::call(S::poke, k),
       offset,
       word,
       }, 0, 0);
