@@ -19,8 +19,8 @@ longer be willing to block, and notifications are guaranteed received.)
 Implement a destruction permission using a brand bit, at least for Memory for
 now.  And other permissions.  See e.g. `20160526-permissions.mkdn`.
 
-Allow unaligned, precise-size memory donations for kernel objects, so we can buy
-a Context (for example) for 448 bytes instead of 512.
+Alter the system memory allocator(s) to donate precise, non-pow2 chunks of RAM
+in exchange for kernel objects, to improve utilization of RAM.
 
 Would it make sense to disconnect the MPU key storage from Context, so that
 multiple Contexts could share one?  It would save 96 bytes if we also stopped

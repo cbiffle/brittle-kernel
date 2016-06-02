@@ -38,9 +38,9 @@ static Maybe<TypeCode> extract_type_code(uint32_t arg) {
 
 static unsigned size_for_type_code(TypeCode tc) {
   switch (tc) {
-    case TypeCode::context: return 1u << kabi::context_l2_size;
-    case TypeCode::gate: return 1u << kabi::gate_l2_size;
-    case TypeCode::interrupt: return 1u << kabi::interrupt_l2_size;
+    case TypeCode::context: return kabi::context_size;
+    case TypeCode::gate: return kabi::gate_size;
+    case TypeCode::interrupt: return kabi::interrupt_size;
     default:
       return 0;
   }
@@ -67,7 +67,7 @@ void become(Memory & memory,
 
   auto type_code = maybe_type_code.ref();
 
-  if (size_for_type_code(type_code) != memory.get_size()) {
+  if (size_for_type_code(type_code) > memory.get_size()) {
     // Can't transmogrify, size is wrong.
     reply_sender.message() = Message::failure(Exception::bad_operation);
     return;

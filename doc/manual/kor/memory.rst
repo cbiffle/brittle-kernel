@@ -230,9 +230,9 @@ Become (4)
 Uses the address space described by this Memory object to create a new kernel
 object of a specified type.
 
-This object must be exactly the same size as the new object (see below).  Sizes
-are defined in terms of the configuration-time constant P, the number of
-priority levels.
+This object must be large enough to contain the new object (see below), and may
+be larger.  Sizes are defined in terms of the configuration-time constant P,
+the number of priority levels.
 
 This object must not be device memory.  The kernel only accepts donations of
 normal RAM.
@@ -261,7 +261,7 @@ of the message fields/keys are given in the table below.
     - Key Parameter 1
   * - Context
     - 0
-    - 512
+    - 448
     - ---
     - Key to unbound Reply Gate
   * - Gate
@@ -280,7 +280,7 @@ of the message fields/keys are given in the table below.
 
   1. If the key used has any subregion disable bits set.
 
-  2. If this Memory object is too big or small for the target object type.
+  2. If this Memory object is too small for the target object type.
 
   3. If this Memory object is marked as device memory.
 

@@ -96,8 +96,7 @@ allows) by sending :ref:`"peek" <memory-method-peek>` and :ref:`"poke"
 <memory-method-poke>` messages, or by loading the key into a Context's MPU
 region registers for direct access using load and store instructions.  Either
 way, once Memory is donated to the kernel and becomes a different type of
-object, access is atomically revoked to protect
-kernel state.
+object, access is atomically revoked to protect kernel state.
 
 .. note:: For more information, see the :ref:`kor-memory` entry in the
   :ref:`kor`.
