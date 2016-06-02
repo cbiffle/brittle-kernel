@@ -16,22 +16,31 @@ should revoked keys escalate to a supervisor, like a fault, or throw a very
 specific exception?
 
 If an interrupt is on a block queue, and is retargeted, it should re-fire to the
-new object.
+new object.  (This gets mooted with notifications, since Interrupts would no
+longer be willing to block, and notifications are guaranteed received.)
 
 Implement a destruction permission using a brand bit, at least for Memory for
-now.
+now.  And other permissions.  See e.g. `20160526-permissions.mkdn`.
+
+Allow unaligned, precise-size memory donations for kernel objects, so we can buy
+a Context (for example) for 448 bytes instead of 512.
 
 Would it make sense to disconnect the MPU key storage from Context, so that
-multiple Contexts could share one?  (It wouldn't save any space, right now,
-because it wouldn't save enough to knock Context beneath 256 bytes.)
-
-Need to distinguish device memory (registers) from normal memory.  The two
-behave the same *except* that device memory cannot Become kernel objects.
+multiple Contexts could share one?  It would save 96 bytes if we also stopped
+requiring pow2-sized blocks for kernel objects (above).  But I'm not sure how
+often Contexts would really share one; it'd be like threads vs. processes in
+Unix.
 
 It might be useful to be able to, given a Context service key, access memory
-using the address space rights of that Context.
+using the address space rights of that Context.  This might live outside the
+kernel.
 
+Seriously need to get around to finishing the Faults work.
 
+Identifying Contexts who have delivered to a Context and are waiting for a reply
+would be useful for restarting programs after faults.
+
+Notifications would make Interrupts simpler.  I'm pretty certain of that now.
 
 
 Restricting Gate Rights
