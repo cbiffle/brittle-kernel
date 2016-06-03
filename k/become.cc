@@ -25,24 +25,17 @@ namespace k {
 enum class TypeCode {
   context = 0,
   gate = 1,
-  interrupt = 3,  // TODO renumber
+  interrupt = 2,
 };
-
-static Maybe<TypeCode> extract_type_code(uint32_t arg) {
-  if (arg < 5) {
-    return static_cast<TypeCode>(arg);
-  } else {
-    return nothing;
-  }
-}
 
 static unsigned size_for_type_code(TypeCode tc) {
   switch (tc) {
-    case TypeCode::context: return kabi::context_size;
-    case TypeCode::gate: return kabi::gate_size;
+    case TypeCode::context:   return kabi::context_size;
+    case TypeCode::gate:      return kabi::gate_size;
     case TypeCode::interrupt: return kabi::interrupt_size;
-    default:
-      return 0;
+
+    // Other values are supposed to have been filtered out before this point.
+    default: PANIC("become TC validation fail");
   }
 }
 
@@ -58,17 +51,15 @@ void become(Memory & memory,
     return;
   }
 
-  auto maybe_type_code = extract_type_code(m.d0);
-  if (!maybe_type_code) {
+  if (m.d0 > uint32_t(TypeCode::interrupt)) {
     // Can't transmogrify, target object type not recognized.
     reply_sender.message() = Message::failure(Exception::bad_argument);
     return;
   }
-
-  auto type_code = maybe_type_code.ref();
+  auto type_code = static_cast<TypeCode>(m.d0);
 
   if (size_for_type_code(type_code) > memory.get_size()) {
-    // Can't transmogrify, size is wrong.
+    // Can't transmogrify, memory too small.
     reply_sender.message() = Message::failure(Exception::bad_operation);
     return;
   }

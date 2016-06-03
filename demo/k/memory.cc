@@ -18,19 +18,6 @@ void split(unsigned k, uint32_t pos, unsigned slot_key,
   ETL_ASSERT(!rm.m.desc.get_error());
 }
 
-void become(unsigned k, ObjectType ot, unsigned arg, unsigned arg_key) {
-  auto send_map = keymap(0, arg_key, 0, 0);
-  auto recv_map = keymap(0, k, 0, 0);
-
-  auto rm = ipc({
-      Descriptor::call(S::become, k),
-      uint32_t(ot),
-      arg,
-      },
-      send_map, recv_map);
-  ETL_ASSERT(!rm.m.desc.get_error());
-}
-
 uint32_t peek(unsigned k, uint32_t offset) {
   auto rm = ipc({
       Descriptor::call(S::peek, k),

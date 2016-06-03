@@ -36,7 +36,7 @@ rt::AutoKey split(unsigned k, uint32_t pos, unsigned slot_key);
 enum class ObjectType : uint32_t {
   context = 0,
   gate = 1,
-  interrupt = 3,  // TODO synchronize with TypeCode in kernel
+  interrupt = 2,  // TODO synchronize with TypeCode in kernel
 };
 
 void become(unsigned k, ObjectType, unsigned arg, unsigned arg_key = 0);
