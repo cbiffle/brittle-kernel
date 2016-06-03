@@ -34,9 +34,8 @@ etl_armv7m_sv_call_handler:
     @ Call through to 'current->do_ipc(stack, descriptor)'
     mrs r1, PSP               @ Get the unprivileged stack pointer.
     
-    mrs r12, BASEPRI          @ Back up BASEPRI setting for saving.
     ldr r2, [r0, #CTX2BODY]   @ Load 'k::current->_body'
-    stm r2, {r4-r12}          @ Save callee-save registers.
+    stm r2, {r4-r11}          @ Save callee-save registers except BASEPRI.
 
     mov r2, r4                @ Copy descriptor to pass to context.
     mov r4, lr                @ Back up EXC_RETURN value.
@@ -87,9 +86,8 @@ etl_armv7m_pend_sv_handler:
     @ Call through to 'k::switch_after_interrupt(stack)'
     mrs r0, PSP               @ Get the unprivileged stack pointer.
     
-    mrs r12, BASEPRI          @ Back up BASEPRI setting for saving.
     ldr r2, [r1, #CTX2BODY]   @ Load 'k::current->_body'
-    stm r2, {r4-r12}          @ Save callee-save registers.
+    stm r2, {r4-r11}          @ Save callee-save registers except BASEPRI.
 
     mov r4, lr                @ Back up EXC_RETURN value.
     mov r5, r3                @ Back up '&k::current' for reuse below.
