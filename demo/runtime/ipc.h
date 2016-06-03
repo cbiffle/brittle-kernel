@@ -6,6 +6,7 @@
 #include "etl/attribute_macros.h"
 #include "common/descriptor.h"
 #include "common/message.h"
+#include "common/sysnums.h"
 
 ReceivedMessage ipc(Message const &,
                     uint32_t send_map,
@@ -26,7 +27,7 @@ void copy_key(unsigned to, unsigned from) {
   if (to == from) return;
 
   auto d = Descriptor::zero()
-    .with_sysnum(1)
+    .with_sysnum(kabi::sysnum_copy_key)
     .with_source(from)
     .with_target(to);
 

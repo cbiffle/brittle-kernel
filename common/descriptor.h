@@ -15,7 +15,8 @@
 
 #include <cstdint>
 
-#include "abi_types.h"
+#include "common/abi_types.h"
+#include "common/sysnums.h"
 
 class Descriptor {
 public:
@@ -176,7 +177,7 @@ public:
    */
   static constexpr Descriptor call(Selector s, unsigned k) {
     return Descriptor::zero()
-      .with_sysnum(0)
+      .with_sysnum(::kabi::sysnum_ipc)
       .with_selector(s)
       .with_send_enabled(true)
       .with_target(k)

@@ -10,6 +10,7 @@
 #include "common/message.h"
 #include "common/descriptor.h"
 #include "common/selectors.h"
+#include "common/sysnums.h"
 
 #include "k/memory.h"
 #include "k/context_layout.h"
@@ -88,10 +89,9 @@ uint32_t Context::do_ipc(uint32_t stack, Descriptor d) {
 
 void Context::do_key_op(uint32_t sysnum, Descriptor d) {
   switch (sysnum) {
-    case 1:  // Copy Key - blunt writes to kr0
-      if (d.get_target()) {
-        key(d.get_target()) = key(d.get_source());
-      }
+    case kabi::sysnum_copy_key:
+      // Only write the register if it is non-zero, protecting kr0.
+      if (d.get_target()) key(d.get_target()) = key(d.get_source());
       return;
 
     default:
