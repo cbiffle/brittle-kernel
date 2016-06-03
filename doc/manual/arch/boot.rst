@@ -53,7 +53,7 @@ Index Object
 2     The initial :ref:`kor-context`.
 ===== ============================================
 
-Starting at index 4 are the Memory objects requested in the ``AppInfo`` block.
+Starting at index 3 are the Memory objects requested in the ``AppInfo`` block.
 
 All remaining slots in the Object Table are initialized to contain
 :ref:`kor-slot` object placeholders.

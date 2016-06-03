@@ -9,7 +9,7 @@ namespace kabi {
  * Number of objects that are always created by the kernel boot process.
  * These occupy the first slots in the Object Table.
  */
-static constexpr unsigned well_known_object_count = 4;
+static constexpr unsigned well_known_object_count = 3;
 
 /*
  * Object table indices of well-known objects.

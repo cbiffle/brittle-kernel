@@ -90,8 +90,6 @@ static void initialize_well_known_objects(
   }
 
   {
-    (void) new(&entries[3]) Slot{0};  // TODO recover well-known slot
-
     auto b = new(arena.allocate(kabi::context_size)) Context::Body;
     first_context = new(&entries[2]) Context{0, *b};
   }
