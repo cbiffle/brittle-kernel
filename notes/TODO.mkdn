@@ -39,20 +39,16 @@ would be useful for restarting programs after faults.
 
 Notifications would make Interrupts simpler.  I'm pretty certain of that now.
 
+Figure out whether `make_key` should actually fail.  We're just `ref()`-ing it
+in a lot of places right now.
+
 
 Restricting Gate Rights
 -----------------------
 
-Currently, any gate key can be used to both send and receive.  This means that a
-client could intercept messages intended for a server.  This is obviously wrong.
-
-The easiest fix would be to dedicate some of the bits in the brand of a gate key
-to access control.  We should be able to issue gate keys that are limited in the
-following ways:
-- Unable to receive.
+May want to extend the current Gate key brand distinctions to include:
 - Unable to send errors (i.e. cannot simulate the revocation of a receive gate
   key).
-- Maybe unable to send?  This would let us restrict servers further.
 - Unable to add to a group?
 
 My current inclination is to reserve the top 32 bits of the gate brand for

@@ -7,6 +7,7 @@
 #include "a/rt/keys.h"
 
 #include "a/k/context.h"
+#include "a/k/gate.h"
 #include "a/k/interrupt.h"
 #include "a/k/memory.h"
 #include "a/k/object_table.h"
@@ -84,16 +85,6 @@ static rt::AutoKey make_gate() {
   return k;
 }
 
-/*
- * "Rekeys" an object: given a current key, derives a new key with an arbitrary
- * brand.  This is useful for generating Gate client keys, since there isn't
- * currently a convenient way to do that.
- */
-static rt::AutoKey rekey(unsigned k, uint64_t brand) {
-  auto info = object_table::read_key(ki::ot, k);
-  return object_table::mint_key(ki::ot, info.index, brand);
-}
-
 
 /*******************************************************************************
  * Placeholder for the app initialization sequence.
@@ -124,7 +115,8 @@ static rt::AutoKey make_uart_driver() {
   // Make a specialized syscall key using the program's OT index as brand.
   {
     auto prog_info = object_table::read_key(ki::ot, k_prog);
-    auto k_sys = rekey(ki::syscall_gate, prog_info.index);
+    auto k_sys = gate::make_client_key(ki::syscall_gate,
+        (Brand(1) << 63) | prog_info.index);
     context::set_key(k_prog, 15, k_sys);
   }
 
@@ -145,7 +137,8 @@ static rt::AutoKey make_uart_driver() {
     auto k_irq_gate = make_gate();
     context::set_key(k_prog, 13, k_irq_gate);
 
-    interrupt::set_target(k_irq, k_irq_gate);
+    auto k_irq_gate_client = gate::make_client_key(k_irq_gate, Brand(1) << 63);
+    interrupt::set_target(k_irq, k_irq_gate_client);
   }
 
   // Give the driver access to the APB.
@@ -183,12 +176,16 @@ static void make_uart_client(unsigned k_uart_gate) {
   // Make a specialized syscall key using the program's OT index as brand.
   {
     auto prog_info = object_table::read_key(ki::ot, k_prog);
-    auto k_sys = rekey(ki::syscall_gate, prog_info.index);
+    auto k_sys = gate::make_client_key(ki::syscall_gate,
+        (Brand(1) << 63) | prog_info.index);
     context::set_key(k_prog, 15, k_sys);
   }
 
   // Give it the UART gate.
-  context::set_key(k_prog, 14, k_uart_gate);
+  {
+    auto k_uart_client = gate::make_client_key(k_uart_gate, Brand(1) << 63);
+    context::set_key(k_prog, 14, k_uart_client);
+  }
 
   context::set_priority(k_prog, 0);
   context::make_runnable(k_prog);

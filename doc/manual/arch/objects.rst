@@ -106,11 +106,10 @@ object, access is atomically revoked to protect kernel state.
 Gates
 -----
 
-*Gates* serve as IPC rendezvous points for programs running in Contexts.  Gates
-implement no native operations.  Instead, sending a message using a Gate key
-will pass the message *through* the gate to any program waiting on the other
-side.  (Programs can wait on a Gate by using the *receive* flavor of IPC
-operation on a Gate key.)
+*Gates* serve as IPC rendezvous points for programs running in Contexts.
+Clients access Gates using specially-marked *transparent keys*; messages sent
+to transparent keys flow right through the Gate to the program waiting on the
+other side.
 
 If no program is waiting to receive the message, the program sending the message
 can optionally block.  This puts the program's Context into a sleeping state

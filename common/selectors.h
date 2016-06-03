@@ -22,6 +22,11 @@ namespace context {
     write_high_registers = 13;
 }
 
+namespace gate {
+  static constexpr Selector
+    make_client_key = 1;
+}
+
 namespace interrupt {
   static constexpr Selector
     set_target = 1,
