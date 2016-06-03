@@ -78,10 +78,9 @@ static inline AppInfo const & get_app_info() {
 
 static Context * first_context;
 
-static void initialize_well_known_objects(
-    RangePtr<ObjectTable::Entry> entries,
-    Arena & arena) {
-  new(&entries[0]) NullObject{0};
+static void initialize_well_known_objects(RangePtr<ObjectTable::Entry> entries,
+                                          Arena & arena) {
+  (void) new(&entries[0]) NullObject{0};
 
   {
     auto o = new(&entries[1]) ObjectTable{0};
@@ -116,14 +115,17 @@ static void initialize_irq_priorities() {
        p_irq    = Byte(p_svc + priority_lsb),
        p_pendsv = Byte(p_irq + priority_lsb);
 
+  // Set the priority of all architectural exceptions.
   scb.set_exception_priority(HwException::mem_manage_fault, p_fault);
-  scb.set_exception_priority(HwException::bus_fault, p_fault);
-  scb.set_exception_priority(HwException::usage_fault, p_fault);
-  scb.set_exception_priority(HwException::sv_call, p_svc);
-  scb.set_exception_priority(HwException::debug_monitor, p_svc);
-  scb.set_exception_priority(HwException::pend_sv, p_pendsv);
-  scb.set_exception_priority(HwException::sys_tick, p_irq);
+  scb.set_exception_priority(HwException::bus_fault,        p_fault);
+  scb.set_exception_priority(HwException::usage_fault,      p_fault);
+  scb.set_exception_priority(HwException::sv_call,          p_svc);
+  scb.set_exception_priority(HwException::debug_monitor,    p_svc);
+  scb.set_exception_priority(HwException::pend_sv,          p_pendsv);
+  scb.set_exception_priority(HwException::sys_tick,         p_irq);
 
+  // Set the priority of all external interrupts that may potentially get
+  // enabled.
   auto & app = get_app_info();
   for (unsigned i = 0; i < app.external_interrupt_count; ++i) {
     nvic.set_irq_priority(i, p_irq);
@@ -131,9 +133,14 @@ static void initialize_irq_priorities() {
 }
 
 /*******************************************************************************
- * Interpretation of the memory map from AppInfo.
+ * Creation of the rest of the initial objects.
  */
 
+/*
+ * Creates Memory objects in the given range -- one contiguous span as normal
+ * memory, followed by a contiguous span of Device memory.  The break between
+ * the two is determined by 'memory_map_count' from AppInfo.
+ */
 static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
   auto & app = get_app_info();
   auto map = app.memory_map;
@@ -143,30 +150,32 @@ static void create_memory_objects(RangePtr<ObjectTable::Entry> entries) {
 
     // TODO: check that this does not alias the kernel or reserved devs
 
-    auto atts = (is_device ? Memory::device_attribute_mask : 0);
+    auto atts = is_device ? Memory::device_attribute_mask : 0;
     (void) new(&entries[i]) 
       Memory{0, map[i].base, map[i].end - map[i].base, atts};
   }
 }
 
+/*
+ * Fills the given range with Slot objects.
+ */
 static void fill_extra_slots(RangePtr<ObjectTable::Entry> entries) {
-  for (auto & ent : entries) {
-    (void) new(&ent) Slot{0};
-  }
+  for (auto & ent : entries) (void) new(&ent) Slot{0};
 }
 
 
 /*******************************************************************************
- * Context initialization for first context.
+ * Initialization of first context.
  */
 
 static void prepare_first_context() {
+  // Mise en place.
   auto & app = get_app_info();
   auto & ot = object_table();
 
   // Add memory grants.
   for (auto & grant : app.initial_task_grants) {
-    // Derive our loop index.
+    // Derive our loop index.  Silly C++11, not providing this.
     auto i = &grant - &app.initial_task_grants[0];
     // Attempt to create a key.
     auto maybe_key = ot[grant.memory_index].make_key(grant.brand);
@@ -178,17 +187,20 @@ static void prepare_first_context() {
   }
 
   // Go ahead and apply those grants so that we can access stack with
-  // unprivileged stores.
+  // unprivileged stores (below).
   first_context->apply_to_mpu();
 
   // Set up registers, some of which live in unprivileged stack memory.  If
   // the initial SP given by the app is not within its initial task grants,
   // we'll assert here.
   {
+    // Derive address of the exception stack frame.
     auto s = reinterpret_cast<StackRegisters *>(app.initial_task_sp) - 1;
+    // Fill in the two registers we require (PSR and PC).
     bool success = ustore(&s->psr, 1 << 24)
                 && ustore(&s->r15, app.initial_task_pc);
     ALWAYS_PANIC_UNLESS(success, "fault setting up initial stack");
+    // Now prepare the Context to resume from that stack frame.
     first_context->set_stack(reinterpret_cast<uint32_t>(s));
   }
 
@@ -216,15 +228,16 @@ static void initialize_app() {
   // Create an Arena that can allocate RAM from the donated RAM region.
   Arena arena{{reinterpret_cast<uint8_t *>(app.donated_ram_begin),
                reinterpret_cast<uint8_t *>(app.donated_ram_end)}};
-
   arena.reset();
 
+  // Shorthand for wordy ABI constant:
   constexpr auto wkoc = kabi::well_known_object_count;
 
+  // Compute required size of Object Table.
   auto table_size =
     wkoc + app.memory_map_count + app.device_map_count + app.extra_slot_count;
 
-  // Use the Arena to create the object array.
+  // Use the Arena to create the Object Table's entry array.
   auto entries = 
     RangePtr<ObjectTable::Entry>{
       static_cast<ObjectTable::Entry *>(
@@ -243,13 +256,12 @@ static void initialize_app() {
     get_irq_redirection_table()[i] = nullptr;
   }
 
+  // Set up the initial object zoo.
   initialize_well_known_objects(entries, arena);
   create_memory_objects(
-      entries.slice(wkoc,
-                    wkoc + app.memory_map_count + app.device_map_count));
+      entries.slice(wkoc, table_size - app.extra_slot_count));
   fill_extra_slots(
-      entries.slice(wkoc + app.memory_map_count + app.device_map_count,
-                    table_size));
+      entries.slice(table_size - app.extra_slot_count, table_size));
   prepare_first_context();
 }
 
