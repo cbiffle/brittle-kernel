@@ -244,12 +244,16 @@ bool Context::is_reply_brand(Brand const & brand) {
   return (uint32_t(brand >> 32) & uint32_t(reply_brand_mask >> 32));
 }
 
+void Context::advance_reply_brand() {
+  _body.expected_reply_brand =
+    (_body.expected_reply_brand + 1) | reply_brand_mask;
+}
+
 void Context::invalidation_hook() {
   _body.ctx_item.unlink();
   _body.sender_item.unlink();
   _body.state = State::stopped;
-  _body.expected_reply_brand =
-    (_body.expected_reply_brand + 1) | reply_brand_mask;
+  advance_reply_brand();
 
   // Invalidate current Context cache, if needed.
   if (this == current) pend_switch();
@@ -272,8 +276,7 @@ void Context::deliver_from(Brand const & brand, Sender * sender) {
     }
 
     // Advance our expected brand, implicitly invalidating the current key.
-    _body.expected_reply_brand =
-      (_body.expected_reply_brand + 1) | reply_brand_mask;
+    advance_reply_brand();
 
     // Unblocking from awaiting reply is supposed to advance the expected reply
     // brand, which should prevent us from reaching this point.
@@ -365,11 +368,8 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
           break;
 
         case State::receiving:
-          if (is_awaiting_reply()) {
-            // Invalidate any outstanding reply keys.
-            _body.expected_reply_brand =
-              (_body.expected_reply_brand + 1) | reply_brand_mask;
-          }
+          // Invalidate any outstanding reply keys.
+          if (is_awaiting_reply()) advance_reply_brand();
           _body.ctx_item.unlink();
           complete_blocked_receive(Exception::would_block);
           break;

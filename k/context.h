@@ -184,6 +184,7 @@ private:
 
   void handle_protocol(Brand const &, Sender *);
   void block_in_reply();
+  void advance_reply_brand();
 
   void invalidation_hook() override;
 };
