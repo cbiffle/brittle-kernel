@@ -5,6 +5,7 @@
 #include "etl/armv7m/implicit_crt0.h"
 #include "etl/armv7m/exception_table.h"
 
+#include "common/abi_sizes.h"
 #include "common/app_info.h"
 
 #include "demo/runtime/ipc.h"
@@ -41,12 +42,12 @@ constexpr AppInfo app_info {
 
   .initial_task_grants = {
     {  // ROM
-      .memory_index = 4,
+      .memory_index = kabi::well_known_object_count + 0,
       .brand = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_read_u_read)) >> 8,
     },
     {  // RAM
-      .memory_index = 5,
+      .memory_index = kabi::well_known_object_count + 1,
       .brand = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_write_u_write)
           .with_xn(true)) >> 8,
@@ -60,12 +61,12 @@ __attribute__((section(".app_info1")))
 __attribute__((used))
 constexpr AppInfo::MemoryMapEntry memory_map[] {
   {
-    // 4: Memory describing application ROM.
+    // K+0: Memory describing application ROM.
     reinterpret_cast<uint32_t>(&_app_rom_start),
     reinterpret_cast<uint32_t>(&_app_rom_end),
   },
   {
-    // 5: Memory describing application RAM.
+    // K+1: Memory describing application RAM.
     reinterpret_cast<uint32_t>(&_app_ram0_start),
     reinterpret_cast<uint32_t>(&_app_ram0_end),
   },
@@ -74,8 +75,6 @@ constexpr AppInfo::MemoryMapEntry memory_map[] {
 __attribute__((section(".donated_ram")))
 uint8_t kernel_donation[768];
 
-static constexpr unsigned
-  oi_object_table = 1;
 
 static constexpr unsigned
   k_object_table = 1;
@@ -85,7 +84,7 @@ static void demo_main() {
   while (true) {
     ipc({
         Descriptor::call(0, k_object_table),
-        oi_object_table,
+        kabi::oi_object_table,
         0,
         0,
         }, 0, 0);

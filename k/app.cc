@@ -76,8 +76,6 @@ static inline AppInfo const & get_app_info() {
  * Well-known objects.
  */
 
-static constexpr unsigned well_known_object_count = 4;
-
 static Context * first_context;
 
 static void initialize_well_known_objects(
@@ -223,8 +221,10 @@ static void initialize_app() {
 
   arena.reset();
 
+  constexpr auto wkoc = kabi::well_known_object_count;
+
   auto table_size =
-    4 + app.memory_map_count + app.device_map_count + app.extra_slot_count;
+    wkoc + app.memory_map_count + app.device_map_count + app.extra_slot_count;
 
   // Use the Arena to create the object array.
   auto entries = 
@@ -247,10 +247,10 @@ static void initialize_app() {
 
   initialize_well_known_objects(entries, arena);
   create_memory_objects(
-      entries.slice(4,
-                    4 + app.memory_map_count + app.device_map_count));
+      entries.slice(wkoc,
+                    wkoc + app.memory_map_count + app.device_map_count));
   fill_extra_slots(
-      entries.slice(4 + app.memory_map_count + app.device_map_count,
+      entries.slice(wkoc + app.memory_map_count + app.device_map_count,
                     table_size));
   prepare_first_context();
 }

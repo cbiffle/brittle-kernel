@@ -43,33 +43,31 @@ __attribute__((section(".app_info1")))
 __attribute__((used))
 constexpr AppInfo::MemoryMapEntry memory_map[] {
   {
-    // 4: Memory describing application ROM.
+    // K+0: Memory describing application ROM.
     reinterpret_cast<uint32_t>(&_sys_rom_start),
     reinterpret_cast<uint32_t>(&_sys_rom_end),
   },
   {
-    // 5: Memory describing system ROM.
+    // K+1: Memory describing system ROM.
     reinterpret_cast<uint32_t>(&_sys_ram0_start),
     reinterpret_cast<uint32_t>(&_sys_ram0_end),
   },
   {
-    // 6: Memory describing application RAM.
+    // K+2: Memory describing application RAM.
     reinterpret_cast<uint32_t>(&_app_ram1_start),
     reinterpret_cast<uint32_t>(&_app_ram1_end),
   },
   {
-    // 7: APB
+    // K+3: APB
     0x40000000,
     0x60000000,
   },
 };
 
 static constexpr unsigned
-  oi_object_table = 1,
-  oi_first_ctx = 2,
-  oi_sys_rom = 4,
-  oi_app_ram = 6,
-  oi_apb = 7;
+  oi_sys_rom = kabi::well_known_object_count + 0,
+  oi_app_ram = kabi::well_known_object_count + 2,
+  oi_apb = kabi::well_known_object_count + 3;
 
 
 /*******************************************************************************

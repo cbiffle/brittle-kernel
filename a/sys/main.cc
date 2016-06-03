@@ -62,12 +62,12 @@ constexpr AppInfo app_info {
 
   .initial_task_grants = {
     {  // ROM
-      .memory_index = 4,
+      .memory_index = kabi::well_known_object_count + 0,
       .brand = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_read_u_read)) >> 8,
     },
     {  // RAM
-      .memory_index = 5,
+      .memory_index = kabi::well_known_object_count + 1,
       .brand = uint32_t(Rasr()
           .with_ap(Mpu::AccessPermissions::p_write_u_write)
           .with_xn(true)) >> 8,
@@ -90,11 +90,9 @@ uint8_t kernel_donation[
   + sizeof(void *) * (1 + config::external_interrupt_count)];
 
 static constexpr unsigned
-  oi_object_table = 1,
-  oi_first_ctx = 2,
-  oi_sys_rom = 4,
-  oi_app_ram = 6,
-  oi_apb = 7;
+  oi_sys_rom = kabi::well_known_object_count + 0,
+  oi_app_ram = kabi::well_known_object_count + 2,
+  oi_apb = kabi::well_known_object_count + 3;
 
 
 /*******************************************************************************
@@ -126,7 +124,7 @@ static void feed_allocator() {
 
 static void make_self_key() {
   // Get a context key to ourselves.
-  auto k_self = object_table::mint_key(ki::ot, oi_first_ctx, 0);
+  auto k_self = object_table::mint_key(ki::ot, kabi::oi_first_context, 0);
   // Put it in the appointed place.
   rt::copy_key(ki::self, k_self);
 }

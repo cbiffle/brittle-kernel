@@ -27,7 +27,8 @@ struct AppInfo {
   uint32_t device_map_count;
   // Number of extra free object table slots desired.  The number of slots in
   // the object table will be given by:
-  //   4 + memory_map_count + device_map_count + extra_slot_count;
+  //   well_known_object_count + memory_map_count
+  //       + device_map_count + extra_slot_count;
   uint32_t extra_slot_count;
 
   // Number of external interrupts that may be handled.  This determines the
@@ -52,8 +53,7 @@ struct AppInfo {
   // Structure of a memory grant.
   struct MemGrant {
     // Object table index of the Memory object giving authority for this grant.
-    // If zero, the grant will be ignored.  Otherwise, this needs to be between
-    // 4 and 4 + memory_map_count.
+    // If zero, the grant will be ignored.
     uint32_t memory_index;
     // Brand of the Memory key to mint, which gives the MPU RASR attributes.
     uint32_t brand;

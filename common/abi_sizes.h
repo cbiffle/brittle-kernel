@@ -12,6 +12,14 @@ namespace kabi {
 static constexpr unsigned well_known_object_count = 4;
 
 /*
+ * Object table indices of well-known objects.
+ */
+static constexpr unsigned
+  oi_null = 0,
+  oi_object_table = 1,
+  oi_first_context = 2;
+
+/*
  * Size of kernel objects and Object Table entries, in bytes.
  */
 static constexpr unsigned
