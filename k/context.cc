@@ -23,11 +23,16 @@ using etl::armv7m::Word;
 
 namespace k {
 
+// Check that this meets the head-size and body-size requirements.
 template struct ObjectSubclassChecks<Context, kabi::context_size>;
 
+// Check the kernel entry sequence's assumption about the offset of the save
+// area.
 static_assert(__builtin_offsetof(Context::Body, save) == 0,
     "Context::Body::save offset is wrong (should be zero, isn't)");
 
+// Check the kernel entry sequence's assumption about the offset of the stack
+// pointer.
 static_assert(K_CONTEXT_BODY_STACK_OFFSET ==
     __builtin_offsetof(Context::Body, save.named.stack),
     "K_CONTEXT_BODY_STACK_OFFSET is wrong");
@@ -42,22 +47,14 @@ static constexpr Brand reply_brand_mask = Brand(1) << 63;
 Context::Context(Generation g, Body & body)
   : Object{g},
     _body(body) {
-  body.ctx_item.owner = this;
-  body.sender_item.owner = this;
-  body.expected_reply_brand = reply_brand_mask;
-}
-
-void Context::nullify_received_keys() {
   // Had to do this somewhere, this is as good a place as any.
   // (The fields in question are private, so this can't be at top level.)
-  // (Putting it in the ctor hits the ill-defined non-trivial ctor rules.)
   static_assert(K_CONTEXT_BODY_OFFSET == __builtin_offsetof(Context, _body),
                 "K_CONTEXT_BODY_OFFSET is wrong");
 
-  // Right, actual implementation now:
-  for (unsigned i = 0; i < config::n_message_keys; ++i) {
-    _body.keys[i] = Key::null();
-  }
+  body.ctx_item.owner = this;
+  body.sender_item.owner = this;
+  body.expected_reply_brand = reply_brand_mask;
 }
 
 KeysRef Context::get_receive_keys() {
@@ -109,7 +106,7 @@ void Context::complete_receive(BlockingSender * sender) {
 
 void Context::complete_receive(Exception e, uint32_t param) {
   _body.save.sys = { Message::failure(e, param), 0 };
-  nullify_received_keys();
+  // Leave keys as-is so caller can retry or whatever.
 }
 
 void Context::block_in_receive(List<Context> & list) {

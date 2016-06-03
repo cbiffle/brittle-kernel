@@ -89,8 +89,6 @@ public:
     return _body.state == State::receiving && !_body.ctx_item.is_linked();
   }
 
-  void nullify_received_keys();
-
   uint32_t do_ipc(uint32_t stack, Descriptor);
   void do_key_op(uint32_t sysnum, Descriptor);
 
