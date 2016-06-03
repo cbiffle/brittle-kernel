@@ -95,6 +95,13 @@ public:
   void apply_to_mpu();
 
   /*
+   * Inserts this Context onto the runnable list and pends a context switch.
+   * Mostly used as an internal implementation factor of state changes, this
+   * function is also used to initialize the scheduler with the first context.
+   */
+  void make_runnable();
+
+  /*
    * Context-specific analog to complete_send.  Notifies the Context of a
    * receive operation that was able to complete without blocking, giving it a
    * chance to transfer the message.
@@ -129,11 +136,6 @@ public:
    * This overload exists primarily for unblocking a blocked context.
    */
   void complete_blocked_receive(Exception, uint32_t = 0);
-
-  /*
-   * Switches a Context to runnable state, aborting any IPC in progress.
-   */
-  void make_runnable();
 
 
   /*************************************************************

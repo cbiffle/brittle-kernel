@@ -126,21 +126,14 @@ void Context::block_in_reply() {
 }
 
 void Context::complete_blocked_receive(Brand const & brand, Sender * sender) {
-  runnable.insert(&_body.ctx_item);
-  _body.state = State::runnable;
-
-  pend_switch();
+  make_runnable();
 
   _body.save.sys.m = sender->on_delivery(get_receive_keys());
   _body.save.sys.brand = brand;
 }
 
 void Context::complete_blocked_receive(Exception e, uint32_t param) {
-  runnable.insert(&_body.ctx_item);
-  _body.state = State::runnable;
-
-  pend_switch();
-
+  make_runnable();
   complete_receive(e, param);
 }
 
@@ -163,30 +156,9 @@ void Context::apply_to_mpu() {
 }
 
 void Context::make_runnable() {
-  switch (_body.state) {
-    case State::sending:
-      _body.sender_item.unlink();
-      on_blocked_delivery_aborted();
-      break;
-
-    case State::receiving:
-      if (is_awaiting_reply()) {
-        // Invalidate any outstanding reply keys.
-        _body.expected_reply_brand =
-          (_body.expected_reply_brand + 1) | reply_brand_mask;
-      }
-      _body.ctx_item.unlink();
-      complete_blocked_receive(Exception::would_block);
-      break;
-
-    case State::stopped:
-      runnable.insert(&_body.ctx_item);
-      _body.state = State::runnable;
-      break;
-
-    case State::runnable:
-      break;
-  }
+  runnable.insert(&_body.ctx_item);
+  _body.state = State::runnable;
+  pend_switch();
 }
 
 
@@ -247,10 +219,7 @@ void Context::block_in_send(Brand const & brand, List<BlockingSender> & list) {
 }
 
 ReceivedMessage Context::on_blocked_delivery(KeysRef k) {
-  runnable.insert(&_body.ctx_item);
-  _body.state = State::runnable;
-
-  pend_switch();
+  make_runnable();
   return {
     .m = on_delivery(k),
     .brand = _body.saved_brand,
@@ -258,9 +227,7 @@ ReceivedMessage Context::on_blocked_delivery(KeysRef k) {
 }
 
 void Context::on_blocked_delivery_aborted() {
-  runnable.insert(&_body.ctx_item);
-  _body.state = State::runnable;
-  pend_switch();
+  make_runnable();
 
   _body.save.sys = { Message::failure(Exception::would_block), 0 };
 }
@@ -391,8 +358,29 @@ void Context::handle_protocol(Brand const &, Sender * sender) {
       return;
 
     case S::make_runnable:
-      make_runnable();
-      pend_switch();
+      switch (_body.state) {
+        case State::sending:
+          _body.sender_item.unlink();
+          on_blocked_delivery_aborted();
+          break;
+
+        case State::receiving:
+          if (is_awaiting_reply()) {
+            // Invalidate any outstanding reply keys.
+            _body.expected_reply_brand =
+              (_body.expected_reply_brand + 1) | reply_brand_mask;
+          }
+          _body.ctx_item.unlink();
+          complete_blocked_receive(Exception::would_block);
+          break;
+
+        case State::stopped:
+          make_runnable();
+          break;
+
+        case State::runnable:
+          break;
+      }
       return;
 
     case S::get_priority:

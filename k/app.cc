@@ -207,7 +207,7 @@ static void prepare_first_context() {
   // Provide initial authority.
   first_context->key(1) = ot.make_key(0).ref();
 
-  // Make it runnable.
+  // Make it runnable.  This also pends a context switch.
   first_context->make_runnable();
 }
 
@@ -272,9 +272,9 @@ static void initialize_app() {
 
 __attribute__((noreturn))
 static void start_scheduler() {
-  // Designate our first context as the scheduler's 'current' context.
-  current = first_context;
-  current->apply_to_mpu();
+  // We pended a context switch as a side effect of prepare_first_context.
+  // Apply it now to initialize the scheduler state.
+  do_deferred_switch();
 
   asm volatile (
       "msr MSP, %0\n"       // Reset main stack pointer.
