@@ -6,9 +6,12 @@ namespace k {
 
 __attribute__((naked))
 void panic(char const * message) {
+  // Mark 'message' as an input, to ensure it remains in registers after LTO.
+  // (Otherwise debugging gets harder.)
   asm volatile (
       "cpsid i \n"
-      "b .");
+      "b ."
+      :: "r"(message));
 }
 
 }  // namespace k
