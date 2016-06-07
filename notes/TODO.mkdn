@@ -6,7 +6,7 @@ Particularly evaluate tradeoffs vs. implementing a similar facility as an
 unprivileged process.
 
 Identify and implement any fast paths necessary in IPC.  Context-Gate-Context
-seems like a potential candidate, as does Context-ReplyGate-Context.
+seems like a potential candidate, as does Context-Context via a reply key.
 
 Should the Null Object be distinct from the behavior of a revoked key?  e.g.
 should revoked keys escalate to a supervisor, like a fault, or throw a very
