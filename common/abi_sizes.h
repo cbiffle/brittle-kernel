@@ -26,7 +26,7 @@ static constexpr unsigned
   object_head_size = 32,  // object table entry size
   context_size = 448,
   gate_size = k::config::n_priorities * 16,
-  interrupt_size = 32 + k::config::n_priorities * 8;
+  interrupt_size = 48;
 
 constexpr unsigned log2floor(unsigned x) {
   return (x < 2) ? 0

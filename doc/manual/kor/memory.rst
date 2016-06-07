@@ -271,7 +271,7 @@ of the message fields/keys are given in the table below.
     - ---
   * - Interrupt
     - 2
-    - 32 + 8P
+    - 48
     - Vector number (-1 for SysTick)
     - ---
 
