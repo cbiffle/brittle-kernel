@@ -5,4 +5,6 @@
 # - Excluding unit tests.
 # - Excluding SoC-specific bridge code.
 
+ROOT="$(dirname $0)"
+cd "$ROOT"
 sloccount $(ls *.c *.cc *.h *.S | grep -v _test | grep -v stm32f4)
