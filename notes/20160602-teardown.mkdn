@@ -1,0 +1,59 @@
+The current Invalidate verb is kind of fuzzy.  Here's what I need.
+
+Teardown of objects that contain queues (for example) is a multi-step process
+and cannot be done in the kernel.  The system is responsible.
+
+The system needs a way to atomically isolate an object for teardown, so that
+these multi-step processes aren't visible.  Then, it disassembles the object's
+structure, and finally destroys it.
+
+The "isolate" operation must not have preconditions.
+
+The "destroy" operation will definitely have preconditions.
+
+
+
+Isolate establishes this condition: the isolated object cannot be reached by
+programs, for either inspection or mutation, except through the key returned by
+isolate.
+
+- Any outstanding keys are invalidated.
+- The object is removed from any lists of objects waiting to be affected (e.g. a
+  list of blocking receivers or senders, or the Runnable list).
+
+This seems like a workable definition.  Combined that the requirement that
+isolation execute in constant time, what are the implications for kernel
+objects?  (In addition to invalidating keys.)
+
+Null, Object Table, Slot, and Gate currently need no special action.
+Isolating the singletons is weird; isolating Null is particularly weird (since
+after key invalidation, the invalidated keys turn back into valid Null keys).
+
+Context:
+- Unlink `ctx_item` to ensure it cannot receive a message or be scheduled.
+- Unlink `sender_item` to ensure its outgoing message cannot be received.
+- Advance `expected_reply_brand` to invalidate any outstanding reply keys.
+
+Interrupt:
+- Interrupt gets disabled.
+- TBD: interrupt gets unbound from the redirect table?  After disabling the
+  interrupt this is not technically necessary.  And there is currently no way to
+  rebind.
+- Unlink `sender_item` so any pending Interrupt message won't be received.
+- Note: may want to take an additional step to flag an outstanding but not yet
+  received interrupt as pending.
+
+Memory:
+- This one is interesting.  If isolation leaves the memory hierarchy intact,
+  which it must, any ability to *navigate* the hierarchy would break isolation.
+  Currently no such facility is provided, but.  This is an architectural
+  argument for leaving any hierarchy-tracking in system-space.
+
+
+So, which objects need teardown work between isolate and destroy?  Turns out
+that, at the moment, it's just Gate.
+
+Context will need work if/when we start maintaining a list of pending callers.
+
+
+
